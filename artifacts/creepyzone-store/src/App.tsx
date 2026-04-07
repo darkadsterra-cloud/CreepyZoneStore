@@ -4,9 +4,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
 import { ParticleEffects } from "@/components/particle-effects";
 import { ChatWidget } from "@/components/chat-widget";
 import Home from "@/pages/home";
+import About from "@/pages/about";
 import Products from "@/pages/products";
 import ProductDetail from "@/pages/product-detail";
 import Cart from "@/pages/cart";
@@ -31,6 +33,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/about" component={About} />
       <Route path="/products" component={Products} />
       <Route path="/products/:id" component={ProductDetail} />
       <Route path="/cart" component={Cart} />
@@ -51,12 +54,13 @@ function App() {
       <AuthProvider>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-background flex flex-col">
               <ParticleEffects />
               <Navbar />
-              <main>
+              <main className="flex-1">
                 <Router />
               </main>
+              <Footer />
               <ChatWidget />
             </div>
           </WouterRouter>
