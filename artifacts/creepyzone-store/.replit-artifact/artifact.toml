@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CreepyZone Store"
+version = "1.0.0"
+id = "artifacts/creepyzone-store"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19192
+
+[services.development]
+run = "pnpm --filter @workspace/creepyzone-store run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/creepyzone-store", "run", "build" ]
+publicDir = "artifacts/creepyzone-store/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19192"
+BASE_PATH = "/"

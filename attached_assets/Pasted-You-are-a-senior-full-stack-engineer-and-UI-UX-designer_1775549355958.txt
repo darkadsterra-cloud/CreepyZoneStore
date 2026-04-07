@@ -1,0 +1,173 @@
+You are a senior full-stack engineer and UI/UX designer. Build a production-ready eCommerce platform for selling digital products (stream overlays, animations, bundles, assets).
+
+🧠 Project Identity
+Website Name: CreepyZone Store (preferred over “shop” for branding)
+Theme: Dark horror / cinematic / glitch / lava / blood aesthetic
+Inspiration: Horror streaming setups, underground hacker vibe, cinematic red lighting
+⚠️ CRITICAL REQUIREMENT (VERY IMPORTANT)
+
+This project must be:
+
+NOT tied to Replit-specific environment
+Fully portable and deployable on:
+VPS
+cPanel hosting
+Vercel / Netlify (frontend)
+Railway / Render (backend)
+Must run locally using:
+npm install
+npm run dev
+
+DO NOT use:
+
+Replit-specific database
+Replit-specific secrets system
+Hardcoded environment paths
+
+USE:
+
+.env files
+Standard Node.js practices
+🏗️ Tech Stack
+Frontend: Next.js (App Router)
+Backend: Next.js API routes OR Express (clean separation)
+Database: MongoDB (Mongoose)
+Auth:
+Email/password (JWT)
+Google OAuth login
+Styling:
+Tailwind CSS
+Custom horror animations (NO GIFs)
+Payments:
+Stripe (international payments)
+Storage:
+Digital product files stored securely (protected download links)
+🎨 UI / DESIGN REQUIREMENTS (VERY IMPORTANT)
+🌑 Theme Style
+Dark black + deep red color palette
+Glow effects (neon red, lava orange)
+Smoke / ember / fire particle effects (CSS or canvas)
+Subtle animations:
+Blood dripping (CSS animation)
+Floating ash/fire sparks
+Heat/lava glow pulses
+🔥 Typography
+Use cinematic horror fonts
+Titles: bold, glowing red
+Subtle glitch effect on hover
+🎬 Background
+Use:
+CSS animations OR
+Optional video background (no GIFs)
+Allow easy replacement of videos later
+🛍️ Core Features
+👤 Authentication
+Register / Login
+Google OAuth login
+JWT session handling
+Secure password hashing (bcrypt)
+🧾 Digital Products
+Product types:
+Stream overlays
+Animated alerts
+Bundles
+Each product includes:
+Title
+Description
+Preview (image/video)
+Price
+Download file (protected)
+🛒 Cart System
+Add/remove items
+Persistent cart
+Clean UI with animation
+💳 Payment System
+Stripe Checkout
+After payment:
+Save order
+Generate secure download links
+Show “Download Products” page
+📦 Orders
+User can:
+View purchases
+Download files anytime
+🤖 AI Chat Assistant (Floating)
+Bottom-right floating chat widget
+Horror-themed UI (glow red icon)
+Simple AI assistant:
+Answers FAQs
+Helps users find products
+Can be mock AI or OpenAI-based
+🎧 Spotify Music Player
+Embedded Spotify player
+Floating or sidebar player
+User can:
+Play / pause music
+Should NOT autoplay (respect browser rules)
+🧑‍💼 Admin Panel
+Admin login
+Add/edit/delete products
+Upload digital files
+View users
+View orders
+🔐 Security
+Protect download routes
+Only buyers can download files
+Validate all inputs
+Use environment variables for:
+MongoDB URI
+JWT secret
+Google OAuth keys
+Stripe keys
+📁 Folder Structure
+
+/project-root
+/client (if separated)
+/server
+/components
+/pages or /app
+/models
+/routes
+/controllers
+/public
+.env
+package.json
+
+✨ Animations (IMPORTANT)
+
+DO NOT use GIFs.
+
+USE:
+
+CSS keyframes
+Canvas particles
+WebGL (optional)
+
+Examples:
+
+Blood drip from navbar
+Fire embers floating upward
+Flickering neon text
+Hover glow effects
+🎯 UX REQUIREMENTS
+Smooth transitions
+Loading animations
+Sound design optional (muted by default)
+Premium “gaming/horror” feel
+📦 Deployment Ready
+Must work after:
+Download as ZIP
+Extract locally
+Include:
+README.md with setup instructions
+No broken paths
+No Replit-only configs
+🧪 Final Output Requirements
+Full working code
+Clean, modular structure
+Comments explaining key logic
+No placeholder junk
+Fully connected frontend + backend
+🎯 Goal
+
+Create a high-end, cinematic horror-themed digital marketplace that feels like a premium brand—not a basic template.
