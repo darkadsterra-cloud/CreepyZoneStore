@@ -1,3 +1,4 @@
-require('../artifacts/api-server/src/app');
-const app = require('../artifacts/api-server/src/app').default;
-module.exports = app;
+module.exports = async (req, res) => {
+  const { default: app } = await import('../artifacts/api-server/src/app.ts');
+  return app(req, res);
+};
