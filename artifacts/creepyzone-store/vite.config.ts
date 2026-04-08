@@ -44,6 +44,9 @@ function serveAttachedAssetsPlugin() {
             ".png": "image/png",
             ".gif": "image/gif",
             ".webp": "image/webp",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+            ".mov": "video/quicktime",
           };
           res.setHeader("Content-Type", mimeTypes[ext] || "application/octet-stream");
           res.setHeader("Cache-Control", "public, max-age=31536000");

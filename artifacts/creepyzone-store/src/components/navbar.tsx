@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useGetMe, useGetCart } from "@workspace/api-client-react";
-import { ShoppingCart, User, LogOut, ChevronDown } from "lucide-react";
+import { ShoppingCart, User, LogOut, ChevronDown, Search, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
 import logoImg from "@assets/WhatsApp-Image-2026-04-05-at-2.43.53-PM_1775551028444.jpg";
@@ -27,7 +27,11 @@ export function Navbar() {
   const { data: cart } = useGetCart({ query: { enabled: isAuthenticated, queryKey: ["/api/cart"] } });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const catalogRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const [, setLocation] = useLocation();
 
   const cartItemsCount = cart?.items?.length || 0;
 
@@ -41,9 +45,24 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50);
+  }, [searchOpen]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) {
+      setLocation(`/products?search=${encodeURIComponent(q)}`);
+      setSearchOpen(false);
+      setSearchQuery("");
+      setMobileOpen(false);
+    }
+  };
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-red-900/30 bg-black/90 backdrop-blur-md">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
@@ -52,7 +71,7 @@ export function Navbar() {
           <span className="font-creepster text-xl neon-text tracking-wider hidden sm:block">CreepyZone Store</span>
         </Link>
 
-        {/* Desktop Nav - only 3 links */}
+        {/* Desktop Nav */}
         <div className="hidden lg:flex items-center space-x-8">
           <Link href="/" className="text-gray-300 hover:text-red-500 hover-glitch transition-colors uppercase tracking-widest text-sm font-semibold">
             Home
@@ -81,12 +100,9 @@ export function Navbar() {
                   </Link>
                   <div className="grid grid-cols-1 gap-0.5">
                     {CATEGORIES.map(cat => (
-                      <Link
-                        key={cat.slug}
-                        href={`/products?category=${cat.slug}`}
+                      <Link key={cat.slug} href={`/products?category=${cat.slug}`}
                         onClick={() => setCatalogOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-red-950/20 transition-colors"
-                      >
+                        className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white hover:bg-red-950/20 transition-colors">
                         <span className="text-sm">{cat.icon}</span>
                         <span className="text-xs uppercase tracking-wider">{cat.label}</span>
                       </Link>
@@ -98,8 +114,41 @@ export function Navbar() {
           </div>
         </div>
 
+        {/* Search Bar — expands inline on desktop */}
+        <div className="flex-1 max-w-xs hidden lg:block">
+          {searchOpen ? (
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <div className="flex-1 flex items-center border border-red-600/60 bg-black/80">
+                <Search className="w-4 h-4 text-red-500 mx-3 flex-shrink-0" />
+                <input
+                  ref={searchRef}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Search products..."
+                  className="flex-1 bg-transparent py-2 pr-3 text-white text-sm outline-none placeholder-gray-600"
+                />
+                <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                  className="px-2 text-gray-600 hover:text-red-500 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button onClick={() => setSearchOpen(true)}
+              className="w-full flex items-center gap-3 border border-red-900/20 hover:border-red-700/40 px-3 py-2 text-gray-600 hover:text-gray-400 transition-all text-sm">
+              <Search className="w-4 h-4" />
+              <span className="text-xs uppercase tracking-widest">Search products...</span>
+            </button>
+          )}
+        </div>
+
         {/* Right Side */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
+          {/* Mobile search icon */}
+          <button onClick={() => setSearchOpen(!searchOpen)} className="lg:hidden text-gray-400 hover:text-red-500 transition-colors">
+            <Search className="w-5 h-5" />
+          </button>
+
           <Link href="/cart" className="relative text-gray-300 hover:text-red-500 transition-colors">
             <ShoppingCart className="w-6 h-6" />
             {cartItemsCount > 0 && (
@@ -110,7 +159,7 @@ export function Navbar() {
           </Link>
 
           {isAuthenticated ? (
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <Link href="/orders" className="text-gray-300 hover:text-red-500 transition-colors">
                 <User className="w-5 h-5" />
               </Link>
@@ -142,6 +191,27 @@ export function Navbar() {
           </button>
         </div>
       </div>
+
+      {/* Mobile search bar */}
+      {searchOpen && (
+        <div className="lg:hidden border-t border-red-900/20 bg-black/95 px-4 py-3">
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="flex-1 flex items-center border border-red-600/60 bg-black/80">
+              <Search className="w-4 h-4 text-red-500 mx-3 flex-shrink-0" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                autoFocus
+                className="flex-1 bg-transparent py-2.5 pr-3 text-white text-sm outline-none placeholder-gray-600"
+              />
+            </div>
+            <button type="submit" className="px-4 py-2.5 bg-red-700 text-white text-xs uppercase tracking-widest font-bold border border-red-500">
+              Go
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Mobile Menu */}
       {mobileOpen && (
