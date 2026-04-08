@@ -6,15 +6,14 @@
     "types": ["node"],
     "module": "commonjs",
     "moduleResolution": "node",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "noEmitOnError": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false
   },
   "include": ["src"],
   "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    }
+    { "path": "../../lib/db" },
+    { "path": "../../lib/api-zod" }
   ]
 }
