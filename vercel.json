@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "pnpm --filter @workspace/creepyzone-store run build",
+  "buildCommand": "pnpm --filter @workspace/creepyzone-store run build && pnpm --filter @workspace/api-server run build",
   "outputDirectory": "artifacts/creepyzone-store/dist/public",
   "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": null,
@@ -9,12 +9,8 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/index.js": {
+    "api/index.ts": {
       "maxDuration": 30
     }
-  },
-  "env": {
-    "TSC_COMPILE_ON_ERROR": "true",
-    "NEXT_DISABLE_ESLINT": "1"
   }
 }
