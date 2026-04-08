@@ -45,5 +45,30 @@ Thumbs.db
 .github/instructions/nx.instructions.md
 
 # Replit
+.replit
+.replitignore
+.npmrc
 .cache/
 .local/
+
+# Assets
+attached_assets/
+
+# Vercel
+.vercel
+.vercel_output
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+artifacts/*/dist
+artifacts/*/build
+
+# Logs
+*.log
+logs/
