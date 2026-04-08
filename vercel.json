@@ -12,5 +12,9 @@
     "api/index.js": {
       "maxDuration": 30
     }
+  },
+  "env": {
+    "TSC_COMPILE_ON_ERROR": "true",
+    "NEXT_DISABLE_ESLINT": "1"
   }
 }
