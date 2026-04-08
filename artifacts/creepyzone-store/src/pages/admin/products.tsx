@@ -16,6 +16,216 @@ interface ProductForm {
 }
 const EMPTY_FORM: ProductForm = { title:"",description:"",price:9.99,category:"overlay",previewImageUrl:"",downloadFileName:"",featured:false,previewVideoUrl:"" };
 
+interface UploadBoxProps {
+  type: "product"|"image";
+  uploading: boolean;
+  uploadedProduct: {name:string;url:string}|null;
+  uploadedImage: {url:string}|null;
+  onUploadProduct: (file: File) => void;
+  onUploadImage: (file: File) => void;
+}
+
+function UploadBox({ type, uploading, uploadedProduct, uploadedImage, onUploadProduct, onUploadImage }: UploadBoxProps) {
+  const ref = useRef<HTMLInputElement>(null);
+  const isProduct = type === "product";
+  const isUploading = uploading;
+  const uploaded = isProduct ? uploadedProduct : uploadedImage;
+  const accept = isProduct ? ".zip,.rar,.7z,.png,.jpg,.mp4,.webm" : ".jpg,.jpeg,.png,.gif,.webp";
+
+  return (
+    <div
+      className={`border-2 border-dashed ${uploaded ? "border-green-600/50 bg-green-950/10" : "border-red-900/30 hover:border-red-600/50"} transition-all cursor-pointer`}
+      onClick={() => ref.current?.click()}
+    >
+      <input ref={ref} type="file" accept={accept} className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) isProduct ? onUploadProduct(f) : onUploadImage(f); e.target.value=""; }} />
+      <div className="p-4 text-center">
+        {isUploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-400">Uploading...</span>
+          </div>
+        ) : uploaded ? (
+          <div className="flex flex-col items-center gap-2">
+            <CheckCircle className="w-8 h-8 text-green-500" />
+            <span className="text-xs text-green-400 font-bold">
+              {isProduct ? (uploaded as any).name : "Image uploaded"}
+            </span>
+            <span className="text-xs text-gray-500">Click to replace</span>
+            {!isProduct && (uploaded as any).url && (
+              <img src={(uploaded as any).url} alt="Preview" className="w-20 h-20 object-cover border border-green-700/30 mt-1" />
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-2">
+            {isProduct ? <FileArchive className="w-8 h-8 text-red-500/50" /> : <Image className="w-8 h-8 text-red-500/50" />}
+            <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+              {isProduct ? "Upload Product File" : "Upload Preview Image"}
+            </span>
+            <span className="text-xs text-gray-600">
+              {isProduct ? "ZIP, RAR, PNG, MP4, WEBM (max 200MB)" : "JPG, PNG, GIF, WEBP (max 20MB)"}
+            </span>
+            <div className="flex items-center gap-2 mt-1 px-4 py-1.5 border border-red-800/50 text-red-500 text-xs uppercase tracking-widest hover:bg-red-950/20">
+              <Upload className="w-3 h-3" /> Choose File
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface FormFieldsProps {
+  form: ProductForm;
+  setForm: React.Dispatch<React.SetStateAction<ProductForm>>;
+  isUpdate?: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  loading: boolean;
+  uploadingProduct: boolean;
+  uploadingImage: boolean;
+  uploadedProduct: {name:string;url:string}|null;
+  uploadedImage: {url:string}|null;
+  onUploadProduct: (file: File) => void;
+  onUploadImage: (file: File) => void;
+}
+
+function FormFields({
+  form, setForm, isUpdate, onSubmit, onCancel, loading,
+  uploadingProduct, uploadingImage, uploadedProduct, uploadedImage,
+  onUploadProduct, onUploadImage,
+}: FormFieldsProps) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Product Title *</label>
+          <input
+            value={form.title}
+            onChange={e => setForm(f => ({...f, title: e.target.value}))}
+            required
+            placeholder="e.g. Blood Moon Horror Overlay Bundle"
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
+          />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Description *</label>
+          <textarea
+            value={form.description}
+            onChange={e => setForm(f => ({...f, description: e.target.value}))}
+            required
+            rows={4}
+            placeholder="Describe what's included, compatible software, file formats, usage instructions..."
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Price (USD) *</label>
+          <input
+            type="number" step="0.01" min="0.99"
+            value={form.price}
+            onChange={e => setForm(f => ({...f, price: parseFloat(e.target.value)||0}))}
+            required
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Category *</label>
+          <select
+            value={form.category}
+            onChange={e => setForm(f => ({...f, category: e.target.value as Category}))}
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
+          >
+            {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="border border-red-900/20 p-4 bg-black/20 space-y-4">
+        <h3 className="text-xs text-red-500 uppercase tracking-widest font-bold flex items-center gap-2">
+          <Upload className="w-3 h-3" /> Product Files
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Download File (ZIP/Pack)</label>
+            <UploadBox
+              type="product"
+              uploading={uploadingProduct}
+              uploadedProduct={uploadedProduct}
+              uploadedImage={uploadedImage}
+              onUploadProduct={onUploadProduct}
+              onUploadImage={onUploadImage}
+            />
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">Or enter filename manually:</label>
+              <input
+                value={form.downloadFileName}
+                onChange={e => setForm(f => ({...f, downloadFileName: e.target.value}))}
+                required
+                placeholder="product-pack.zip"
+                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Preview Image</label>
+            <UploadBox
+              type="image"
+              uploading={uploadingImage}
+              uploadedProduct={uploadedProduct}
+              uploadedImage={uploadedImage}
+              onUploadProduct={onUploadProduct}
+              onUploadImage={onUploadImage}
+            />
+            <div className="mt-2">
+              <label className="block text-xs text-gray-600 mb-1">Or enter image URL:</label>
+              <input
+                value={form.previewImageUrl}
+                onChange={e => setForm(f => ({...f, previewImageUrl: e.target.value}))}
+                required
+                placeholder="https://... or upload above"
+                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
+              />
+            </div>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Preview Video URL (optional)</label>
+          <input
+            value={form.previewVideoUrl}
+            onChange={e => setForm(f => ({...f, previewVideoUrl: e.target.value}))}
+            placeholder="https://youtube.com/... or https://... .mp4"
+            className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox" id={`feat-${isUpdate ? "ed" : "new"}`}
+          checked={form.featured}
+          onChange={e => setForm(f => ({...f, featured: e.target.checked}))}
+          className="w-4 h-4 accent-red-500"
+        />
+        <label htmlFor={`feat-${isUpdate ? "ed" : "new"}`} className="text-gray-300 text-sm">
+          <span className="text-yellow-500">★</span> Feature this product on homepage
+        </label>
+      </div>
+
+      <div className="flex justify-end gap-3 pt-2 border-t border-red-900/20">
+        <button type="button" onClick={onCancel}
+          className="px-6 py-2 border border-red-900/30 text-gray-500 hover:text-white text-sm uppercase tracking-widest">
+          Cancel
+        </button>
+        <button type="submit" disabled={loading}
+          className="px-8 py-2 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 disabled:opacity-50">
+          {loading ? "Saving..." : isUpdate ? "Update Product" : "Create Product"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function AdminProducts() {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -28,8 +238,6 @@ export default function AdminProducts() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadedProductFile, setUploadedProductFile] = useState<{name:string;url:string}|null>(null);
   const [uploadedImageFile, setUploadedImageFile] = useState<{url:string}|null>(null);
-  const productFileRef = useRef<HTMLInputElement>(null);
-  const imageFileRef = useRef<HTMLInputElement>(null);
 
   const { data: me } = useGetMe({ query: { enabled: isAuthenticated }});
   const { data, isLoading } = useListProducts({}, { query: { enabled: isAuthenticated && me?.role==="admin" }});
@@ -39,7 +247,6 @@ export default function AdminProducts() {
 
   const products = data?.products ?? [];
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-
   const getToken = () => localStorage.getItem("creepyzone_token") ?? "";
 
   const handleUploadProduct = async (file: File) => {
@@ -104,16 +311,21 @@ export default function AdminProducts() {
     setShowCreate(false);
   };
 
+  const resetForm = () => {
+    setShowCreate(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setUploadedProductFile(null);
+    setUploadedImageFile(null);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await createProduct.mutateAsync({ data: { ...form, price: Number(form.price), previewVideoUrl: form.previewVideoUrl||null }});
       invalidate();
       toast({ title: "Product created" });
-      setShowCreate(false);
-      setForm(EMPTY_FORM);
-      setUploadedProductFile(null);
-      setUploadedImageFile(null);
+      resetForm();
     } catch (err: any) { toast({ title: "Error", description: err?.message, variant: "destructive" }); }
   };
 
@@ -142,143 +354,6 @@ export default function AdminProducts() {
     </div>;
   }
 
-  const UploadBox = ({ type }: { type: "product"|"image" }) => {
-    const isProduct = type === "product";
-    const isUploading = isProduct ? uploadingProduct : uploadingImage;
-    const uploaded = isProduct ? uploadedProductFile : uploadedImageFile;
-    const ref = isProduct ? productFileRef : imageFileRef;
-    const accept = isProduct ? ".zip,.rar,.7z,.png,.jpg,.mp4,.webm" : ".jpg,.jpeg,.png,.gif,.webp";
-
-    return (
-      <div className={`border-2 border-dashed ${uploaded ? "border-green-600/50 bg-green-950/10" : "border-red-900/30 hover:border-red-600/50"} transition-all cursor-pointer`}
-        onClick={() => ref.current?.click()}>
-        <input ref={ref} type="file" accept={accept} className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) isProduct ? handleUploadProduct(f) : handleUploadImage(f); e.target.value=""; }} />
-        <div className="p-4 text-center">
-          {isUploading ? (
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-gray-400">Uploading...</span>
-            </div>
-          ) : uploaded ? (
-            <div className="flex flex-col items-center gap-2">
-              <CheckCircle className="w-8 h-8 text-green-500" />
-              <span className="text-xs text-green-400 font-bold">
-                {isProduct ? (uploaded as any).name : "Image uploaded"}
-              </span>
-              <span className="text-xs text-gray-500">Click to replace</span>
-              {!isProduct && (uploaded as any).url && (
-                <img src={(uploaded as any).url} alt="Preview" className="w-20 h-20 object-cover border border-green-700/30 mt-1" />
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-2">
-              {isProduct ? <FileArchive className="w-8 h-8 text-red-500/50" /> : <Image className="w-8 h-8 text-red-500/50" />}
-              <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">
-                {isProduct ? "Upload Product File" : "Upload Preview Image"}
-              </span>
-              <span className="text-xs text-gray-600">
-                {isProduct ? "ZIP, RAR, PNG, MP4, WEBM (max 200MB)" : "JPG, PNG, GIF, WEBP (max 20MB)"}
-              </span>
-              <div className="flex items-center gap-2 mt-1 px-4 py-1.5 border border-red-800/50 text-red-500 text-xs uppercase tracking-widest hover:bg-red-950/20">
-                <Upload className="w-3 h-3" /> Choose File
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const FormFields = ({ isUpdate, onSubmit, loading }: { isUpdate?:boolean; onSubmit:(e:React.FormEvent)=>void; loading:boolean }) => (
-    <form onSubmit={onSubmit} className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Product Title *</label>
-          <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} required
-            placeholder="e.g. Blood Moon Horror Overlay Bundle"
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Description *</label>
-          <textarea value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} required rows={4}
-            placeholder="Describe what's included, compatible software, file formats, usage instructions..."
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white resize-none" />
-        </div>
-        <div>
-          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Price (USD) *</label>
-          <input type="number" step="0.01" min="0.99" value={form.price}
-            onChange={e=>setForm(f=>({...f,price:parseFloat(e.target.value)||0}))} required
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white" />
-        </div>
-        <div>
-          <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Category *</label>
-          <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value as Category}))}
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white">
-            {CATEGORIES.map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* File Upload Section */}
-      <div className="border border-red-900/20 p-4 bg-black/20 space-y-4">
-        <h3 className="text-xs text-red-500 uppercase tracking-widest font-bold flex items-center gap-2">
-          <Upload className="w-3 h-3" /> Product Files
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Product File Upload */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Download File (ZIP/Pack)</label>
-            <UploadBox type="product" />
-            <div className="mt-2">
-              <label className="block text-xs text-gray-600 mb-1">Or enter filename manually:</label>
-              <input value={form.downloadFileName} onChange={e=>setForm(f=>({...f,downloadFileName:e.target.value}))} required
-                placeholder="product-pack.zip"
-                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm" />
-            </div>
-          </div>
-
-          {/* Image Upload */}
-          <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Preview Image</label>
-            <UploadBox type="image" />
-            <div className="mt-2">
-              <label className="block text-xs text-gray-600 mb-1">Or enter image URL:</label>
-              <input value={form.previewImageUrl} onChange={e=>setForm(f=>({...f,previewImageUrl:e.target.value}))} required
-                placeholder="https://... or upload above"
-                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm" />
-            </div>
-          </div>
-        </div>
-
-        {/* Video URL */}
-        <div>
-          <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Preview Video URL (optional)</label>
-          <input value={form.previewVideoUrl} onChange={e=>setForm(f=>({...f,previewVideoUrl:e.target.value}))}
-            placeholder="https://youtube.com/... or https://... .mp4"
-            className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm" />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <input type="checkbox" id={`feat-${isUpdate?'ed':'new'}`} checked={form.featured}
-          onChange={e=>setForm(f=>({...f,featured:e.target.checked}))} className="w-4 h-4 accent-red-500" />
-        <label htmlFor={`feat-${isUpdate?'ed':'new'}`} className="text-gray-300 text-sm">
-          <span className="text-yellow-500">★</span> Feature this product on homepage
-        </label>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-2 border-t border-red-900/20">
-        <button type="button" onClick={()=>{setShowCreate(false);setEditingId(null);setForm(EMPTY_FORM);setUploadedProductFile(null);setUploadedImageFile(null);}}
-          className="px-6 py-2 border border-red-900/30 text-gray-500 hover:text-white text-sm uppercase tracking-widest">Cancel</button>
-        <button type="submit" disabled={loading}
-          className="px-8 py-2 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 disabled:opacity-50">
-          {loading ? "Saving..." : isUpdate ? "Update Product" : "Create Product"}
-        </button>
-      </div>
-    </form>
-  );
-
   return (
     <div className="min-h-screen py-10 px-4">
       <div className="max-w-7xl mx-auto">
@@ -287,8 +362,10 @@ export default function AdminProducts() {
             <p className="text-red-500 uppercase tracking-[0.5em] text-xs mb-1">Admin Panel</p>
             <h1 className="font-creepster text-4xl text-white">Product Manager</h1>
           </div>
-          <button onClick={()=>{setShowCreate(!showCreate);setEditingId(null);setForm(EMPTY_FORM);setUploadedProductFile(null);setUploadedImageFile(null);}}
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all">
+          <button
+            onClick={() => { setShowCreate(!showCreate); setEditingId(null); setForm(EMPTY_FORM); setUploadedProductFile(null); setUploadedImageFile(null); }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all"
+          >
             <Plus className="w-4 h-4" /> Add Product
           </button>
         </div>
@@ -304,9 +381,16 @@ export default function AdminProducts() {
               className="border border-red-900/40 bg-card p-6 mb-8 overflow-hidden">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="font-creepster text-2xl text-white">Add New Product</h2>
-                <button onClick={()=>setShowCreate(false)} className="text-gray-600 hover:text-red-500"><X className="w-5 h-5" /></button>
+                <button onClick={resetForm} className="text-gray-600 hover:text-red-500"><X className="w-5 h-5" /></button>
               </div>
-              <FormFields onSubmit={handleCreate} loading={createProduct.isPending} />
+              <FormFields
+                form={form} setForm={setForm}
+                onSubmit={handleCreate} onCancel={resetForm}
+                loading={createProduct.isPending}
+                uploadingProduct={uploadingProduct} uploadingImage={uploadingImage}
+                uploadedProduct={uploadedProductFile} uploadedImage={uploadedImageFile}
+                onUploadProduct={handleUploadProduct} onUploadImage={handleUploadImage}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -371,7 +455,16 @@ export default function AdminProducts() {
                         {editingId===product.id ? (
                           <>
                             <h3 className="font-bold text-white uppercase tracking-widest text-sm mb-4">Edit Product</h3>
-                            <FormFields isUpdate onSubmit={e=>handleUpdate(product.id,e)} loading={updateProduct.isPending} />
+                            <FormFields
+                              form={form} setForm={setForm}
+                              isUpdate
+                              onSubmit={e=>handleUpdate(product.id,e)}
+                              onCancel={resetForm}
+                              loading={updateProduct.isPending}
+                              uploadingProduct={uploadingProduct} uploadingImage={uploadingImage}
+                              uploadedProduct={uploadedProductFile} uploadedImage={uploadedImageFile}
+                              onUploadProduct={handleUploadProduct} onUploadImage={handleUploadImage}
+                            />
                           </>
                         ) : (
                           <div className="space-y-3">
