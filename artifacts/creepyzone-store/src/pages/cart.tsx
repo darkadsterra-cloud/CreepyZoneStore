@@ -6,13 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Trash2, ShoppingCart, ArrowLeft, Download, CheckCircle, CreditCard, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-
-const HORROR_IMAGES = [
-  "dataImage_🎐_Noir_Film_📽️_1775485907914_perchance_1775548165415.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485899323_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Professional_Photography_📸_1775485157465_percha_1775548205308.jpeg",
-  "dataImage_🎐_Basic_Anime_II_1775484807731_perchance_1775548205308.jpeg",
-];
+import { getImageForProduct } from "@/lib/store-images";
 
 const PAYMENT_METHODS = [
   { id: "card", label: "Credit / Debit Card", icon: "💳", note: "Visa, Mastercard, Amex" },
@@ -70,7 +64,6 @@ export default function Cart() {
     return <div className="min-h-screen flex items-center justify-center"><div className="text-red-500 font-creepster text-2xl animate-pulse">Loading...</div></div>;
   }
 
-  // Order complete screen
   if (orderComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 py-20">
@@ -86,11 +79,9 @@ export default function Cart() {
           <h1 className="font-creepster text-4xl text-white mb-3">Payment Confirmed!</h1>
           <p className="text-gray-400 mb-2">Your order has been placed successfully.</p>
           <p className="text-gray-500 text-sm mb-8">Your digital products are ready to download immediately.</p>
-
           <div className="border border-green-900/30 bg-green-950/10 p-4 mb-6">
             <p className="text-green-400 text-sm uppercase tracking-widest font-bold">Order #{completedOrderId} — Completed</p>
           </div>
-
           <Link href={completedOrderId ? `/orders/${completedOrderId}` : "/orders"}>
             <button className="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] lava-pulse border border-red-500 flex items-center justify-center gap-3 mb-4">
               <Download className="w-5 h-5" />
@@ -135,10 +126,9 @@ export default function Cart() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Left: Items */}
           <div className="lg:col-span-3 space-y-4">
             {items.map((item, i) => {
-              const imgSrc = `/@assets/${HORROR_IMAGES[i % HORROR_IMAGES.length]}`;
+              const imgSrc = item.product.previewImageUrl || getImageForProduct(item.product.id, item.product.category);
               return (
                 <motion.div key={item.productId} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{delay:i*0.1}}
                   className="flex items-center gap-4 border border-red-900/30 bg-card p-4">
@@ -164,11 +154,9 @@ export default function Cart() {
             })}
           </div>
 
-          {/* Right: Payment */}
           <div className="lg:col-span-2">
             <div className="border border-red-900/30 bg-card p-6 sticky top-20">
               <h2 className="font-creepster text-2xl text-white mb-4">Order Summary</h2>
-
               <div className="space-y-2 mb-4 border-b border-red-900/20 pb-4">
                 {items.map(item => (
                   <div key={item.productId} className="flex justify-between text-sm">
@@ -177,13 +165,11 @@ export default function Cart() {
                   </div>
                 ))}
               </div>
-
               <div className="flex justify-between items-center mb-6">
                 <span className="text-gray-400 uppercase tracking-widest text-sm">Total</span>
                 <span className="font-creepster text-3xl text-red-400">${total.toFixed(2)}</span>
               </div>
 
-              {/* Payment Methods */}
               <div className="mb-6">
                 <h3 className="text-xs text-red-500 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <CreditCard className="w-3 h-3" /> Payment Method
@@ -192,9 +178,7 @@ export default function Cart() {
                   {PAYMENT_METHODS.map(method => (
                     <label key={method.id}
                       className={`flex items-center gap-3 p-3 border cursor-pointer transition-all ${
-                        selectedPayment === method.id
-                          ? "border-red-600/60 bg-red-950/20"
-                          : "border-red-900/20 hover:border-red-800/40"
+                        selectedPayment === method.id ? "border-red-600/60 bg-red-950/20" : "border-red-900/20 hover:border-red-800/40"
                       }`}>
                       <input type="radio" name="payment" value={method.id}
                         checked={selectedPayment===method.id}
