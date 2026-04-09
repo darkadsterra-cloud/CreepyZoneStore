@@ -14,6 +14,16 @@ function safeFilename(original: string): string {
   return Date.now() + "-" + original.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+type FileType = "image" | "video" | "audio" | "animated";
+
+function getFileType(filename: string): FileType {
+  const ext = path.extname(filename).toLowerCase();
+  if ([".mp4", ".webm", ".mov"].includes(ext)) return "video";
+  if ([".mp3", ".wav", ".ogg"].includes(ext)) return "audio";
+  if ([".gif"].includes(ext)) return "animated";
+  return "image";
+}
+
 function parseMultipart(req: any): Promise<{ buffer: Buffer; filename: string; mimetype: string }> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -49,6 +59,7 @@ function parseMultipart(req: any): Promise<{ buffer: Buffer; filename: string; m
   });
 }
 
+// Product download file upload
 router.post("/admin/upload/product", async (req, res): Promise<void> => {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
@@ -66,18 +77,32 @@ router.post("/admin/upload/product", async (req, res): Promise<void> => {
   }
 });
 
+// Media upload — images, GIFs, videos, MP3
 router.post("/admin/upload/image", async (req, res): Promise<void> => {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   try {
     const { buffer, filename, mimetype } = await parseMultipart(req);
+    const fileType = getFileType(filename);
     const safeFile = safeFilename(filename);
+
+    // Store in type-specific subfolder
+    const folder = fileType === "video" ? "videos"
+      : fileType === "audio" ? "audio"
+      : fileType === "animated" ? "gifs"
+      : "images";
+
     const { error } = await supabase.storage
       .from("Uploads")
-      .upload(`images/${safeFile}`, buffer, { contentType: mimetype });
+      .upload(`${folder}/${safeFile}`, buffer, { contentType: mimetype });
     if (error) { res.status(500).json({ error: error.message }); return; }
-    const { data } = supabase.storage.from("Uploads").getPublicUrl(`images/${safeFile}`);
-    res.json({ filename: safeFile, originalName: filename, imageUrl: data.publicUrl });
+    const { data } = supabase.storage.from("Uploads").getPublicUrl(`${folder}/${safeFile}`);
+    res.json({
+      filename: safeFile,
+      originalName: filename,
+      imageUrl: data.publicUrl,
+      fileType,
+    });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
