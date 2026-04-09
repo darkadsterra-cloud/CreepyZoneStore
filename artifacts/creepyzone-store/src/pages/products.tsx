@@ -179,7 +179,16 @@ export default function Products() {
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {products.map((product, i) => {
-                  const imgSrc = product.previewImageUrl || getImageForProduct(product.id, product.category);
+                  const imgSrc = (() => {
+                    try {
+                      const p = JSON.parse(product.previewImageUrl);
+                      if (Array.isArray(p)) {
+                        const img = p.find((f: any) => f.type === "image" || f.type === "animated");
+                        return img?.url ?? p[0]?.url ?? "";
+                      }
+                    } catch {}
+                    return product.previewImageUrl || getImageForProduct(product.id, product.category);
+                  })();
                   return (
                     <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                       <Link href={`/products/${product.id}`}>
