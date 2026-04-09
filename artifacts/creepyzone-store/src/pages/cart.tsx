@@ -15,6 +15,17 @@ const PAYMENT_METHODS = [
   { id: "bank", label: "Bank Transfer", icon: "🏦", note: "Direct bank deposit" },
 ];
 
+function getDisplayImage(previewImageUrl: string, id: number, category: string): string {
+  try {
+    const parsed = JSON.parse(previewImageUrl);
+    if (Array.isArray(parsed)) {
+      const img = parsed.find((f: any) => f.type === "image" || f.type === "animated");
+      return img?.url ?? parsed[0]?.url ?? "";
+    }
+  } catch {}
+  return previewImageUrl || getImageForProduct(id, category);
+}
+
 export default function Cart() {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
@@ -128,7 +139,11 @@ export default function Cart() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3 space-y-4">
             {items.map((item, i) => {
-              const imgSrc = item.product.previewImageUrl || getImageForProduct(item.product.id, item.product.category);
+              const imgSrc = getDisplayImage(
+                item.product.previewImageUrl,
+                item.product.id,
+                item.product.category
+              );
               return (
                 <motion.div key={item.productId} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{delay:i*0.1}}
                   className="flex items-center gap-4 border border-red-900/30 bg-card p-4">
