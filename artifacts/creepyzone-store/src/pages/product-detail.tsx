@@ -5,19 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { ShoppingCart, ArrowLeft, Download, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const HORROR_IMAGES = [
-  "dataImage_🎐_Noir_Film_📽️_1775485907914_perchance_1775548165415.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485899323_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485888248_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485874382_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485724881_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485623260_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485612015_perchance_1775548165416.jpeg",
-  "dataImage_🎐_Noir_Film_📽️_1775485592557_perchance_1775548165417.jpeg",
-  "dataImage_🎐_Professional_Photography_📸_1775485167920_percha_1775548205308.jpeg",
-  "dataImage_🎐_Professional_Photography_📸_1775485157465_percha_1775548205308.jpeg",
-];
+import { getImageForProduct } from "@/lib/store-images";
 
 export default function ProductDetail() {
   const [, params] = useRoute("/products/:id");
@@ -31,7 +19,9 @@ export default function ProductDetail() {
   const addToCart = useAddToCart();
 
   const inCart = cart?.items?.some(i => i.productId === id) ?? false;
-  const imgSrc = product ? `/@assets/${HORROR_IMAGES[(product.id - 1) % HORROR_IMAGES.length]}` : "";
+  const imgSrc = product
+    ? (product.previewImageUrl || getImageForProduct(product.id, product.category))
+    : "";
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
@@ -79,19 +69,9 @@ export default function ProductDetail() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Image */}
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="relative"
-          >
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} className="relative">
             <div className="aspect-[3/4] overflow-hidden border border-red-900/30">
-              <img
-                src={imgSrc}
-                alt={product.title}
-                className="w-full h-full object-cover"
-                onError={(e) => { (e.target as HTMLImageElement).src = "/api/placeholder/600/800"; }}
-              />
+              <img src={imgSrc} alt={product.title} className="w-full h-full object-cover" />
             </div>
             <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-red-700 flex items-center justify-center">
               <div className="text-center">
@@ -101,16 +81,9 @@ export default function ProductDetail() {
             </div>
           </motion.div>
 
-          {/* Details */}
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col justify-center"
-          >
+          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col justify-center">
             <span className="text-red-500 uppercase tracking-[0.5em] text-xs mb-3">{product.category}</span>
-            <h1 className="font-creepster text-5xl text-white mb-6 hover-glitch cursor-default">
-              {product.title}
-            </h1>
+            <h1 className="font-creepster text-5xl text-white mb-6 hover-glitch cursor-default">{product.title}</h1>
 
             <div className="flex items-center gap-2 mb-6">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -140,21 +113,14 @@ export default function ProductDetail() {
 
             {inCart ? (
               <div className="flex gap-4">
-                <div className="flex-1 py-4 bg-red-900/20 border border-red-700 text-red-400 text-center font-bold uppercase tracking-widest">
-                  In Cart
-                </div>
+                <div className="flex-1 py-4 bg-red-900/20 border border-red-700 text-red-400 text-center font-bold uppercase tracking-widest">In Cart</div>
                 <Link href="/cart">
-                  <button className="px-6 py-4 border border-red-900/50 text-gray-400 hover:text-white hover:border-red-700 uppercase tracking-widest text-sm transition-all">
-                    View Cart
-                  </button>
+                  <button className="px-6 py-4 border border-red-900/50 text-gray-400 hover:text-white hover:border-red-700 uppercase tracking-widest text-sm transition-all">View Cart</button>
                 </Link>
               </div>
             ) : (
-              <button
-                onClick={handleAddToCart}
-                disabled={addToCart.isPending}
-                className="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] lava-pulse border border-red-500 transition-all disabled:opacity-50 flex items-center justify-center gap-3"
-              >
+              <button onClick={handleAddToCart} disabled={addToCart.isPending}
+                className="w-full py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] lava-pulse border border-red-500 transition-all disabled:opacity-50 flex items-center justify-center gap-3">
                 <ShoppingCart className="w-5 h-5" />
                 {addToCart.isPending ? "Adding..." : "Add to Cart"}
               </button>
