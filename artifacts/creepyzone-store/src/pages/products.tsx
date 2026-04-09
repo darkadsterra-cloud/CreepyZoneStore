@@ -26,19 +26,16 @@ export default function Products() {
   const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [localSearch, setLocalSearch] = useState(urlSearch);
 
-  // Sync from URL changes (e.g. navbar search)
   useEffect(() => {
     const p = new URLSearchParams(searchString);
     setSelectedCategory(p.get("category") || "all");
     setLocalSearch(p.get("search") || "");
   }, [searchString]);
 
-  // Fetch all products (or by category); search is client-side
   const queryParams = selectedCategory !== "all" ? { category: selectedCategory } : {};
   const { data, isLoading } = useListProducts(queryParams);
   const addToCart = useAddToCart();
 
-  // Client-side search filter
   const allProducts = data?.products ?? [];
   const products = localSearch.trim()
     ? allProducts.filter(p =>
@@ -72,8 +69,6 @@ export default function Products() {
 
   return (
     <div className="min-h-screen">
-
-      {/* Category Hero Banner */}
       <div className="relative h-52 overflow-hidden border-b border-red-900/20">
         <div className="absolute inset-0 flex gap-0.5">
           {catImages.slice(0, 6).map((img, i) => (
@@ -104,8 +99,6 @@ export default function Products() {
 
       <div className="py-10 px-4">
         <div className="max-w-7xl mx-auto">
-
-          {/* Search bar on products page */}
           <div className="mb-8 max-w-xl mx-auto">
             <form onSubmit={e => { e.preventDefault(); }} className="flex items-center border border-red-900/30 hover:border-red-700/50 bg-black/40 transition-all">
               <Search className="w-4 h-4 text-red-500 mx-4 flex-shrink-0" />
@@ -124,7 +117,6 @@ export default function Products() {
             </form>
           </div>
 
-          {/* Category Filters — hidden when searching */}
           {!isSearching && (
             <div className="flex flex-wrap gap-2 justify-center mb-10">
               {CATEGORIES.map(cat => {
@@ -144,7 +136,6 @@ export default function Products() {
             </div>
           )}
 
-          {/* Results count when searching */}
           {isSearching && !isLoading && (
             <div className="text-center mb-6">
               <p className="text-gray-500 text-sm">
@@ -155,7 +146,6 @@ export default function Products() {
             </div>
           )}
 
-          {/* Products Grid */}
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -189,9 +179,7 @@ export default function Products() {
                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {products.map((product, i) => {
-                  const imgSrc = product.previewImageUrl?.startsWith("/api/uploads")
-                    ? product.previewImageUrl
-                    : getImageForProduct(product.id, product.category);
+                  const imgSrc = product.previewImageUrl || getImageForProduct(product.id, product.category);
                   return (
                     <motion.div key={product.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
                       <Link href={`/products/${product.id}`}>
