@@ -4,11 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useListProducts, useDeleteProduct, useCreateProduct, useUpdateProduct, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import { Trash2, Plus, X, Pencil, ChevronDown, ChevronUp, Star, Eye, Upload, Image, FileArchive, CheckCircle } from "lucide-react";
+import { Trash2, Plus, X, Pencil, ChevronDown, ChevronUp, Star, Eye, Upload, Image, FileArchive, CheckCircle, Music, Video, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["overlay","alert","bundle","asset","pack","animated","neon","horror","anime","vertical","interactive","minimal","grunge"] as const;
 type Category = typeof CATEGORIES[number];
+
+interface MediaFile { url: string; name: string; type: "image" | "video" | "audio" | "animated"; }
 
 interface ProductForm {
   title: string; description: string; price: number; category: Category;
@@ -16,126 +18,121 @@ interface ProductForm {
 }
 const EMPTY_FORM: ProductForm = { title:"",description:"",price:9.99,category:"overlay",previewImageUrl:"",downloadFileName:"",featured:false,previewVideoUrl:"" };
 
-interface UploadBoxProps {
-  type: "product"|"image";
-  uploading: boolean;
-  uploadedProduct: {name:string;url:string}|null;
-  uploadedImage: {url:string}|null;
-  onUploadProduct: (file: File) => void;
-  onUploadImage: (file: File) => void;
+const LIMITS = { image: 20, animated: 20, video: 5, audio: 5 };
+const ACCEPT = ".jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.mov,.mp3,.wav,.ogg";
+
+function getIcon(type: string) {
+  if (type === "video") return <Video className="w-4 h-4" />;
+  if (type === "audio") return <Music className="w-4 h-4" />;
+  if (type === "animated") return <ImageIcon className="w-4 h-4 text-purple-400" />;
+  return <Image className="w-4 h-4" />;
 }
 
-function UploadBox({ type, uploading, uploadedProduct, uploadedImage, onUploadProduct, onUploadImage }: UploadBoxProps) {
+function MediaGrid({ files, uploading, onUpload, onRemove }: {
+  files: MediaFile[]; uploading: boolean;
+  onUpload: (f: File) => void; onRemove: (i: number) => void;
+}) {
   const ref = useRef<HTMLInputElement>(null);
-  const isProduct = type === "product";
-  const isUploading = uploading;
-  const uploaded = isProduct ? uploadedProduct : uploadedImage;
-  const accept = isProduct ? ".zip,.rar,.7z,.png,.jpg,.mp4,.webm" : ".jpg,.jpeg,.png,.gif,.webp";
+  const counts = { image: 0, animated: 0, video: 0, audio: 0 };
+  files.forEach(f => { counts[f.type]++; });
+  const canUpload = counts.image < LIMITS.image || counts.animated < LIMITS.animated || counts.video < LIMITS.video || counts.audio < LIMITS.audio;
 
   return (
-    <div
-      className={`border-2 border-dashed ${uploaded ? "border-green-600/50 bg-green-950/10" : "border-red-900/30 hover:border-red-600/50"} transition-all cursor-pointer`}
-      onClick={() => ref.current?.click()}
-    >
-      <input ref={ref} type="file" accept={accept} className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) isProduct ? onUploadProduct(f) : onUploadImage(f); e.target.value=""; }} />
-      <div className="p-4 text-center">
-        {isUploading ? (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-gray-400">Uploading...</span>
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-2 text-xs text-center">
+        {(["image","animated","video","audio"] as const).map(t => (
+          <div key={t} className={`p-1.5 border ${counts[t] >= LIMITS[t] ? "border-red-700/50 bg-red-950/20" : "border-red-900/20"}`}>
+            <div className="text-gray-400 capitalize">{t === "animated" ? "GIFs" : t === "audio" ? "MP3" : t === "video" ? "MP4" : "Images"}</div>
+            <div className={`font-bold ${counts[t] >= LIMITS[t] ? "text-red-400" : "text-white"}`}>{counts[t]}/{LIMITS[t]}</div>
           </div>
-        ) : uploaded ? (
-          <div className="flex flex-col items-center gap-2">
-            <CheckCircle className="w-8 h-8 text-green-500" />
-            <span className="text-xs text-green-400 font-bold">
-              {isProduct ? (uploaded as any).name : "Image uploaded"}
-            </span>
-            <span className="text-xs text-gray-500">Click to replace</span>
-            {!isProduct && (uploaded as any).url && (
-              <img src={(uploaded as any).url} alt="Preview" className="w-20 h-20 object-cover border border-green-700/30 mt-1" />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+        {files.map((f, i) => (
+          <div key={i} className="relative group aspect-square border border-red-900/20 bg-black/40 overflow-hidden">
+            {f.type === "image" || f.type === "animated" ? (
+              <img src={f.url} alt={f.name} className="w-full h-full object-cover" />
+            ) : f.type === "video" ? (
+              <video src={f.url} className="w-full h-full object-cover" muted />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                <Music className="w-6 h-6 text-purple-400" />
+                <span className="text-xs text-gray-500 truncate px-1">{f.name.slice(0,8)}</span>
+              </div>
             )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 py-2">
-            {isProduct ? <FileArchive className="w-8 h-8 text-red-500/50" /> : <Image className="w-8 h-8 text-red-500/50" />}
-            <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">
-              {isProduct ? "Upload Product File" : "Upload Preview Image"}
-            </span>
-            <span className="text-xs text-gray-600">
-              {isProduct ? "ZIP, RAR, PNG, MP4, WEBM (max 200MB)" : "JPG, PNG, GIF, WEBP (max 20MB)"}
-            </span>
-            <div className="flex items-center gap-2 mt-1 px-4 py-1.5 border border-red-800/50 text-red-500 text-xs uppercase tracking-widest hover:bg-red-950/20">
-              <Upload className="w-3 h-3" /> Choose File
+            {i === 0 && f.type === "image" && (
+              <div className="absolute top-0 left-0 right-0 bg-red-700/80 text-white text-xs text-center py-0.5">Main</div>
+            )}
+            <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-xs text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className={f.type === "audio" ? "text-purple-400" : f.type === "video" ? "text-blue-400" : f.type === "animated" ? "text-green-400" : "text-gray-300"}>
+                {f.type}
+              </span>
             </div>
+            <button type="button" onClick={() => onRemove(i)}
+              className="absolute top-1 right-1 bg-black/80 text-red-400 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+
+        {canUpload && (
+          <div onClick={() => ref.current?.click()}
+            className="aspect-square border-2 border-dashed border-red-900/30 hover:border-red-600/50 cursor-pointer flex flex-col items-center justify-center gap-1 transition-all bg-black/20">
+            {uploading ? (
+              <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-red-500/50" />
+                <span className="text-xs text-gray-600 text-center px-1">Add File</span>
+              </>
+            )}
           </div>
         )}
       </div>
+
+      <input ref={ref} type="file" accept={ACCEPT} className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f); e.target.value = ""; }} />
+      <p className="text-xs text-gray-600">Images/GIFs: JPG, PNG, GIF, WEBP • Videos: MP4, WEBM • Audio: MP3, WAV</p>
     </div>
   );
 }
 
-interface FormFieldsProps {
-  form: ProductForm;
-  setForm: React.Dispatch<React.SetStateAction<ProductForm>>;
-  isUpdate?: boolean;
-  onSubmit: (e: React.FormEvent) => void;
-  onCancel: () => void;
-  loading: boolean;
-  uploadingProduct: boolean;
-  uploadingImage: boolean;
-  uploadedProduct: {name:string;url:string}|null;
-  uploadedImage: {url:string}|null;
-  onUploadProduct: (file: File) => void;
-  onUploadImage: (file: File) => void;
-}
-
-function FormFields({
-  form, setForm, isUpdate, onSubmit, onCancel, loading,
-  uploadingProduct, uploadingImage, uploadedProduct, uploadedImage,
-  onUploadProduct, onUploadImage,
-}: FormFieldsProps) {
+function FormFields({ form, setForm, isUpdate, onSubmit, onCancel, loading,
+  uploadingProduct, uploadingMedia, uploadedProduct, mediaFiles,
+  onUploadProduct, onUploadMedia, onRemoveMedia }: {
+  form: ProductForm; setForm: React.Dispatch<React.SetStateAction<ProductForm>>;
+  isUpdate?: boolean; onSubmit: (e: React.FormEvent) => void; onCancel: () => void;
+  loading: boolean; uploadingProduct: boolean; uploadingMedia: boolean;
+  uploadedProduct: {name:string;url:string}|null; mediaFiles: MediaFile[];
+  onUploadProduct: (f: File) => void; onUploadMedia: (f: File) => void; onRemoveMedia: (i: number) => void;
+}) {
+  const productRef = useRef<HTMLInputElement>(null);
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Product Title *</label>
-          <input
-            value={form.title}
-            onChange={e => setForm(f => ({...f, title: e.target.value}))}
-            required
+          <input value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required
             placeholder="e.g. Blood Moon Horror Overlay Bundle"
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
-          />
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white" />
         </div>
         <div className="md:col-span-2">
           <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Description *</label>
-          <textarea
-            value={form.description}
-            onChange={e => setForm(f => ({...f, description: e.target.value}))}
-            required
-            rows={4}
-            placeholder="Describe what's included, compatible software, file formats, usage instructions..."
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white resize-none"
-          />
+          <textarea value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} required rows={4}
+            placeholder="Describe what's included..."
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white resize-none" />
         </div>
         <div>
           <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Price (USD) *</label>
-          <input
-            type="number" step="0.01" min="0.99"
-            value={form.price}
-            onChange={e => setForm(f => ({...f, price: parseFloat(e.target.value)||0}))}
-            required
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
-          />
+          <input type="number" step="0.01" min="0.99" value={form.price}
+            onChange={e => setForm(f => ({...f, price: parseFloat(e.target.value)||0}))} required
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white" />
         </div>
         <div>
           <label className="block text-xs text-red-500 uppercase tracking-widest mb-1">Category *</label>
-          <select
-            value={form.category}
-            onChange={e => setForm(f => ({...f, category: e.target.value as Category}))}
-            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white"
-          >
+          <select value={form.category} onChange={e => setForm(f => ({...f, category: e.target.value as Category}))}
+            className="w-full px-3 py-2 bg-background border border-red-900/30 focus:border-red-600 outline-none text-white">
             {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
           </select>
         </div>
@@ -145,78 +142,74 @@ function FormFields({
         <h3 className="text-xs text-red-500 uppercase tracking-widest font-bold flex items-center gap-2">
           <Upload className="w-3 h-3" /> Product Files
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Download File (ZIP/Pack)</label>
-            <UploadBox
-              type="product"
-              uploading={uploadingProduct}
-              uploadedProduct={uploadedProduct}
-              uploadedImage={uploadedImage}
-              onUploadProduct={onUploadProduct}
-              onUploadImage={onUploadImage}
-            />
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Download File (ZIP/Pack)</label>
+            <div onClick={() => productRef.current?.click()}
+              className={`border-2 border-dashed ${uploadedProduct ? "border-green-600/50 bg-green-950/10" : "border-red-900/30 hover:border-red-600/50"} transition-all cursor-pointer`}>
+              <input ref={productRef} type="file" accept=".zip,.rar,.7z,.mp4,.webm" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) onUploadProduct(f); e.target.value=""; }} />
+              <div className="p-4 text-center">
+                {uploadingProduct ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-gray-400">Uploading...</span>
+                  </div>
+                ) : uploadedProduct ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle className="w-8 h-8 text-green-500" />
+                    <span className="text-xs text-green-400 font-bold">{uploadedProduct.name}</span>
+                    <span className="text-xs text-gray-500">Click to replace</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <FileArchive className="w-8 h-8 text-red-500/50" />
+                    <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">Upload Product File</span>
+                    <span className="text-xs text-gray-600">ZIP, RAR, 7Z (max 200MB)</span>
+                    <div className="flex items-center gap-2 mt-1 px-4 py-1.5 border border-red-800/50 text-red-500 text-xs uppercase tracking-widest">
+                      <Upload className="w-3 h-3" /> Choose File
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="mt-2">
               <label className="block text-xs text-gray-600 mb-1">Or enter filename manually:</label>
-              <input
-                value={form.downloadFileName}
-                onChange={e => setForm(f => ({...f, downloadFileName: e.target.value}))}
-                required
+              <input value={form.downloadFileName} onChange={e => setForm(f => ({...f, downloadFileName: e.target.value}))} required
                 placeholder="product-pack.zip"
-                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
-              />
+                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm" />
             </div>
           </div>
+
           <div>
-            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">Product Preview Image</label>
-            <UploadBox
-              type="image"
-              uploading={uploadingImage}
-              uploadedProduct={uploadedProduct}
-              uploadedImage={uploadedImage}
-              onUploadProduct={onUploadProduct}
-              onUploadImage={onUploadImage}
-            />
-            <div className="mt-2">
-              <label className="block text-xs text-gray-600 mb-1">Or enter image URL:</label>
-              <input
-                value={form.previewImageUrl}
-                onChange={e => setForm(f => ({...f, previewImageUrl: e.target.value}))}
-                required
-                placeholder="https://... or upload above"
-                className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
-              />
-            </div>
+            <label className="block text-xs text-gray-400 uppercase tracking-widest mb-2">
+              Preview Media
+              <span className="ml-2 text-gray-600 normal-case text-xs">({mediaFiles.length} files)</span>
+            </label>
+            <MediaGrid files={mediaFiles} uploading={uploadingMedia} onUpload={onUploadMedia} onRemove={onRemoveMedia} />
+            {mediaFiles.length === 0 && (
+              <div className="mt-2">
+                <label className="block text-xs text-gray-600 mb-1">Or enter main image URL:</label>
+                <input value={form.previewImageUrl} onChange={e => setForm(f => ({...f, previewImageUrl: e.target.value}))}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm" />
+              </div>
+            )}
           </div>
-        </div>
-        <div>
-          <label className="block text-xs text-gray-400 uppercase tracking-widest mb-1">Preview Video URL (optional)</label>
-          <input
-            value={form.previewVideoUrl}
-            onChange={e => setForm(f => ({...f, previewVideoUrl: e.target.value}))}
-            placeholder="https://youtube.com/... or https://... .mp4"
-            className="w-full px-3 py-2 bg-background border border-red-900/20 focus:border-red-600 outline-none text-white text-sm"
-          />
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <input
-          type="checkbox" id={`feat-${isUpdate ? "ed" : "new"}`}
-          checked={form.featured}
-          onChange={e => setForm(f => ({...f, featured: e.target.checked}))}
-          className="w-4 h-4 accent-red-500"
-        />
-        <label htmlFor={`feat-${isUpdate ? "ed" : "new"}`} className="text-gray-300 text-sm">
+        <input type="checkbox" id={`feat-${isUpdate?"ed":"new"}`} checked={form.featured}
+          onChange={e => setForm(f => ({...f, featured: e.target.checked}))} className="w-4 h-4 accent-red-500" />
+        <label htmlFor={`feat-${isUpdate?"ed":"new"}`} className="text-gray-300 text-sm">
           <span className="text-yellow-500">★</span> Feature this product on homepage
         </label>
       </div>
 
       <div className="flex justify-end gap-3 pt-2 border-t border-red-900/20">
         <button type="button" onClick={onCancel}
-          className="px-6 py-2 border border-red-900/30 text-gray-500 hover:text-white text-sm uppercase tracking-widest">
-          Cancel
-        </button>
+          className="px-6 py-2 border border-red-900/30 text-gray-500 hover:text-white text-sm uppercase tracking-widest">Cancel</button>
         <button type="submit" disabled={loading}
           className="px-8 py-2 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 disabled:opacity-50">
           {loading ? "Saving..." : isUpdate ? "Update Product" : "Create Product"}
@@ -235,9 +228,9 @@ export default function AdminProducts() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [expandedId, setExpandedId] = useState<number|null>(null);
   const [uploadingProduct, setUploadingProduct] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [uploadedProductFile, setUploadedProductFile] = useState<{name:string;url:string}|null>(null);
-  const [uploadedImageFile, setUploadedImageFile] = useState<{url:string}|null>(null);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
 
   const { data: me } = useGetMe({ query: { enabled: isAuthenticated }});
   const { data, isLoading } = useListProducts({}, { query: { enabled: isAuthenticated && me?.role==="admin" }});
@@ -255,38 +248,57 @@ export default function AdminProducts() {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/admin/upload/product", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: fd,
+        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd,
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setUploadedProductFile({ name: data.originalName, url: data.downloadUrl });
       setForm(f => ({...f, downloadFileName: data.filename}));
-      toast({ title: "Product file uploaded", description: data.originalName });
+      toast({ title: "Product file uploaded!", description: data.originalName });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally { setUploadingProduct(false); }
   };
 
-  const handleUploadImage = async (file: File) => {
-    setUploadingImage(true);
+  const handleUploadMedia = async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const type: MediaFile["type"] = ["mp4","webm","mov"].includes(ext) ? "video"
+      : ["mp3","wav","ogg"].includes(ext) ? "audio"
+      : ext === "gif" ? "animated" : "image";
+
+    const counts = { image: 0, animated: 0, video: 0, audio: 0 };
+    mediaFiles.forEach(f => { counts[f.type]++; });
+    if (counts[type] >= LIMITS[type]) {
+      toast({ title: `Max ${LIMITS[type]} ${type} files allowed`, variant: "destructive" });
+      return;
+    }
+
+    setUploadingMedia(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/admin/upload/image", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: fd,
+        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd,
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      setUploadedImageFile({ url: data.imageUrl });
-      setForm(f => ({...f, previewImageUrl: data.imageUrl}));
-      toast({ title: "Image uploaded successfully" });
+      const newFile: MediaFile = { url: data.imageUrl, name: data.filename, type: data.fileType ?? type };
+      const newFiles = [...mediaFiles, newFile];
+      setMediaFiles(newFiles);
+      // First image = main preview
+      const firstImage = newFiles.find(f => f.type === "image" || f.type === "animated");
+      if (firstImage) setForm(f => ({...f, previewImageUrl: firstImage.url}));
+      toast({ title: `${type === "audio" ? "Audio" : type === "video" ? "Video" : type === "animated" ? "GIF" : "Image"} uploaded!` });
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
-    } finally { setUploadingImage(false); }
+    } finally { setUploadingMedia(false); }
+  };
+
+  const handleRemoveMedia = (index: number) => {
+    const newFiles = mediaFiles.filter((_, i) => i !== index);
+    setMediaFiles(newFiles);
+    const firstImage = newFiles.find(f => f.type === "image" || f.type === "animated");
+    setForm(f => ({...f, previewImageUrl: firstImage?.url ?? ""}));
   };
 
   const handleDelete = async (id: number, title: string) => {
@@ -301,7 +313,15 @@ export default function AdminProducts() {
   const startEdit = (product: any) => {
     setEditingId(product.id);
     setUploadedProductFile(null);
-    setUploadedImageFile(null);
+    // Try to parse stored media JSON, fallback to single image
+    let parsedMedia: MediaFile[] = [];
+    try {
+      const parsed = JSON.parse(product.previewImageUrl);
+      if (Array.isArray(parsed)) parsedMedia = parsed;
+    } catch {
+      if (product.previewImageUrl) parsedMedia = [{ url: product.previewImageUrl, name: "current", type: "image" }];
+    }
+    setMediaFiles(parsedMedia);
     setForm({
       title: product.title, description: product.description, price: product.price,
       category: product.category, previewImageUrl: product.previewImageUrl ?? "",
@@ -312,19 +332,24 @@ export default function AdminProducts() {
   };
 
   const resetForm = () => {
-    setShowCreate(false);
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setUploadedProductFile(null);
-    setUploadedImageFile(null);
+    setShowCreate(false); setEditingId(null); setForm(EMPTY_FORM);
+    setUploadedProductFile(null); setMediaFiles([]);
+  };
+
+  // Build previewImageUrl — store JSON array if multiple files, else single URL
+  const buildPreviewImageUrl = () => {
+    if (mediaFiles.length === 0) return form.previewImageUrl;
+    if (mediaFiles.length === 1) return mediaFiles[0].url;
+    return JSON.stringify(mediaFiles);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createProduct.mutateAsync({ data: { ...form, price: Number(form.price), previewVideoUrl: form.previewVideoUrl||null }});
+      const previewImageUrl = buildPreviewImageUrl();
+      await createProduct.mutateAsync({ data: { ...form, previewImageUrl, price: Number(form.price), previewVideoUrl: form.previewVideoUrl||null }});
       invalidate();
-      toast({ title: "Product created" });
+      toast({ title: "Product created!" });
       resetForm();
     } catch (err: any) { toast({ title: "Error", description: err?.message, variant: "destructive" }); }
   };
@@ -332,9 +357,10 @@ export default function AdminProducts() {
   const handleUpdate = async (id: number, e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await updateProduct.mutateAsync({ id, data: { ...form, price: Number(form.price), previewVideoUrl: form.previewVideoUrl||null }});
+      const previewImageUrl = buildPreviewImageUrl();
+      await updateProduct.mutateAsync({ id, data: { ...form, previewImageUrl, price: Number(form.price), previewVideoUrl: form.previewVideoUrl||null }});
       invalidate();
-      toast({ title: "Product updated" });
+      toast({ title: "Product updated!" });
       setEditingId(null);
     } catch (err: any) { toast({ title: "Error", description: err?.message, variant: "destructive" }); }
   };
@@ -345,6 +371,18 @@ export default function AdminProducts() {
       invalidate();
       toast({ title: product.featured ? "Removed from featured" : "Added to featured" });
     } catch { toast({ title: "Error", variant: "destructive" }); }
+  };
+
+  // Helper to get display image from product
+  const getDisplayImage = (product: any) => {
+    try {
+      const parsed = JSON.parse(product.previewImageUrl);
+      if (Array.isArray(parsed)) {
+        const img = parsed.find((f: MediaFile) => f.type === "image" || f.type === "animated");
+        return img?.url ?? parsed[0]?.url ?? "";
+      }
+    } catch {}
+    return product.previewImageUrl ?? "";
   };
 
   if (!isAuthenticated || (me && me.role !== "admin")) {
@@ -362,10 +400,8 @@ export default function AdminProducts() {
             <p className="text-red-500 uppercase tracking-[0.5em] text-xs mb-1">Admin Panel</p>
             <h1 className="font-creepster text-4xl text-white">Product Manager</h1>
           </div>
-          <button
-            onClick={() => { setShowCreate(!showCreate); setEditingId(null); setForm(EMPTY_FORM); setUploadedProductFile(null); setUploadedImageFile(null); }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all"
-          >
+          <button onClick={() => { setShowCreate(!showCreate); setEditingId(null); setForm(EMPTY_FORM); setUploadedProductFile(null); setMediaFiles([]); }}
+            className="flex items-center gap-2 px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all">
             <Plus className="w-4 h-4" /> Add Product
           </button>
         </div>
@@ -383,14 +419,10 @@ export default function AdminProducts() {
                 <h2 className="font-creepster text-2xl text-white">Add New Product</h2>
                 <button onClick={resetForm} className="text-gray-600 hover:text-red-500"><X className="w-5 h-5" /></button>
               </div>
-              <FormFields
-                form={form} setForm={setForm}
-                onSubmit={handleCreate} onCancel={resetForm}
-                loading={createProduct.isPending}
-                uploadingProduct={uploadingProduct} uploadingImage={uploadingImage}
-                uploadedProduct={uploadedProductFile} uploadedImage={uploadedImageFile}
-                onUploadProduct={handleUploadProduct} onUploadImage={handleUploadImage}
-              />
+              <FormFields form={form} setForm={setForm} onSubmit={handleCreate} onCancel={resetForm}
+                loading={createProduct.isPending} uploadingProduct={uploadingProduct} uploadingMedia={uploadingMedia}
+                uploadedProduct={uploadedProductFile} mediaFiles={mediaFiles}
+                onUploadProduct={handleUploadProduct} onUploadMedia={handleUploadMedia} onRemoveMedia={handleRemoveMedia} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -417,6 +449,11 @@ export default function AdminProducts() {
             {products.map(product => (
               <div key={product.id} className="border border-red-900/30 bg-card overflow-hidden">
                 <div className="flex items-center gap-4 p-4">
+                  {getDisplayImage(product) && (
+                    <div className="w-12 h-14 flex-shrink-0 overflow-hidden border border-red-900/20">
+                      <img src={getDisplayImage(product)} alt={product.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-white font-bold truncate">{product.title}</span>
@@ -425,12 +462,11 @@ export default function AdminProducts() {
                     <div className="flex items-center gap-3 mt-1">
                       <span className="text-xs text-red-500 uppercase">{product.category}</span>
                       <span className="text-red-400 font-bold">${product.price.toFixed(2)}</span>
-                      <span className="text-gray-600 text-xs truncate hidden sm:block">{product.downloadFileName}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={()=>toggleFeatured(product)} title="Toggle featured"
-                      className={`p-2 transition-colors ${product.featured?"text-yellow-500 hover:text-yellow-400":"text-gray-600 hover:text-yellow-500"}`}>
+                    <button onClick={()=>toggleFeatured(product)}
+                      className={`p-2 transition-colors ${product.featured?"text-yellow-500":"text-gray-600 hover:text-yellow-500"}`}>
                       <Star className={`w-4 h-4 ${product.featured?"fill-current":""}`} />
                     </button>
                     <button onClick={()=>setExpandedId(expandedId===product.id?null:product.id)} className="p-2 text-gray-600 hover:text-blue-400 transition-colors">
@@ -455,16 +491,11 @@ export default function AdminProducts() {
                         {editingId===product.id ? (
                           <>
                             <h3 className="font-bold text-white uppercase tracking-widest text-sm mb-4">Edit Product</h3>
-                            <FormFields
-                              form={form} setForm={setForm}
-                              isUpdate
-                              onSubmit={e=>handleUpdate(product.id,e)}
-                              onCancel={resetForm}
-                              loading={updateProduct.isPending}
-                              uploadingProduct={uploadingProduct} uploadingImage={uploadingImage}
-                              uploadedProduct={uploadedProductFile} uploadedImage={uploadedImageFile}
-                              onUploadProduct={handleUploadProduct} onUploadImage={handleUploadImage}
-                            />
+                            <FormFields form={form} setForm={setForm} isUpdate
+                              onSubmit={e=>handleUpdate(product.id,e)} onCancel={resetForm}
+                              loading={updateProduct.isPending} uploadingProduct={uploadingProduct} uploadingMedia={uploadingMedia}
+                              uploadedProduct={uploadedProductFile} mediaFiles={mediaFiles}
+                              onUploadProduct={handleUploadProduct} onUploadMedia={handleUploadMedia} onRemoveMedia={handleRemoveMedia} />
                           </>
                         ) : (
                           <div className="space-y-3">
@@ -494,7 +525,7 @@ export default function AdminProducts() {
         )}
         {products.length===0 && !isLoading && (
           <div className="text-center py-20 border border-red-900/20">
-            <p className="text-gray-500 mb-4">No products yet. Upload your first product above.</p>
+            <p className="text-gray-500 mb-4">No products yet.</p>
             <button onClick={()=>setShowCreate(true)} className="px-6 py-2 bg-red-700 text-white border border-red-500 uppercase tracking-widest text-sm">Add Product</button>
           </div>
         )}
