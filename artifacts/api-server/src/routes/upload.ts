@@ -83,41 +83,4 @@ router.post("/admin/upload/image", async (req, res): Promise<void> => {
   }
 });
 
-export default router;});
-
-router.post("/admin/upload/image", async (req, res): Promise<void> => {
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
-
-  try {
-    const { buffer, filename, mimetype } = await parseMultipart(req);
-    const safeFile = safeFilename(filename);
-    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(`images/${safeFile}`, buffer, { contentType: mimetype });
-    if (error) { res.status(500).json({ error: error.message }); return; }
-    const { data } = supabase.storage.from("uploads").getPublicUrl(`images/${safeFile}`);
-    res.json({ filename: safeFile, originalName: filename, imageUrl: data.publicUrl });
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
-export default router;    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(`images/${filename}`, req.file.buffer, {
-        contentType: req.file.mimetype,
-      });
-
-    if (error) { res.status(500).json({ error: error.message }); return; }
-
-    const { data } = supabase.storage.from("uploads").getPublicUrl(`images/${filename}`);
-    res.json({
-      filename,
-      originalName: req.file.originalname,
-      imageUrl: data.publicUrl,
-    });
-  });
-});
-
 export default router;
