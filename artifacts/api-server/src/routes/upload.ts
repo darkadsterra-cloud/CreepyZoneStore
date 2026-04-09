@@ -1,5 +1,4 @@
 import { Router, type IRouter } from "express";
-
 import path from "path";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "../lib/auth";
@@ -57,10 +56,10 @@ router.post("/admin/upload/product", async (req, res): Promise<void> => {
     const { buffer, filename, mimetype } = await parseMultipart(req);
     const safeFile = safeFilename(filename);
     const { error } = await supabase.storage
-      .from("uploads")
+      .from("Uploads")
       .upload(`products/${safeFile}`, buffer, { contentType: mimetype });
     if (error) { res.status(500).json({ error: error.message }); return; }
-    const { data } = supabase.storage.from("uploads").getPublicUrl(`products/${safeFile}`);
+    const { data } = supabase.storage.from("Uploads").getPublicUrl(`products/${safeFile}`);
     res.json({ filename: safeFile, originalName: filename, size: buffer.length, downloadUrl: data.publicUrl });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -74,10 +73,10 @@ router.post("/admin/upload/image", async (req, res): Promise<void> => {
     const { buffer, filename, mimetype } = await parseMultipart(req);
     const safeFile = safeFilename(filename);
     const { error } = await supabase.storage
-      .from("uploads")
+      .from("Uploads")
       .upload(`images/${safeFile}`, buffer, { contentType: mimetype });
     if (error) { res.status(500).json({ error: error.message }); return; }
-    const { data } = supabase.storage.from("uploads").getPublicUrl(`images/${safeFile}`);
+    const { data } = supabase.storage.from("Uploads").getPublicUrl(`images/${safeFile}`);
     res.json({ filename: safeFile, originalName: filename, imageUrl: data.publicUrl });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
