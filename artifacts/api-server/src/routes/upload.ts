@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
+
 import path from "path";
 import { createClient } from "@supabase/supabase-js";
 import { requireAdmin } from "../lib/auth";
 
-const router: IRouter = Router ();
+const router: IRouter = Router();
 
 const supabase = createClient(
   process.env.SUPABASE_URL ?? "",
