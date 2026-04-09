@@ -13,17 +13,47 @@ export default function OrderDetail() {
 
   const { data: order, isLoading } = useGetOrder(id, { query: { enabled: isAuthenticated && !!id } });
 
-  const handleDownload = (productId: number, productTitle: string, downloadFileName: string) => {
-    const token = localStorage.getItem("creepyzone_token");
-    const downloadUrl = `/api/uploads/products/${downloadFileName}`;
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = downloadFileName;
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast({ title: "Download started", description: `Downloading ${productTitle}` });
+  const handleDownload = async (productTitle: string, downloadFileName: string) => {
+    try {
+      const token = localStorage.getItem("creepyzone_token");
+
+      // Check if downloadFileName is already a full Supabase URL
+      if (downloadFileName.startsWith("http")) {
+        const link = document.createElement("a");
+        link.href = downloadFileName;
+        link.download = downloadFileName.split("/").pop() ?? "download";
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast({ title: "Download started", description: `Downloading ${productTitle}` });
+        return;
+      }
+
+      // Otherwise fetch via secure API route
+      const res = await fetch(`/api/orders/${id}/download/${encodeURIComponent(downloadFileName)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Download failed", description: err.error ?? "Could not download file.", variant: "destructive" });
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = downloadFileName.split("/").pop() ?? "download";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: "Download started", description: `Downloading ${productTitle}` });
+    } catch (err: any) {
+      toast({ title: "Download failed", description: err.message, variant: "destructive" });
+    }
   };
 
   if (!isAuthenticated || isLoading) {
@@ -48,7 +78,6 @@ export default function OrderDetail() {
           </button>
         </Link>
 
-        {/* Order Status Banner */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -73,7 +102,6 @@ export default function OrderDetail() {
           <p className="text-gray-500 text-sm mt-2">All digital products are available for immediate download below.</p>
         </div>
 
-        {/* Download Items */}
         <div className="space-y-4 mb-8">
           {order.items.map((item, i) => item.product && (
             <motion.div
@@ -98,15 +126,16 @@ export default function OrderDetail() {
                 </div>
 
                 <button
-                  onClick={() => handleDownload(item.productId, item.product!.title, item.product!.downloadFileName || `product-${item.productId}.zip`)}
+                  onClick={() => handleDownload(
+                    item.product!.title,
+                    item.product!.downloadFileName || `product-${item.productId}.zip`
+                  )}
                   className="flex items-center gap-2 px-6 py-3 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all flex-shrink-0 w-full sm:w-auto justify-center"
                 >
                   <Download className="w-4 h-4" />
                   Download Now
                 </button>
               </div>
-
-              {/* Progress bar decoration */}
               <div className="h-0.5 bg-gradient-to-r from-red-900/50 via-red-600/30 to-transparent" />
             </motion.div>
           ))}
