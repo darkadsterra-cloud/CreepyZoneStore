@@ -2,7 +2,7 @@ import { useRoute, Link } from "wouter";
 import { motion } from "framer-motion";
 import { useGetOrder } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
-import { Download, ArrowLeft, CheckCircle, Package, FileArchive } from "lucide-react";
+import { Download, ArrowLeft, CheckCircle, FileArchive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function OrderDetail() {
@@ -13,11 +13,11 @@ export default function OrderDetail() {
 
   const { data: order, isLoading } = useGetOrder(id, { query: { enabled: isAuthenticated && !!id } });
 
-  const handleDownload = async (productTitle: string, downloadFileName: string) => {
+  const handleDownload = async (productId: number, productTitle: string, downloadFileName: string) => {
     try {
       const token = localStorage.getItem("creepyzone_token");
 
-      // Check if downloadFileName is already a full Supabase URL
+      // Agar pehle se full Supabase URL hai to seedha open karo
       if (downloadFileName.startsWith("http")) {
         const link = document.createElement("a");
         link.href = downloadFileName;
@@ -30,26 +30,25 @@ export default function OrderDetail() {
         return;
       }
 
-      // Otherwise fetch via secure API route
-      const res = await fetch(`/api/orders/${id}/download/${encodeURIComponent(downloadFileName)}`, {
+      // Backend se Supabase URL lo — productId (number) use karo
+      const res = await fetch(`/api/orders/${id}/download/${productId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        toast({ title: "Download failed", description: err.error ?? "Could not download file.", variant: "destructive" });
+        toast({ title: "Download failed", description: err.error ?? "Could not download.", variant: "destructive" });
         return;
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const data = await res.json();
       const link = document.createElement("a");
-      link.href = url;
-      link.download = downloadFileName.split("/").pop() ?? "download";
+      link.href = data.downloadUrl;
+      link.download = data.filename ?? productTitle;
+      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
       toast({ title: "Download started", description: `Downloading ${productTitle}` });
     } catch (err: any) {
       toast({ title: "Download failed", description: err.message, variant: "destructive" });
@@ -57,14 +56,20 @@ export default function OrderDetail() {
   };
 
   if (!isAuthenticated || isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><div className="text-red-500 font-creepster text-2xl animate-pulse">Loading...</div></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-500 font-creepster text-2xl animate-pulse">Loading...</div>
+      </div>
+    );
   }
 
   if (!order) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <h1 className="font-creepster text-4xl text-white">Order Not Found</h1>
-        <Link href="/orders"><button className="text-red-500 border border-red-900/50 px-6 py-2 hover:bg-red-950/30">Back to Orders</button></Link>
+        <Link href="/orders">
+          <button className="text-red-500 border border-red-900/50 px-6 py-2 hover:bg-red-950/30">Back to Orders</button>
+        </Link>
       </div>
     );
   }
@@ -89,7 +94,12 @@ export default function OrderDetail() {
         >
           <CheckCircle className={`w-8 h-8 ${order.status === "completed" ? "text-green-500" : "text-gray-500"}`} />
           <div>
-            <p className="text-white font-bold">Order #{order.id} — <span className={order.status === "completed" ? "text-green-400" : "text-red-400"}>{order.status.toUpperCase()}</span></p>
+            <p className="text-white font-bold">
+              Order #{order.id} —{" "}
+              <span className={order.status === "completed" ? "text-green-400" : "text-red-400"}>
+                {order.status.toUpperCase()}
+              </span>
+            </p>
             <p className="text-gray-500 text-sm">
               Placed {new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })} · Total: ${order.total.toFixed(2)}
             </p>
@@ -127,8 +137,9 @@ export default function OrderDetail() {
 
                 <button
                   onClick={() => handleDownload(
+                    item.productId,
                     item.product!.title,
-                    item.product!.downloadFileName || `product-${item.productId}.zip`
+                    item.product!.downloadFileName || ""
                   )}
                   className="flex items-center gap-2 px-6 py-3 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all flex-shrink-0 w-full sm:w-auto justify-center"
                 >
