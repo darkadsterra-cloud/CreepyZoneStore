@@ -1,16 +1,121 @@
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useGetFeaturedProducts } from "@workspace/api-client-react";
 import { ALL_IMAGES, CATEGORY_IMAGES, CATEGORY_META, getImageForProduct } from "@/lib/store-images";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const ALL_CATS = ["animated","neon","horror","anime","vertical","interactive","minimal","grunge","overlay","alert","bundle","pack"];
+
+// ── Lightbox Component ──
+function Lightbox({ images, startIndex, onClose }: { images: string[]; startIndex: number; onClose: () => void }) {
+  const [index, setIndex] = useState(startIndex);
+
+  const prev = useCallback(() => setIndex(i => (i - 1 + images.length) % images.length), [images.length]);
+  const next = useCallback(() => setIndex(i => (i + 1) % images.length), [images.length]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") prev();
+      if (e.key === "ArrowRight") next();
+    };
+    window.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
+  }, [onClose, prev, next]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+        onClick={onClose}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-60 text-white bg-red-700/80 hover:bg-red-600 p-2 border border-red-500 transition-all"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        {/* Counter */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-gray-300 text-sm px-4 py-1 border border-red-900/30">
+          {index + 1} / {images.length}
+        </div>
+
+        {/* Prev button */}
+        <button
+          onClick={e => { e.stopPropagation(); prev(); }}
+          className="absolute left-3 md:left-6 z-60 text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
+        >
+          <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
+        </button>
+
+        {/* Main image */}
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+          className="max-w-[85vw] max-h-[85vh] mx-16"
+          onClick={e => e.stopPropagation()}
+        >
+          <img
+            src={images[index]}
+            alt=""
+            className="max-w-full max-h-[85vh] object-contain border border-red-900/30"
+          />
+        </motion.div>
+
+        {/* Next button */}
+        <button
+          onClick={e => { e.stopPropagation(); next(); }}
+          className="absolute right-3 md:right-6 z-60 text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+        </button>
+
+        {/* Thumbnail strip */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto">
+          {images.map((img, i) => (
+            <button
+              key={i}
+              onClick={e => { e.stopPropagation(); setIndex(i); }}
+              className={`w-12 h-16 flex-shrink-0 overflow-hidden border-2 transition-all ${
+                i === index ? "border-red-500 opacity-100" : "border-red-900/30 opacity-50 hover:opacity-80"
+              }`}
+            >
+              <img src={img} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 export default function Home() {
   const { data: featuredData } = useGetFeaturedProducts();
   const featured = featuredData?.products ?? [];
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
+  const closeLightbox = () => setLightbox(null);
 
   return (
     <div className="min-h-screen">
+
+      {/* Lightbox */}
+      {lightbox && (
+        <Lightbox images={lightbox.images} startIndex={lightbox.index} onClose={closeLightbox} />
+      )}
 
       {/* ── Hero ── */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
@@ -53,14 +158,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Preview Strip ── */}
+      {/* ── Preview Strip — clickable lightbox ── */}
       <section className="py-6 overflow-hidden border-t border-b border-red-900/20 bg-black/60">
-        <div className="flex gap-3 animate-none" style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none" }}>
+        <div style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none" }}>
           <div className="flex gap-3 min-w-max px-4">
             {ALL_IMAGES.map((img, i) => (
-              <div key={i} className="w-20 h-28 flex-shrink-0 overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all">
-                <img src={img} alt="" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
-              </div>
+              <button
+                key={i}
+                onClick={() => openLightbox(ALL_IMAGES, i)}
+                className="w-20 h-28 flex-shrink-0 overflow-hidden border border-red-900/20 hover:border-red-500/60 transition-all cursor-pointer group relative"
+              >
+                <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+              </button>
             ))}
           </div>
         </div>
@@ -110,17 +220,14 @@ export default function Home() {
                   viewport={{ once: true }} transition={{ delay: i * 0.06 }}>
                   <Link href={`/products?category=${cat}`}>
                     <div className="group relative border border-red-900/30 hover:border-red-600/60 transition-all duration-300 overflow-hidden cursor-pointer bg-card lava-pulse">
-                      {/* Main hero image */}
                       <div className="aspect-[3/4] overflow-hidden relative">
                         <img src={heroImg} alt={meta?.label ?? cat}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                        {/* Icon badge */}
                         <div className="absolute top-3 left-3 w-9 h-9 bg-black/70 border border-red-900/40 flex items-center justify-center text-lg">
                           {meta?.icon ?? "🎬"}
                         </div>
                       </div>
-                      {/* Thumbnail row */}
                       <div className="grid grid-cols-3 gap-0.5 border-t border-red-900/20">
                         {thumbs.map((t, ti) => (
                           <div key={ti} className="aspect-square overflow-hidden">
@@ -128,7 +235,6 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
-                      {/* Label overlay */}
                       <div className="absolute bottom-[calc(25%+2px)] left-0 right-0 px-3 pb-3">
                         <h3 className="font-creepster text-lg text-white group-hover:text-red-400 transition-colors leading-tight">
                           {meta?.label ?? cat}
@@ -155,6 +261,7 @@ export default function Home() {
           CATEGORY_IMAGES.horror[4], CATEGORY_IMAGES.animated[0],
         ]}
         linkCat="horror"
+        onImageClick={(imgs, idx) => openLightbox(imgs, idx)}
       />
 
       {/* ── Showcase: BRB / Ending ── */}
@@ -169,6 +276,7 @@ export default function Home() {
         ]}
         linkCat="bundle"
         reversed
+        onImageClick={(imgs, idx) => openLightbox(imgs, idx)}
       />
 
       {/* ── Anime / VTuber Spotlight ── */}
@@ -182,11 +290,12 @@ export default function Home() {
             {CATEGORY_IMAGES.anime.map((img, i) => (
               <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
-                <Link href="/products?category=anime">
-                  <div className="group aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer">
-                    <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                  </div>
-                </Link>
+                <button
+                  onClick={() => openLightbox(CATEGORY_IMAGES.anime, i)}
+                  className="group w-full aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer block"
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                </button>
               </motion.div>
             ))}
           </div>
@@ -219,10 +328,13 @@ export default function Home() {
             {CATEGORY_IMAGES.neon.slice(0, 4).map((img, i) => (
               <motion.div key={i} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                <div className={`overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all ${i === 0 ? "row-span-2" : ""}`}>
+                <button
+                  onClick={() => openLightbox(CATEGORY_IMAGES.neon, i)}
+                  className={`w-full overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all cursor-pointer block ${i === 0 ? "row-span-2" : ""}`}
+                >
                   <img src={img} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     style={{ minHeight: i === 0 ? "280px" : "130px" }} />
-                </div>
+                </button>
               </motion.div>
             ))}
           </div>
@@ -247,9 +359,10 @@ export default function Home() {
   );
 }
 
-function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false }: {
+function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false, onImageClick }: {
   title: string; subtitle: string; catKey: string;
   images: string[]; linkCat: string; reversed?: boolean;
+  onImageClick: (images: string[], index: number) => void;
 }) {
   const main = images[0];
   const rest = images.slice(1);
@@ -258,18 +371,23 @@ function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false }:
       <div className="max-w-7xl mx-auto">
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ${reversed ? "lg:flex-row-reverse" : ""}`}
           style={{ direction: reversed ? "rtl" : "ltr" }}>
-          {/* Images side */}
           <div style={{ direction: "ltr" }} className="grid grid-cols-3 gap-2">
-            <div className="col-span-2 row-span-2 overflow-hidden border border-red-900/30">
+            <button
+              onClick={() => onImageClick(images, 0)}
+              className="col-span-2 row-span-2 overflow-hidden border border-red-900/30 cursor-pointer block"
+            >
               <img src={main} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" style={{ minHeight: "280px" }} />
-            </div>
+            </button>
             {rest.slice(0, 4).map((img, i) => (
-              <div key={i} className="overflow-hidden border border-red-900/20">
+              <button
+                key={i}
+                onClick={() => onImageClick(images, i + 1)}
+                className="overflow-hidden border border-red-900/20 cursor-pointer block"
+              >
                 <img src={img} alt="" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" style={{ minHeight: "100px" }} />
-              </div>
+              </button>
             ))}
           </div>
-          {/* Text side */}
           <div style={{ direction: "ltr" }}>
             <p className="text-red-500 uppercase tracking-[0.5em] text-xs mb-3">Premium Assets</p>
             <h2 className="font-creepster text-4xl text-white mb-4">{title}</h2>
@@ -287,7 +405,17 @@ function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false }:
 }
 
 function ProductCard({ product, index }: { product: any; index: number }) {
-  const imgSrc = getImageForProduct(product.id, product.category);
+  const imgSrc = (() => {
+    try {
+      const p = JSON.parse(product.previewImageUrl);
+      if (Array.isArray(p)) {
+        const img = p.find((f: any) => f.type === "image" || f.type === "animated");
+        return img?.url ?? p[0]?.url ?? "";
+      }
+    } catch {}
+    return product.previewImageUrl || getImageForProduct(product.id, product.category);
+  })();
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
