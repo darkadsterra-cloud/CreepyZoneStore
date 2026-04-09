@@ -138,6 +138,8 @@ export default function ProductDetail() {
 
   const fallback = getImageForProduct(product.id, product.category);
   const mediaFiles = parseMedia(product.previewImageUrl, fallback);
+  const priceWhole = Math.floor(product.price);
+  const priceCents = String(Math.round((product.price % 1) * 100)).padStart(2, "0");
 
   return (
     <div className="min-h-screen py-12 px-4">
@@ -153,8 +155,8 @@ export default function ProductDetail() {
             <MediaViewer files={mediaFiles} />
             <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-red-700 flex items-center justify-center z-10">
               <div className="text-center">
-                <div className="font-creepster text-white text-2xl">${product.price.toFixed(0)}</div>
-                <div className="text-red-200 text-xs">.{String(Math.round((product.price % 1) * 100)).padStart(2, "0")}</div>
+                <div className="font-creepster text-white text-lg leading-tight">${priceWhole}</div>
+                <div className="text-red-200 text-xs">.{priceCents}</div>
               </div>
             </div>
           </motion.div>
