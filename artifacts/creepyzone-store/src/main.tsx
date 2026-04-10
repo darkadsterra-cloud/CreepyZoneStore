@@ -6,7 +6,7 @@ import "./index.css";
 // IMAGE PROTECTION — GLOBAL JS
 // ═══════════════════════════════════════════
 
-// Right click disable
+// Right click — SARI images aur videos pe block
 document.addEventListener("contextmenu", (e) => {
   const target = e.target as HTMLElement;
   if (
@@ -19,7 +19,7 @@ document.addEventListener("contextmenu", (e) => {
   }
 });
 
-// Keyboard shortcuts block — Ctrl+S, Ctrl+U, F12, PrintScreen
+// Keyboard shortcuts block
 document.addEventListener("keydown", (e) => {
   // PrintScreen
   if (e.key === "PrintScreen") {
@@ -27,7 +27,7 @@ document.addEventListener("keydown", (e) => {
     navigator.clipboard?.writeText("").catch(() => {});
     return false;
   }
-  // Ctrl+S (save), Ctrl+U (source), Ctrl+Shift+I (devtools), Ctrl+Shift+J
+  // Ctrl+S, Ctrl+U, Ctrl+P
   if (
     e.ctrlKey &&
     (e.key === "s" || e.key === "S" ||
@@ -37,7 +37,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return false;
   }
-  // Ctrl+Shift+I / Ctrl+Shift+J / F12
+  // Ctrl+Shift+I, Ctrl+Shift+J, F12
   if (
     (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j")) ||
     e.key === "F12"
@@ -47,21 +47,34 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// Drag prevention on images
+// Drag prevention — SARI images
 document.addEventListener("dragstart", (e) => {
-  if ((e.target as HTMLElement).tagName === "IMG") {
+  const target = e.target as HTMLElement;
+  if (target.tagName === "IMG" || target.tagName === "VIDEO") {
     e.preventDefault();
     return false;
   }
 });
 
-// Selection disable on images
+// Selection disable — SARI images
 document.addEventListener("selectstart", (e) => {
   const target = e.target as HTMLElement;
-  if (target.closest(".protected-media") || target.tagName === "IMG") {
+  if (
+    target.tagName === "IMG" ||
+    target.tagName === "VIDEO" ||
+    target.closest(".protected-media")
+  ) {
     e.preventDefault();
     return false;
   }
 });
+
+// Long press prevention — mobile pe image save hone se rokta hai
+document.addEventListener("touchstart", (e) => {
+  const target = e.target as HTMLElement;
+  if (target.tagName === "IMG" || target.tagName === "VIDEO") {
+    e.preventDefault();
+  }
+}, { passive: false });
 
 createRoot(document.getElementById("root")!).render(<App />);
