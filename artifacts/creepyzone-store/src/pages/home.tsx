@@ -7,6 +7,15 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const ALL_CATS = ["animated","neon","horror","anime","vertical","interactive","minimal","grunge","overlay","alert","bundle","pack"];
 
+// ── Protected Image Component ──
+function ProtectedImg({ src, alt, className, style }: { src: string; alt?: string; className?: string; style?: React.CSSProperties }) {
+  return (
+    <div className="protected-media w-full h-full" onContextMenu={e => e.preventDefault()}>
+      <img src={src} alt={alt ?? ""} className={className} style={style} draggable={false} />
+    </div>
+  );
+}
+
 // ── Lightbox Component ──
 function Lightbox({ images, startIndex, onClose }: { images: string[]; startIndex: number; onClose: () => void }) {
   const [index, setIndex] = useState(startIndex);
@@ -19,6 +28,11 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") prev();
       if (e.key === "ArrowRight") next();
+      // Block PrintScreen in lightbox
+      if (e.key === "PrintScreen") {
+        e.preventDefault();
+        navigator.clipboard?.writeText("").catch(() => {});
+      }
     };
     window.addEventListener("keydown", handler);
     document.body.style.overflow = "hidden";
@@ -36,40 +50,43 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
         onClick={onClose}
+        onContextMenu={e => e.preventDefault()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-60 text-white bg-red-700/80 hover:bg-red-600 p-2 border border-red-500 transition-all"
+          className="absolute top-4 right-4 z-[60] text-white bg-red-700/80 hover:bg-red-600 p-2 border border-red-500 transition-all"
         >
           <X className="w-6 h-6" />
         </button>
 
         {/* Counter */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-gray-300 text-sm px-4 py-1 border border-red-900/30">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-gray-300 text-sm px-4 py-1 border border-red-900/30 z-[60]">
           {index + 1} / {images.length}
         </div>
 
         {/* Prev button */}
         <button
           onClick={e => { e.stopPropagation(); prev(); }}
-          className="absolute left-3 md:left-6 z-60 text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
+          className="absolute left-3 md:left-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
         >
           <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
         </button>
 
-        {/* Main image */}
+        {/* Main image — protected */}
         <motion.div
           key={index}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.2 }}
-          className="max-w-[85vw] max-h-[85vh] mx-16"
+          className="max-w-[85vw] max-h-[85vh] mx-16 protected-media protected-media-lg"
           onClick={e => e.stopPropagation()}
+          onContextMenu={e => e.preventDefault()}
         >
           <img
             src={images[index]}
             alt=""
+            draggable={false}
             className="max-w-full max-h-[85vh] object-contain border border-red-900/30"
           />
         </motion.div>
@@ -77,22 +94,23 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
         {/* Next button */}
         <button
           onClick={e => { e.stopPropagation(); next(); }}
-          className="absolute right-3 md:right-6 z-60 text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
+          className="absolute right-3 md:right-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
         >
           <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
         </button>
 
         {/* Thumbnail strip */}
-        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto">
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto z-[60]">
           {images.map((img, i) => (
             <button
               key={i}
               onClick={e => { e.stopPropagation(); setIndex(i); }}
-              className={`w-12 h-16 flex-shrink-0 overflow-hidden border-2 transition-all ${
+              onContextMenu={e => e.preventDefault()}
+              className={`w-12 h-16 flex-shrink-0 overflow-hidden border-2 transition-all protected-media ${
                 i === index ? "border-red-500 opacity-100" : "border-red-900/30 opacity-50 hover:opacity-80"
               }`}
             >
-              <img src={img} alt="" className="w-full h-full object-cover" />
+              <img src={img} alt="" draggable={false} className="w-full h-full object-cover" />
             </button>
           ))}
         </div>
@@ -122,8 +140,9 @@ export default function Home() {
         <div className="absolute inset-0 z-0">
           <div className="grid grid-cols-4 md:grid-cols-5 h-full opacity-25">
             {ALL_IMAGES.slice(0, 10).map((img, i) => (
-              <div key={i} className="overflow-hidden">
-                <img src={img} alt="" className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-700" />
+              <div key={i} className="overflow-hidden protected-media">
+                <img src={img} alt="" draggable={false}
+                  className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-700" />
               </div>
             ))}
           </div>
@@ -166,10 +185,11 @@ export default function Home() {
               <button
                 key={i}
                 onClick={() => openLightbox(ALL_IMAGES, i)}
-                className="w-20 h-28 flex-shrink-0 overflow-hidden border border-red-900/20 hover:border-red-500/60 transition-all cursor-pointer group relative"
+                onContextMenu={e => e.preventDefault()}
+                className="w-16 h-20 flex-shrink-0 border border-red-900/20 hover:border-red-500/60 transition-all cursor-pointer group relative protected-media"
               >
-                <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all" />
+                <img src={img} alt="" draggable={false}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               </button>
             ))}
           </div>
@@ -220,22 +240,25 @@ export default function Home() {
                   viewport={{ once: true }} transition={{ delay: i * 0.06 }}>
                   <Link href={`/products?category=${cat}`}>
                     <div className="group relative border border-red-900/30 hover:border-red-600/60 transition-all duration-300 overflow-hidden cursor-pointer bg-card lava-pulse">
-                      <div className="aspect-[3/4] overflow-hidden relative">
-                        <img src={heroImg} alt={meta?.label ?? cat}
+                      <div className="aspect-[3/4] overflow-hidden relative protected-media"
+                        onContextMenu={e => e.preventDefault()}>
+                        <img src={heroImg} alt={meta?.label ?? cat} draggable={false}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-                        <div className="absolute top-3 left-3 w-9 h-9 bg-black/70 border border-red-900/40 flex items-center justify-center text-lg">
+                        <div className="absolute top-3 left-3 w-9 h-9 bg-black/70 border border-red-900/40 flex items-center justify-center text-lg z-10">
                           {meta?.icon ?? "🎬"}
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-0.5 border-t border-red-900/20">
                         {thumbs.map((t, ti) => (
-                          <div key={ti} className="aspect-square overflow-hidden">
-                            <img src={t} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                          <div key={ti} className="aspect-square overflow-hidden protected-media"
+                            onContextMenu={e => e.preventDefault()}>
+                            <img src={t} alt="" draggable={false}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                           </div>
                         ))}
                       </div>
-                      <div className="absolute bottom-[calc(25%+2px)] left-0 right-0 px-3 pb-3">
+                      <div className="absolute bottom-[calc(25%+2px)] left-0 right-0 px-3 pb-3 z-10">
                         <h3 className="font-creepster text-lg text-white group-hover:text-red-400 transition-colors leading-tight">
                           {meta?.label ?? cat}
                         </h3>
@@ -292,9 +315,11 @@ export default function Home() {
                 viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
                 <button
                   onClick={() => openLightbox(CATEGORY_IMAGES.anime, i)}
-                  className="group w-full aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer block"
+                  onContextMenu={e => e.preventDefault()}
+                  className="group w-full aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer block protected-media"
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <img src={img} alt="" draggable={false}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 </button>
               </motion.div>
             ))}
@@ -330,9 +355,11 @@ export default function Home() {
                 viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
                 <button
                   onClick={() => openLightbox(CATEGORY_IMAGES.neon, i)}
-                  className={`w-full overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all cursor-pointer block ${i === 0 ? "row-span-2" : ""}`}
+                  onContextMenu={e => e.preventDefault()}
+                  className={`w-full overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all cursor-pointer block protected-media ${i === 0 ? "row-span-2" : ""}`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                  <img src={img} alt="" draggable={false}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     style={{ minHeight: i === 0 ? "280px" : "130px" }} />
                 </button>
               </motion.div>
@@ -374,17 +401,23 @@ function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false, o
           <div style={{ direction: "ltr" }} className="grid grid-cols-3 gap-2">
             <button
               onClick={() => onImageClick(images, 0)}
-              className="col-span-2 row-span-2 overflow-hidden border border-red-900/30 cursor-pointer block"
+              onContextMenu={e => e.preventDefault()}
+              className="col-span-2 row-span-2 overflow-hidden border border-red-900/30 cursor-pointer block protected-media"
             >
-              <img src={main} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" style={{ minHeight: "280px" }} />
+              <img src={main} alt="" draggable={false}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                style={{ minHeight: "280px" }} />
             </button>
             {rest.slice(0, 4).map((img, i) => (
               <button
                 key={i}
                 onClick={() => onImageClick(images, i + 1)}
-                className="overflow-hidden border border-red-900/20 cursor-pointer block"
+                onContextMenu={e => e.preventDefault()}
+                className="overflow-hidden border border-red-900/20 cursor-pointer block protected-media"
               >
-                <img src={img} alt="" className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" style={{ minHeight: "100px" }} />
+                <img src={img} alt="" draggable={false}
+                  className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
+                  style={{ minHeight: "100px" }} />
               </button>
             ))}
           </div>
@@ -421,8 +454,9 @@ function ProductCard({ product, index }: { product: any; index: number }) {
       viewport={{ once: true }} transition={{ delay: index * 0.1 }}>
       <Link href={`/products/${product.id}`}>
         <div className="group border border-red-900/30 bg-card hover:border-red-600/60 lava-pulse transition-all duration-300 overflow-hidden cursor-pointer">
-          <div className="aspect-[3/4] overflow-hidden">
-            <img src={imgSrc} alt={product.title}
+          <div className="aspect-[3/4] overflow-hidden protected-media"
+            onContextMenu={e => e.preventDefault()}>
+            <img src={imgSrc} alt={product.title} draggable={false}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
           <div className="p-4">
