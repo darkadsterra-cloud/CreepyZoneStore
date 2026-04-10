@@ -5,6 +5,7 @@ import { ShoppingCart, User, LogOut, ChevronDown, Search, X } from "lucide-react
 import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
 import logoImg from "@assets/WhatsApp-Image-2026-04-05-at-2.43.53-PM_1775551028444.jpg";
+import { useAuthModal } from "@/App";
 
 const CATEGORIES = [
   { slug: "animated", label: "Animated Bundles", icon: "🎬" },
@@ -33,10 +34,10 @@ export function Navbar() {
   const catalogRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
+  const { openAuthModal } = useAuthModal();
 
   const cartItemsCount = cart?.items?.length || 0;
 
-  // Window resize + orientation change — consistent desktop/mobile check
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 1024);
     check();
@@ -62,7 +63,6 @@ export function Navbar() {
     if (searchOpen) setTimeout(() => searchRef.current?.focus(), 50);
   }, [searchOpen]);
 
-  // Close mobile menu on resize to desktop
   useEffect(() => {
     if (isDesktop) {
       setMobileOpen(false);
@@ -92,7 +92,7 @@ export function Navbar() {
           <span className="font-creepster text-xl neon-text tracking-wider hidden sm:block">CreepyZone Store</span>
         </Link>
 
-        {/* Desktop Nav — only when isDesktop */}
+        {/* Desktop Nav */}
         {isDesktop && (
           <div className="flex items-center space-x-8">
             <Link href="/" className="text-gray-300 hover:text-red-500 hover-glitch transition-colors uppercase tracking-widest text-sm font-semibold">
@@ -101,16 +101,11 @@ export function Navbar() {
             <Link href="/about" className="text-gray-300 hover:text-red-500 hover-glitch transition-colors uppercase tracking-widest text-sm font-semibold">
               About
             </Link>
-
-            {/* Catalog dropdown */}
             <div ref={catalogRef} className="relative">
-              <button
-                onClick={() => setCatalogOpen(!catalogOpen)}
-                className="flex items-center gap-1 text-gray-300 hover:text-red-500 transition-colors uppercase tracking-widest text-sm font-semibold"
-              >
+              <button onClick={() => setCatalogOpen(!catalogOpen)}
+                className="flex items-center gap-1 text-gray-300 hover:text-red-500 transition-colors uppercase tracking-widest text-sm font-semibold">
                 Catalog <ChevronDown className={`w-3 h-3 transition-transform ${catalogOpen ? "rotate-180" : ""}`} />
               </button>
-
               {catalogOpen && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-72 border border-red-900/40 bg-black/95 backdrop-blur-md shadow-2xl"
                   style={{ boxShadow: "0 0 30px rgba(180,0,0,0.15)" }}>
@@ -137,20 +132,16 @@ export function Navbar() {
           </div>
         )}
 
-        {/* Search Bar — desktop only */}
+        {/* Search Bar desktop */}
         {isDesktop && (
           <div className="flex-1 max-w-xs">
             {searchOpen ? (
               <form onSubmit={handleSearch} className="flex items-center gap-2">
                 <div className="flex-1 flex items-center border border-red-600/60 bg-black/80">
                   <Search className="w-4 h-4 text-red-500 mx-3 flex-shrink-0" />
-                  <input
-                    ref={searchRef}
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                  <input ref={searchRef} value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search products..."
-                    className="flex-1 bg-transparent py-2 pr-3 text-white text-sm outline-none placeholder-gray-600"
-                  />
+                    className="flex-1 bg-transparent py-2 pr-3 text-white text-sm outline-none placeholder-gray-600" />
                   <button type="button" onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
                     className="px-2 text-gray-600 hover:text-red-500 transition-colors">
                     <X className="w-4 h-4" />
@@ -169,8 +160,6 @@ export function Navbar() {
 
         {/* Right Side */}
         <div className="flex items-center space-x-3">
-
-          {/* Mobile search icon */}
           {!isDesktop && (
             <button onClick={() => setSearchOpen(!searchOpen)}
               className="text-gray-400 hover:text-red-500 transition-colors">
@@ -203,20 +192,18 @@ export function Navbar() {
               </button>
             </div>
           ) : (
-            <Link href="/login">
-              <Button variant="outline"
-                className="border-red-900/50 text-red-500 hover:bg-red-950/30 hover:text-red-400 uppercase tracking-widest font-bold text-xs">
-                Enter
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              onClick={() => openAuthModal("register")}
+              className="border-red-900/50 text-red-500 hover:bg-red-950/30 hover:text-red-400 uppercase tracking-widest font-bold text-xs"
+            >
+              Enter
+            </Button>
           )}
 
-          {/* Mobile hamburger — only when not desktop */}
           {!isDesktop && (
-            <button
-              className="text-gray-400 hover:text-red-500 transition-colors"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
+            <button className="text-gray-400 hover:text-red-500 transition-colors"
+              onClick={() => setMobileOpen(!mobileOpen)}>
               <div className="w-5 space-y-1.5">
                 <div className={`h-0.5 bg-current transition-all ${mobileOpen ? "rotate-45 translate-y-2" : ""}`} />
                 <div className={`h-0.5 bg-current transition-all ${mobileOpen ? "opacity-0" : ""}`} />
@@ -233,13 +220,9 @@ export function Navbar() {
           <form onSubmit={handleSearch} className="flex items-center gap-2">
             <div className="flex-1 flex items-center border border-red-600/60 bg-black/80">
               <Search className="w-4 h-4 text-red-500 mx-3 flex-shrink-0" />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                autoFocus
-                className="flex-1 bg-transparent py-2.5 pr-3 text-white text-sm outline-none placeholder-gray-600"
-              />
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search products..." autoFocus
+                className="flex-1 bg-transparent py-2.5 pr-3 text-white text-sm outline-none placeholder-gray-600" />
             </div>
             <button type="submit"
               className="px-4 py-2.5 bg-red-700 text-white text-xs uppercase tracking-widest font-bold border border-red-500">
@@ -272,6 +255,13 @@ export function Navbar() {
               ))}
             </div>
           </div>
+          {!isAuthenticated && (
+            <button
+              onClick={() => { setMobileOpen(false); openAuthModal("register"); }}
+              className="w-full mt-3 py-3 bg-red-700 text-white font-bold uppercase tracking-widest text-sm border border-red-500">
+              Join The Darkness
+            </button>
+          )}
         </div>
       )}
 
