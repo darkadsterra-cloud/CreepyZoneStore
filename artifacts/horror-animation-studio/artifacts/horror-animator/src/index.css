@@ -1,0 +1,548 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --button-outline: rgba(255,255,255,.10);
+  --badge-outline: rgba(255,255,255,.05);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255,255,255,.04);
+  --elevate-2: rgba(255,255,255,.09);
+  --background: 0 0% 4%;
+  --foreground: 0 0% 92%;
+  --border: 0 0% 13%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 92%;
+  --card-border: 0 0% 13%;
+  --sidebar: 0 0% 6%;
+  --sidebar-foreground: 0 0% 88%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-primary: 0 85% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 10%;
+  --sidebar-accent-foreground: 0 0% 88%;
+  --sidebar-ring: 0 85% 48%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 92%;
+  --popover-border: 0 0% 13%;
+  --primary: 0 85% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 0 0% 88%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 50%;
+  --accent: 0 60% 18%;
+  --accent-foreground: 0 0% 92%;
+  --destructive: 0 85% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 0 0% 15%;
+  --ring: 0 85% 48%;
+  --chart-1: 0 85% 48%;
+  --chart-2: 15 80% 45%;
+  --chart-3: 350 70% 40%;
+  --chart-4: 30 90% 50%;
+  --chart-5: 0 0% 40%;
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: Menlo, monospace;
+  --radius: .5rem;
+  --shadow-2xs: 0 1px 2px rgba(0,0,0,.5);
+  --shadow-xs: 0 1px 3px rgba(0,0,0,.5);
+  --shadow-sm: 0 2px 4px rgba(0,0,0,.5);
+  --shadow: 0 4px 6px rgba(0,0,0,.5);
+  --shadow-md: 0 6px 10px rgba(0,0,0,.5);
+  --shadow-lg: 0 10px 20px rgba(0,0,0,.5);
+  --shadow-xl: 0 15px 30px rgba(0,0,0,.6);
+  --shadow-2xl: 0 25px 50px rgba(0,0,0,.7);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+  --primary-border: hsl(var(--primary));
+  --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+  --secondary-border: hsl(var(--secondary));
+  --muted-border: hsl(var(--muted));
+  --accent-border: hsl(var(--accent));
+  --destructive-border: hsl(var(--destructive));
+  --sidebar-primary-border: hsl(var(--sidebar-primary));
+  --sidebar-accent-border: hsl(var(--sidebar-accent));
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply font-sans antialiased bg-background text-foreground; }
+}
+
+/* ── GREEN SCREEN ────────────────────────────────────────────────────── */
+.green-screen-bg { background-color: #00ff00 !important; }
+
+/* ──────────────────────────────────────────────────────────────────────
+   APP BACKGROUND ANIMATIONS (blood drip + fire flakes)
+─────────────────────────────────────────────────────────────────────── */
+@keyframes app-blood-drip {
+  0%   { transform: translateY(-100%) scaleY(0.5); opacity: 0; }
+  10%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(100vh) scaleY(1.5); opacity: 0; }
+}
+@keyframes app-ember-rise {
+  0%   { transform: translateY(0) translateX(0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translateY(-100vh) translateX(var(--drift)) rotate(720deg) scale(0); opacity: 0; }
+}
+@keyframes app-header-glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(255,0,0,0.4), 0 0 20px rgba(255,0,0,0.2); }
+  50% { text-shadow: 0 0 20px rgba(255,0,0,0.8), 0 0 40px rgba(255,0,0,0.4), 0 0 80px rgba(255,0,0,0.2); }
+}
+@keyframes app-border-pulse {
+  0%, 100% { border-color: rgba(180,0,0,0.3); box-shadow: 0 0 5px rgba(180,0,0,0.1); }
+  50% { border-color: rgba(220,0,0,0.6); box-shadow: 0 0 15px rgba(220,0,0,0.3); }
+}
+
+.horror-glow-text { animation: app-header-glow 3s ease-in-out infinite; }
+.horror-border-pulse { animation: app-border-pulse 4s ease-in-out infinite; }
+
+/* ── MOVEMENT ──────────────────────────────────────────────────────── */
+@keyframes ha-float {
+  0%,100%{transform:translateY(0) rotate(0deg)} 25%{transform:translateY(-18px) rotate(-2deg)} 50%{transform:translateY(-6px) rotate(1deg)} 75%{transform:translateY(-22px) rotate(-1deg)}
+}
+@keyframes ha-shake {
+  0%,100%{transform:translate(0,0) rotate(0)} 10%{transform:translate(-6px,-3px) rotate(-2deg)} 30%{transform:translate(5px,4px) rotate(2deg)} 50%{transform:translate(-4px,6px) rotate(-1deg)} 70%{transform:translate(7px,-4px) rotate(3deg)} 90%{transform:translate(-5px,3px) rotate(-2deg)}
+}
+@keyframes ha-creep {
+  0%{transform:translateX(-110%) rotate(-3deg);opacity:0} 20%{opacity:1} 50%{transform:translateX(0) rotate(0);opacity:1} 80%{opacity:1} 100%{transform:translateX(110%) rotate(3deg);opacity:0}
+}
+@keyframes ha-swing {
+  0%,100%{transform:rotate(-25deg);transform-origin:top center} 50%{transform:rotate(25deg);transform-origin:top center}
+}
+@keyframes ha-drift-left {
+  0%,100%{transform:translateX(0)} 50%{transform:translateX(-30px)}
+}
+@keyframes ha-drift-right {
+  0%,100%{transform:translateX(0)} 50%{transform:translateX(30px)}
+}
+@keyframes ha-spiral {
+  0%{transform:rotate(0deg) translateX(20px) scale(1)} 100%{transform:rotate(360deg) translateX(20px) scale(1)}
+}
+@keyframes ha-sway {
+  0%,100%{transform:translateX(0) rotate(0deg)} 25%{transform:translateX(-15px) rotate(-5deg)} 75%{transform:translateX(15px) rotate(5deg)}
+}
+@keyframes ha-bounce {
+  0%,100%{transform:translateY(0)} 40%{transform:translateY(-25px)} 60%{transform:translateY(-15px)}
+}
+@keyframes ha-teleport {
+  0%,90%{opacity:1;transform:translate(0,0)} 91%,95%{opacity:0} 96%{transform:translate(20px,-15px);opacity:1} 97%,99%{opacity:0} 100%{transform:translate(0,0);opacity:1}
+}
+@keyframes ha-slide-down {
+  0%{transform:translateY(-60px);opacity:0} 20%,80%{transform:translateY(0);opacity:1} 100%{transform:translateY(60px);opacity:0}
+}
+@keyframes ha-slide-up {
+  0%{transform:translateY(60px);opacity:0} 20%,80%{transform:translateY(0);opacity:1} 100%{transform:translateY(-60px);opacity:0}
+}
+@keyframes ha-zigzag {
+  0%{transform:translate(0,0)} 25%{transform:translate(25px,-20px)} 50%{transform:translate(0,0)} 75%{transform:translate(-25px,-20px)} 100%{transform:translate(0,0)}
+}
+@keyframes ha-earthquake {
+  0%,100%{transform:translate(0,0)} 25%{transform:translate(-8px,4px)} 50%{transform:translate(8px,-4px)} 75%{transform:translate(-4px,-8px)}
+}
+@keyframes ha-levitate-spin {
+  0%,100%{transform:translateY(0) rotate(0deg)} 25%{transform:translateY(-20px) rotate(90deg)} 50%{transform:translateY(-10px) rotate(180deg)} 75%{transform:translateY(-25px) rotate(270deg)}
+}
+@keyframes ha-marionette {
+  0%,100%{transform:translate(0,0) rotate(0deg)} 20%{transform:translate(5px,-10px) rotate(10deg)} 40%{transform:translate(-3px,5px) rotate(-5deg)} 60%{transform:translate(8px,-5px) rotate(8deg)} 80%{transform:translate(-5px,8px) rotate(-8deg)}
+}
+@keyframes ha-crawl {
+  0%{transform:translateX(-110%) translateY(20px) rotate(5deg)} 50%{transform:translateX(0%) translateY(0px) rotate(0deg)} 100%{transform:translateX(110%) translateY(20px) rotate(5deg)}
+}
+@keyframes ha-jerk {
+  0%,100%{transform:translate(0,0) rotate(0)} 10%{transform:translate(-10px,-8px) rotate(-15deg)} 25%{transform:translate(8px,10px) rotate(10deg)} 40%{transform:translate(-12px,5px) rotate(-8deg)} 60%{transform:translate(10px,-12px) rotate(12deg)} 80%{transform:translate(-5px,8px) rotate(-5deg)}
+}
+@keyframes ha-orbit {
+  0%{transform:rotate(0deg) translateX(30px) rotate(0deg)} 100%{transform:rotate(360deg) translateX(30px) rotate(-360deg)}
+}
+@keyframes ha-tidal {
+  0%,100%{transform:translateX(0) scaleX(1)} 25%{transform:translateX(-20px) scaleX(0.9)} 75%{transform:translateX(20px) scaleX(1.1)}
+}
+@keyframes ha-chaotic {
+  0%{transform:translate(0,0) rotate(0deg) scale(1)} 20%{transform:translate(-15px,10px) rotate(25deg) scale(1.1)} 40%{transform:translate(12px,-18px) rotate(-30deg) scale(0.9)} 60%{transform:translate(-8px,15px) rotate(15deg) scale(1.05)} 80%{transform:translate(18px,-5px) rotate(-20deg) scale(0.95)} 100%{transform:translate(0,0) rotate(0deg) scale(1)}
+}
+@keyframes ha-rise-fall {
+  0%,100%{transform:translateY(0)} 50%{transform:translateY(-30px)}
+}
+@keyframes ha-sidewind {
+  0%,100%{transform:translateX(0) skewX(0deg)} 25%{transform:translateX(-20px) skewX(-5deg)} 75%{transform:translateX(20px) skewX(5deg)}
+}
+@keyframes ha-pulse-move {
+  0%,100%{transform:translateX(0) scale(1)} 25%{transform:translateX(-15px) scale(1.05)} 75%{transform:translateX(15px) scale(0.95)}
+}
+@keyframes ha-warp-drift {
+  0%,100%{transform:translate(0,0) skew(0,0)} 25%{transform:translate(-10px,-15px) skew(-3deg,-2deg)} 50%{transform:translate(15px,5px) skew(2deg,3deg)} 75%{transform:translate(-5px,10px) skew(-1deg,1deg)}
+}
+
+/* ── SCARE ──────────────────────────────────────────────────────────── */
+@keyframes ha-jumpscare {
+  0%,85%,100%{transform:scale(1) rotate(0deg);filter:brightness(1)} 88%{transform:scale(3) rotate(-5deg);filter:brightness(4)} 91%{transform:scale(0.8) rotate(3deg);filter:brightness(0.4)} 94%{transform:scale(2.5) rotate(-2deg);filter:brightness(3)} 97%{transform:scale(1) rotate(0deg);filter:brightness(1)}
+}
+@keyframes ha-flash-blink {
+  0%,49%{opacity:1} 50%,100%{opacity:0}
+}
+@keyframes ha-sudden-loom {
+  0%,60%,100%{transform:scale(1);filter:brightness(1)} 70%{transform:scale(2.8);filter:brightness(2.5)} 80%{transform:scale(2.5);filter:brightness(2)} 90%{transform:scale(1.2);filter:brightness(1.2)}
+}
+@keyframes ha-evil-zoom {
+  0%{transform:scale(0.5);opacity:0.5} 80%{transform:scale(2);opacity:1} 100%{transform:scale(0.5);opacity:0.5}
+}
+@keyframes ha-strobe {
+  0%,49%{filter:brightness(5) invert(1)} 50%,100%{filter:brightness(1) invert(0)}
+}
+@keyframes ha-blackout-reveal {
+  0%,40%{opacity:0;transform:scale(0.8)} 50%{opacity:1;transform:scale(1.2)} 60%{opacity:0} 70%{opacity:1;transform:scale(1)} 100%{opacity:1;transform:scale(1)}
+}
+@keyframes ha-rapid-approach {
+  0%{transform:scale(0.1) translateZ(0);opacity:0} 80%{transform:scale(1.5) translateZ(0);opacity:1} 100%{transform:scale(1) translateZ(0);opacity:1}
+}
+@keyframes ha-mirror-flip {
+  0%,45%,100%{transform:scaleX(1);filter:brightness(1)} 50%{transform:scaleX(-1);filter:brightness(3)} 55%,95%{transform:scaleX(-1);filter:brightness(1)}
+}
+@keyframes ha-warp-jump {
+  0%,70%,100%{transform:translate(0,0) scale(1) rotate(0deg)} 75%{transform:translate(-30px,20px) scale(0.5) rotate(-15deg)} 80%{transform:translate(40px,-30px) scale(1.5) rotate(10deg)} 85%{transform:translate(0,0) scale(1) rotate(0deg)}
+}
+@keyframes ha-crash-in {
+  0%{transform:translateX(-200%) rotate(-30deg) scale(2);opacity:0} 15%{transform:translateX(20px) rotate(5deg) scale(1.1);opacity:1} 25%,100%{transform:translateX(0) rotate(0deg) scale(1);opacity:1}
+}
+@keyframes ha-slam-down {
+  0%{transform:translateY(-200%) scale(2);opacity:0} 15%{transform:translateY(10px) scale(0.95);opacity:1} 25%,100%{transform:translateY(0) scale(1);opacity:1}
+}
+@keyframes ha-eye-open {
+  0%,100%{transform:scaleY(0.05);filter:brightness(0.3)} 10%,90%{transform:scaleY(1);filter:brightness(1.5)} 50%{transform:scaleY(1);filter:brightness(1)}
+}
+@keyframes ha-death-drop {
+  0%,50%{transform:translateY(0) rotate(0);opacity:1} 80%{transform:translateY(200px) rotate(15deg);opacity:0} 81%{transform:translateY(-200px) rotate(-15deg);opacity:0} 100%{transform:translateY(0) rotate(0);opacity:1}
+}
+@keyframes ha-nuclear-pulse {
+  0%,100%{transform:scale(1);filter:brightness(1) contrast(1)} 30%{transform:scale(3);filter:brightness(5) contrast(2)} 60%{transform:scale(0.5);filter:brightness(0.3)}
+}
+@keyframes ha-distort-warp {
+  0%,100%{filter:blur(0) hue-rotate(0deg);transform:scale(1) skew(0deg,0deg)} 20%{filter:blur(4px) hue-rotate(90deg);transform:scale(1.1) skew(5deg,-3deg)} 40%{filter:blur(0) hue-rotate(180deg);transform:scale(0.9) skew(-3deg,5deg)} 60%{filter:blur(3px) hue-rotate(270deg);transform:scale(1.05) skew(2deg,-4deg)} 80%{filter:blur(1px) hue-rotate(360deg);transform:scale(0.95) skew(-2deg,2deg)}
+}
+@keyframes ha-horror-snap {
+  0%{transform:translate(0,0) rotate(0)} 33%{transform:translate(20px,-15px) rotate(25deg)} 66%{transform:translate(-18px,12px) rotate(-20deg)} 100%{transform:translate(0,0) rotate(0)}
+}
+@keyframes ha-rage-flash {
+  0%,49%{filter:brightness(1) sepia(0) saturate(1)} 50%,100%{filter:brightness(3) sepia(1) saturate(5) hue-rotate(320deg)}
+}
+@keyframes ha-final-reveal {
+  0%{opacity:0;filter:blur(20px) brightness(0);transform:scale(1.5)} 50%{opacity:0.1;filter:blur(10px) brightness(0.1)} 80%{opacity:0.8;filter:blur(2px) brightness(0.8);transform:scale(1.05)} 100%{opacity:1;filter:blur(0) brightness(1);transform:scale(1)}
+}
+@keyframes ha-dive-bomb {
+  0%{transform:translateY(-300%) scale(3) rotate(15deg);opacity:0} 30%{opacity:1} 70%{transform:translateY(0) scale(1) rotate(0);opacity:1} 100%{transform:translateY(-300%) scale(3) rotate(15deg);opacity:0}
+}
+@keyframes ha-possession {
+  0%,100%{transform:translate(0,0) rotate(0) scale(1);filter:brightness(1)} 20%{transform:translate(-12px,8px) rotate(-20deg) scale(1.2);filter:brightness(2.5) hue-rotate(300deg)} 40%{transform:translate(10px,-15px) rotate(25deg) scale(0.85);filter:brightness(0.5)} 60%{transform:translate(-8px,12px) rotate(-15deg) scale(1.15);filter:brightness(3) hue-rotate(180deg)} 80%{transform:translate(15px,-8px) rotate(18deg) scale(0.9);filter:brightness(0.8)}
+}
+@keyframes ha-rage-burst {
+  0%,80%,100%{transform:scale(1);filter:brightness(1)} 85%{transform:scale(2.5);filter:brightness(4) saturate(3)} 90%{transform:scale(0.9);filter:brightness(0.5)}
+}
+@keyframes ha-terror-vibrate {
+  0%,100%{transform:translate(0,0)} 25%{transform:translate(-3px,2px)} 50%{transform:translate(3px,-2px)} 75%{transform:translate(-2px,-3px)}
+}
+@keyframes ha-appear-ghost {
+  0%{opacity:0;filter:blur(10px);transform:scale(0.7)} 30%{opacity:0.7;filter:blur(3px);transform:scale(1.05)} 60%{opacity:1;filter:blur(0);transform:scale(1)} 80%{opacity:0.9} 100%{opacity:0;filter:blur(8px);transform:scale(0.8)}
+}
+@keyframes ha-grab-reach {
+  0%,60%,100%{transform:translateX(0) scaleX(1)} 70%{transform:translateX(20px) scaleX(1.3)} 80%{transform:translateX(40px) scaleX(1.5)} 90%{transform:translateX(20px) scaleX(1.2)}
+}
+@keyframes ha-shatter {
+  0%,70%,100%{transform:scale(1) rotate(0deg);filter:brightness(1)} 75%{transform:scale(1.1) rotate(2deg);filter:brightness(3)} 80%{transform:scale(0) rotate(45deg);filter:brightness(0)} 85%{transform:scale(0) rotate(-45deg)} 90%{transform:scale(1.2) rotate(0deg);filter:brightness(2)} 95%{transform:scale(1) rotate(0deg);filter:brightness(1)}
+}
+
+/* ── ATMOSPHERIC ──────────────────────────────────────────────────── */
+@keyframes ha-haunting {
+  0%{opacity:0.1;filter:blur(6px) brightness(0.3);transform:scale(1.05)} 30%{opacity:0.9;filter:blur(1px) brightness(1.3);transform:scale(1)} 60%{opacity:0.15;filter:blur(8px) brightness(0.2);transform:scale(1.08)} 100%{opacity:0.1;filter:blur(6px) brightness(0.3);transform:scale(1.05)}
+}
+@keyframes ha-pulse-glow {
+  0%,100%{filter:drop-shadow(0 0 5px rgba(200,0,0,0.4)) brightness(1)} 50%{filter:drop-shadow(0 0 30px rgba(255,0,0,0.9)) brightness(1.4)}
+}
+@keyframes ha-flicker {
+  0%,100%{opacity:1} 4%{opacity:0.1} 8%{opacity:1} 20%{opacity:1} 22%{opacity:0.2} 24%{opacity:1} 55%{opacity:1} 57%{opacity:0} 59%{opacity:1} 62%{opacity:0.4} 65%{opacity:1}
+}
+@keyframes ha-shadow-breathe {
+  0%,100%{transform:scale(1);filter:brightness(0.6) blur(0px)} 50%{transform:scale(1.04);filter:brightness(1.2) blur(1px)}
+}
+@keyframes ha-fog-roll {
+  0%{filter:blur(0px) brightness(0.5) opacity(0.3)} 50%{filter:blur(8px) brightness(0.8) opacity(0.9)} 100%{filter:blur(0px) brightness(0.5) opacity(0.3)}
+}
+@keyframes ha-spectral-shift {
+  0%,100%{filter:hue-rotate(0deg) saturate(1)} 25%{filter:hue-rotate(90deg) saturate(0.5)} 50%{filter:hue-rotate(180deg) saturate(2)} 75%{filter:hue-rotate(270deg) saturate(0.3)}
+}
+@keyframes ha-nightmare-phase {
+  0%,100%{opacity:1;filter:blur(0)} 20%{opacity:0.3;filter:blur(5px)} 40%{opacity:0.8;filter:blur(1px)} 60%{opacity:0.1;filter:blur(10px)} 80%{opacity:0.6;filter:blur(3px)}
+}
+@keyframes ha-dark-ritual {
+  0%,100%{filter:brightness(0.5) saturate(0.5);transform:scale(1)} 50%{filter:brightness(1.5) saturate(3) hue-rotate(300deg);transform:scale(1.05)}
+}
+@keyframes ha-spirit-manifest {
+  0%,100%{opacity:0;filter:blur(15px);transform:scale(0.5) translateY(20px)} 30%,70%{opacity:1;filter:blur(0);transform:scale(1) translateY(0)}
+}
+@keyframes ha-aura-glow {
+  0%,100%{filter:drop-shadow(0 0 8px rgba(180,0,200,0.4))} 50%{filter:drop-shadow(0 0 25px rgba(200,0,255,0.8)) brightness(1.3)}
+}
+@keyframes ha-infernal-glow {
+  0%,100%{filter:drop-shadow(0 0 5px rgba(255,80,0,0.5)) brightness(0.9)} 50%{filter:drop-shadow(0 0 30px rgba(255,120,0,0.9)) brightness(1.5) saturate(2)}
+}
+@keyframes ha-grave-rise {
+  0%{transform:translateY(40px);opacity:0;filter:blur(5px)} 50%,100%{transform:translateY(0);opacity:1;filter:blur(0)}
+}
+@keyframes ha-moonlit-wail {
+  0%,100%{filter:brightness(0.7) sepia(0.3)} 50%{filter:brightness(1.4) sepia(0.1) drop-shadow(0 0 15px rgba(180,200,255,0.5))}
+}
+@keyframes ha-astral-drain {
+  0%,100%{filter:saturate(1) brightness(1)} 50%{filter:saturate(0) brightness(0.4) blur(2px)}
+}
+@keyframes ha-limbo-float {
+  0%,100%{transform:translateY(0) rotate(0deg);filter:blur(0px)} 33%{transform:translateY(-15px) rotate(-3deg);filter:blur(1px)} 66%{transform:translateY(-8px) rotate(2deg);filter:blur(0.5px)}
+}
+@keyframes ha-sigil-burn {
+  0%,100%{filter:brightness(0.5) sepia(1) hue-rotate(300deg)} 50%{filter:brightness(2) sepia(1) hue-rotate(340deg) drop-shadow(0 0 15px rgba(255,50,0,0.8))}
+}
+@keyframes ha-death-breath {
+  0%,100%{filter:blur(0) opacity(1)} 50%{filter:blur(4px) opacity(0.6) brightness(0.7)}
+}
+@keyframes ha-void-portal {
+  0%,100%{transform:scale(1) rotate(0deg);filter:brightness(1)} 50%{transform:scale(1.1) rotate(5deg);filter:brightness(0.3) saturate(0) blur(2px)}
+}
+@keyframes ha-purgatory {
+  0%,100%{filter:brightness(1) contrast(1) opacity(1)} 25%{filter:brightness(0.3) contrast(3) opacity(0.7)} 50%{filter:brightness(1.5) contrast(0.8) opacity(0.9)} 75%{filter:brightness(0.5) contrast(2) opacity(0.8)}
+}
+@keyframes ha-underworld {
+  0%,100%{filter:brightness(0.6) sepia(0.8) hue-rotate(300deg)} 50%{filter:brightness(1.4) sepia(0.5) hue-rotate(340deg) drop-shadow(0 0 20px rgba(200,50,0,0.6))}
+}
+@keyframes ha-eternal-dark {
+  0%,100%{filter:brightness(1) opacity(1)} 30%{filter:brightness(0.1) opacity(0.3)} 60%{filter:brightness(0.05) opacity(0.1)} 80%{filter:brightness(0.6) opacity(0.8)}
+}
+@keyframes ha-terror-fog {
+  0%,100%{filter:blur(0) brightness(0.8) opacity(0.9)} 50%{filter:blur(10px) brightness(0.4) opacity(0.5)}
+}
+@keyframes ha-cursed-halo {
+  0%{filter:hue-rotate(0deg) drop-shadow(0 -15px 10px rgba(180,0,200,0.6))} 100%{filter:hue-rotate(360deg) drop-shadow(0 -15px 10px rgba(180,0,200,0.6))}
+}
+@keyframes ha-soul-emerge {
+  0%{transform:translateY(20px) scale(0.8);opacity:0;filter:blur(8px)} 40%{opacity:0.9;filter:blur(1px)} 70%{transform:translateY(-10px) scale(1.05);opacity:1;filter:blur(0)} 100%{transform:translateY(-30px) scale(0.9);opacity:0;filter:blur(5px)}
+}
+@keyframes ha-ghost-drift {
+  0%{transform:translateX(0%) opacity(1)} 25%{transform:translateX(-10%);opacity:0.3;filter:blur(3px)} 50%{transform:translateX(5%);opacity:0.8} 75%{transform:translateX(-5%);opacity:0.2;filter:blur(5px)} 100%{transform:translateX(0%);opacity:1;filter:blur(0)}
+}
+
+/* ── VISUAL EFFECTS ──────────────────────────────────────────────── */
+@keyframes ha-glitch {
+  0%,90%,100%{transform:translate(0) clip-path:none;filter:hue-rotate(0deg)} 92%{transform:translate(-8px,3px);filter:hue-rotate(90deg);clip-path:inset(20% 0 30% 0)} 94%{transform:translate(8px,-3px);filter:hue-rotate(270deg);clip-path:inset(60% 0 10% 0)} 96%{transform:translate(-3px,6px);filter:hue-rotate(180deg);clip-path:inset(40% 0 40% 0)} 98%{transform:translate(0);filter:hue-rotate(0deg);clip-path:none}
+}
+@keyframes ha-blood-filter {
+  0%,100%{filter:sepia(0.5) hue-rotate(310deg) saturate(3) brightness(0.8)} 50%{filter:sepia(0.8) hue-rotate(320deg) saturate(5) brightness(1.2)}
+}
+@keyframes ha-chromatic {
+  0%,100%{filter:none} 50%{filter:drop-shadow(4px 0 0 rgba(255,0,0,0.5)) drop-shadow(-4px 0 0 rgba(0,255,255,0.5)) blur(1px)}
+}
+@keyframes ha-tv-static {
+  0%{filter:contrast(2) brightness(1.5)} 33%{filter:contrast(0.5) brightness(0.5) saturate(0)} 66%{filter:contrast(3) brightness(2) saturate(2)} 100%{filter:contrast(1) brightness(1)}
+}
+@keyframes ha-heat-distort {
+  0%,100%{filter:blur(0px) saturate(2) hue-rotate(0deg)} 25%{filter:blur(2px) saturate(3) hue-rotate(10deg)} 50%{filter:blur(1px) saturate(4) hue-rotate(20deg)} 75%{filter:blur(3px) saturate(2) hue-rotate(5deg)}
+}
+@keyframes ha-shadow-clone {
+  0%,100%{filter:drop-shadow(0 0 0 rgba(0,0,0,0))} 50%{filter:drop-shadow(15px 10px 0 rgba(0,0,0,0.7)) drop-shadow(-10px 15px 0 rgba(50,0,0,0.5))}
+}
+@keyframes ha-corruption {
+  0%,80%{filter:none} 85%{filter:contrast(5) saturate(0) invert(1)} 90%{filter:contrast(2) saturate(3) hue-rotate(300deg)} 95%{filter:invert(1) contrast(3)} 100%{filter:none}
+}
+@keyframes ha-acid-burn {
+  0%,100%{filter:saturate(1) brightness(1) hue-rotate(0deg)} 25%{filter:saturate(5) brightness(1.5) hue-rotate(80deg)} 50%{filter:saturate(2) brightness(0.7) hue-rotate(120deg)} 75%{filter:saturate(8) brightness(2) hue-rotate(60deg)}
+}
+@keyframes ha-toxic-glow {
+  0%,100%{filter:drop-shadow(0 0 5px rgba(0,255,0,0.4)) brightness(0.9)} 50%{filter:drop-shadow(0 0 25px rgba(0,255,0,0.9)) brightness(1.4) saturate(2)}
+}
+@keyframes ha-possession-pulse {
+  0%,100%{filter:brightness(1) saturate(1);transform:scale(1)} 50%{filter:brightness(2) saturate(3) hue-rotate(280deg);transform:scale(1.05)}
+}
+@keyframes ha-cursed-invert {
+  0%,49%{filter:invert(0)} 50%,100%{filter:invert(1) hue-rotate(180deg)}
+}
+@keyframes ha-hellfire-tint {
+  0%,100%{filter:sepia(0.3) hue-rotate(330deg) saturate(2)} 50%{filter:sepia(0.7) hue-rotate(350deg) saturate(4) brightness(1.3)}
+}
+@keyframes ha-pixel-corrupt {
+  0%,70%{filter:none} 75%{filter:contrast(10) saturate(0)} 80%{filter:hue-rotate(90deg) contrast(5)} 85%{filter:invert(0.5)} 90%,100%{filter:none}
+}
+@keyframes ha-void-tear {
+  0%,100%{clip-path:inset(0 0 0 0);filter:brightness(1)} 20%{clip-path:inset(10% 0 10% 0);filter:brightness(0)} 40%{clip-path:inset(0 0 0 0);filter:brightness(2)} 60%{clip-path:inset(30% 0 30% 0);filter:brightness(0.3)} 80%{clip-path:inset(0 5% 0 5%);filter:brightness(1.5)}
+}
+@keyframes ha-soul-drain {
+  0%,100%{filter:saturate(1) opacity(1)} 50%{filter:saturate(0) opacity(0.5) brightness(0.4) blur(2px)}
+}
+@keyframes ha-blood-moon {
+  0%,100%{filter:sepia(0.3) hue-rotate(315deg) saturate(2) brightness(0.8)} 50%{filter:sepia(0.6) hue-rotate(330deg) saturate(3) brightness(1.2) drop-shadow(0 0 20px rgba(180,0,0,0.6))}
+}
+@keyframes ha-spectral-echo {
+  0%,100%{filter:none;opacity:1} 50%{filter:blur(2px) drop-shadow(5px 5px 0 rgba(255,0,0,0.4)) drop-shadow(-5px -5px 0 rgba(0,0,255,0.4));opacity:0.9}
+}
+@keyframes ha-demon-vision {
+  0%,100%{filter:brightness(1) hue-rotate(0deg)} 25%{filter:brightness(0.5) hue-rotate(300deg) saturate(3)} 50%{filter:brightness(1.5) hue-rotate(320deg) saturate(5)} 75%{filter:brightness(0.3) hue-rotate(310deg)}
+}
+@keyframes ha-nightmare-overlay {
+  0%,100%{filter:brightness(1) blur(0) saturate(1)} 20%{filter:brightness(0.5) blur(3px) saturate(0.3)} 40%{filter:brightness(1.2) blur(0) saturate(2) hue-rotate(180deg)} 60%{filter:brightness(0.3) blur(6px)} 80%{filter:brightness(1) blur(1px) saturate(0.5)}
+}
+@keyframes ha-laser-eyes {
+  0%,100%{filter:drop-shadow(0 0 3px rgba(255,0,0,0.6)) brightness(1)} 50%{filter:drop-shadow(0 0 15px rgba(255,0,0,1)) drop-shadow(0 0 30px rgba(255,100,0,0.8)) brightness(1.5)}
+}
+@keyframes ha-film-grain {
+  0%{filter:contrast(1.1) brightness(1.05)} 25%{filter:contrast(1.2) brightness(0.95) saturate(0.9)} 50%{filter:contrast(1.0) brightness(1.1)} 75%{filter:contrast(1.3) brightness(0.98)} 100%{filter:contrast(1.1) brightness(1.05)}
+}
+@keyframes ha-mirror-world {
+  0%,49%{transform:scaleX(1)} 50%,100%{transform:scaleX(-1)}
+}
+@keyframes ha-hell-warp {
+  0%,100%{filter:none;transform:scale(1)} 25%{filter:hue-rotate(20deg) saturate(3) brightness(1.5);transform:scale(1.05) skew(2deg)} 50%{filter:hue-rotate(40deg) saturate(5) brightness(2);transform:scale(0.95) skew(-2deg)} 75%{filter:hue-rotate(10deg) saturate(2) brightness(1.2);transform:scale(1.02) skew(1deg)}
+}
+@keyframes ha-celestial-horror {
+  0%,100%{filter:brightness(1) hue-rotate(0deg);transform:scale(1)} 25%{filter:brightness(2) hue-rotate(180deg) saturate(3);transform:scale(1.1)} 50%{filter:brightness(0.2) hue-rotate(90deg);transform:scale(0.9)} 75%{filter:brightness(1.8) hue-rotate(270deg) saturate(2);transform:scale(1.05)}
+}
+@keyframes ha-blood-splat {
+  0%,70%,100%{filter:brightness(1)} 75%{filter:brightness(2) sepia(1) hue-rotate(310deg) saturate(5);transform:scale(1.1)} 80%{filter:brightness(0.8) sepia(0.5) hue-rotate(315deg);transform:scale(1)}
+}
+
+/* ── CLASS MAP ────────────────────────────────────────────────────── */
+.ha-float{animation:ha-float 4s ease-in-out infinite}
+.ha-shake{animation:ha-shake 0.3s ease-in-out infinite}
+.ha-creep{animation:ha-creep 6s ease-in-out infinite}
+.ha-swing{animation:ha-swing 2.5s ease-in-out infinite}
+.ha-drift-left{animation:ha-drift-left 3s ease-in-out infinite}
+.ha-drift-right{animation:ha-drift-right 3s ease-in-out infinite}
+.ha-spiral{animation:ha-spiral 3s linear infinite}
+.ha-sway{animation:ha-sway 3s ease-in-out infinite}
+.ha-bounce{animation:ha-bounce 1.5s cubic-bezier(0.36,0.07,0.19,0.97) infinite}
+.ha-teleport{animation:ha-teleport 2s step-start infinite}
+.ha-slide-down{animation:ha-slide-down 4s ease-in-out infinite}
+.ha-slide-up{animation:ha-slide-up 4s ease-in-out infinite}
+.ha-zigzag{animation:ha-zigzag 2s linear infinite}
+.ha-earthquake{animation:ha-earthquake 0.1s ease-in-out infinite}
+.ha-levitate-spin{animation:ha-levitate-spin 5s ease-in-out infinite}
+.ha-marionette{animation:ha-marionette 1.5s ease-in-out infinite}
+.ha-crawl{animation:ha-crawl 5s ease-in-out infinite}
+.ha-jerk{animation:ha-jerk 0.8s ease-in-out infinite}
+.ha-orbit{animation:ha-orbit 4s linear infinite}
+.ha-tidal{animation:ha-tidal 3s ease-in-out infinite}
+.ha-chaotic{animation:ha-chaotic 0.5s linear infinite}
+.ha-rise-fall{animation:ha-rise-fall 3s ease-in-out infinite}
+.ha-sidewind{animation:ha-sidewind 2s ease-in-out infinite}
+.ha-pulse-move{animation:ha-pulse-move 3s ease-in-out infinite}
+.ha-warp-drift{animation:ha-warp-drift 4s ease-in-out infinite}
+.ha-jumpscare{animation:ha-jumpscare 3s ease-in-out infinite}
+.ha-flash-blink{animation:ha-flash-blink 0.5s step-start infinite}
+.ha-sudden-loom{animation:ha-sudden-loom 2s ease-in-out infinite}
+.ha-evil-zoom{animation:ha-evil-zoom 4s ease-in infinite}
+.ha-strobe{animation:ha-strobe 0.15s step-start infinite}
+.ha-blackout-reveal{animation:ha-blackout-reveal 3s ease-in-out infinite}
+.ha-rapid-approach{animation:ha-rapid-approach 2s ease-out infinite}
+.ha-mirror-flip{animation:ha-mirror-flip 2s ease-in-out infinite}
+.ha-warp-jump{animation:ha-warp-jump 2.5s ease-in-out infinite}
+.ha-crash-in{animation:ha-crash-in 2s ease-out infinite}
+.ha-slam-down{animation:ha-slam-down 2s ease-in-out infinite}
+.ha-eye-open{animation:ha-eye-open 3s ease-in-out infinite}
+.ha-death-drop{animation:ha-death-drop 2.5s ease-in infinite}
+.ha-nuclear-pulse{animation:ha-nuclear-pulse 1.5s ease-out infinite}
+.ha-distort-warp{animation:ha-distort-warp 3s ease-in-out infinite}
+.ha-horror-snap{animation:ha-horror-snap 0.4s step-start infinite}
+.ha-rage-flash{animation:ha-rage-flash 0.3s step-start infinite}
+.ha-final-reveal{animation:ha-final-reveal 4s ease-in-out infinite}
+.ha-dive-bomb{animation:ha-dive-bomb 2s ease-in infinite}
+.ha-possession{animation:ha-possession 0.5s ease-in-out infinite}
+.ha-rage-burst{animation:ha-rage-burst 1s ease-out infinite}
+.ha-terror-vibrate{animation:ha-terror-vibrate 0.05s linear infinite}
+.ha-appear-ghost{animation:ha-appear-ghost 2.5s ease-in-out infinite}
+.ha-grab-reach{animation:ha-grab-reach 2s ease-in-out infinite}
+.ha-shatter{animation:ha-shatter 2s ease-in-out infinite}
+.ha-haunting{animation:ha-haunting 6s ease-in-out infinite}
+.ha-pulse-glow{animation:ha-pulse-glow 2s ease-in-out infinite}
+.ha-flicker{animation:ha-flicker 3s ease-in-out infinite}
+.ha-shadow-breathe{animation:ha-shadow-breathe 4s ease-in-out infinite}
+.ha-fog-roll{animation:ha-fog-roll 8s ease-in-out infinite}
+.ha-spectral-shift{animation:ha-spectral-shift 5s ease-in-out infinite}
+.ha-nightmare-phase{animation:ha-nightmare-phase 6s ease-in-out infinite}
+.ha-dark-ritual{animation:ha-dark-ritual 3s ease-in-out infinite}
+.ha-spirit-manifest{animation:ha-spirit-manifest 8s ease-in-out infinite}
+.ha-aura-glow{animation:ha-aura-glow 3s ease-in-out infinite}
+.ha-infernal-glow{animation:ha-infernal-glow 2.5s ease-in-out infinite}
+.ha-grave-rise{animation:ha-grave-rise 5s ease-out infinite}
+.ha-moonlit-wail{animation:ha-moonlit-wail 6s ease-in-out infinite}
+.ha-astral-drain{animation:ha-astral-drain 4s ease-in-out infinite}
+.ha-limbo-float{animation:ha-limbo-float 7s ease-in-out infinite}
+.ha-sigil-burn{animation:ha-sigil-burn 4s ease-in-out infinite}
+.ha-death-breath{animation:ha-death-breath 5s ease-in-out infinite}
+.ha-void-portal{animation:ha-void-portal 6s ease-in-out infinite}
+.ha-purgatory{animation:ha-purgatory 4s ease-in-out infinite}
+.ha-underworld{animation:ha-underworld 3s ease-in-out infinite}
+.ha-eternal-dark{animation:ha-eternal-dark 8s ease-in-out infinite}
+.ha-terror-fog{animation:ha-terror-fog 10s ease-in-out infinite}
+.ha-cursed-halo{animation:ha-cursed-halo 3s linear infinite}
+.ha-soul-emerge{animation:ha-soul-emerge 6s ease-in-out infinite}
+.ha-ghost-drift{animation:ha-ghost-drift 8s ease-in-out infinite}
+.ha-glitch{animation:ha-glitch 4s ease-in-out infinite}
+.ha-blood-filter{animation:ha-blood-filter 3s ease-in-out infinite}
+.ha-chromatic{animation:ha-chromatic 2s ease-in-out infinite}
+.ha-tv-static{animation:ha-tv-static 0.1s step-start infinite}
+.ha-heat-distort{animation:ha-heat-distort 2s ease-in-out infinite}
+.ha-shadow-clone{animation:ha-shadow-clone 3s ease-in-out infinite}
+.ha-corruption{animation:ha-corruption 0.5s step-start infinite}
+.ha-acid-burn{animation:ha-acid-burn 4s ease-in-out infinite}
+.ha-toxic-glow{animation:ha-toxic-glow 2.5s ease-in-out infinite}
+.ha-possession-pulse{animation:ha-possession-pulse 1.5s ease-in-out infinite}
+.ha-cursed-invert{animation:ha-cursed-invert 2s step-start infinite}
+.ha-hellfire-tint{animation:ha-hellfire-tint 3s ease-in-out infinite}
+.ha-pixel-corrupt{animation:ha-pixel-corrupt 0.3s step-start infinite}
+.ha-void-tear{animation:ha-void-tear 3s ease-in-out infinite}
+.ha-soul-drain{animation:ha-soul-drain 4s ease-in-out infinite}
+.ha-blood-moon{animation:ha-blood-moon 5s ease-in-out infinite}
+.ha-spectral-echo{animation:ha-spectral-echo 2s ease-in-out infinite}
+.ha-demon-vision{animation:ha-demon-vision 4s ease-in-out infinite}
+.ha-nightmare-overlay{animation:ha-nightmare-overlay 6s ease-in-out infinite}
+.ha-laser-eyes{animation:ha-laser-eyes 1.5s ease-in-out infinite}
+.ha-film-grain{animation:ha-film-grain 0.1s step-start infinite}
+.ha-mirror-world{animation:ha-mirror-world 3s step-start infinite}
+.ha-hell-warp{animation:ha-hell-warp 4s ease-in-out infinite}
+.ha-celestial-horror{animation:ha-celestial-horror 8s ease-in-out infinite}
+.ha-blood-splat{animation:ha-blood-splat 2s ease-out infinite}
