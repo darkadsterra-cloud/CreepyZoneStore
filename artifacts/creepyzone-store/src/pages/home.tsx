@@ -7,16 +7,6 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const ALL_CATS = ["animated","neon","horror","anime","vertical","interactive","minimal","grunge","overlay","alert","bundle","pack"];
 
-// ── Protected Image Component ──
-function ProtectedImg({ src, alt, className, style }: { src: string; alt?: string; className?: string; style?: React.CSSProperties }) {
-  return (
-    <div className="protected-media w-full h-full" onContextMenu={e => e.preventDefault()}>
-      <img src={src} alt={alt ?? ""} className={className} style={style} draggable={false} />
-    </div>
-  );
-}
-
-// ── Lightbox Component ──
 function Lightbox({ images, startIndex, onClose }: { images: string[]; startIndex: number; onClose: () => void }) {
   const [index, setIndex] = useState(startIndex);
 
@@ -28,7 +18,6 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") prev();
       if (e.key === "ArrowRight") next();
-      // Block PrintScreen in lightbox
       if (e.key === "PrintScreen") {
         e.preventDefault();
         navigator.clipboard?.writeText("").catch(() => {});
@@ -52,28 +41,20 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
         onClick={onClose}
         onContextMenu={e => e.preventDefault()}
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-[60] text-white bg-red-700/80 hover:bg-red-600 p-2 border border-red-500 transition-all"
-        >
+        <button onClick={onClose}
+          className="absolute top-4 right-4 z-[60] text-white bg-red-700/80 hover:bg-red-600 p-2 border border-red-500 transition-all">
           <X className="w-6 h-6" />
         </button>
 
-        {/* Counter */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-gray-300 text-sm px-4 py-1 border border-red-900/30 z-[60]">
           {index + 1} / {images.length}
         </div>
 
-        {/* Prev button */}
-        <button
-          onClick={e => { e.stopPropagation(); prev(); }}
-          className="absolute left-3 md:left-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
-        >
+        <button onClick={e => { e.stopPropagation(); prev(); }}
+          className="absolute left-3 md:left-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all">
           <ChevronLeft className="w-6 h-6 md:w-8 md:h-8" />
         </button>
 
-        {/* Main image — protected */}
         <motion.div
           key={index}
           initial={{ opacity: 0, scale: 0.95 }}
@@ -83,33 +64,25 @@ function Lightbox({ images, startIndex, onClose }: { images: string[]; startInde
           onClick={e => e.stopPropagation()}
           onContextMenu={e => e.preventDefault()}
         >
-          <img
-            src={images[index]}
-            alt=""
-            draggable={false}
-            className="max-w-full max-h-[85vh] object-contain border border-red-900/30"
-          />
+          <div className="wm" />
+          <img src={images[index]} alt="" draggable={false}
+            className="max-w-full max-h-[85vh] object-contain border border-red-900/30" />
         </motion.div>
 
-        {/* Next button */}
-        <button
-          onClick={e => { e.stopPropagation(); next(); }}
-          className="absolute right-3 md:right-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all"
-        >
+        <button onClick={e => { e.stopPropagation(); next(); }}
+          className="absolute right-3 md:right-6 z-[60] text-white bg-black/70 hover:bg-red-900/70 p-2 md:p-3 border border-red-900/40 transition-all">
           <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
         </button>
 
-        {/* Thumbnail strip */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4 overflow-x-auto z-[60]">
           {images.map((img, i) => (
-            <button
-              key={i}
+            <button key={i}
               onClick={e => { e.stopPropagation(); setIndex(i); }}
               onContextMenu={e => e.preventDefault()}
               className={`w-12 h-16 flex-shrink-0 overflow-hidden border-2 transition-all protected-media ${
                 i === index ? "border-red-500 opacity-100" : "border-red-900/30 opacity-50 hover:opacity-80"
-              }`}
-            >
+              }`}>
+              <div className="wm" />
               <img src={img} alt="" draggable={false} className="w-full h-full object-cover" />
             </button>
           ))}
@@ -130,7 +103,6 @@ export default function Home() {
   return (
     <div className="min-h-screen">
 
-      {/* Lightbox */}
       {lightbox && (
         <Lightbox images={lightbox.images} startIndex={lightbox.index} onClose={closeLightbox} />
       )}
@@ -140,7 +112,8 @@ export default function Home() {
         <div className="absolute inset-0 z-0">
           <div className="grid grid-cols-4 md:grid-cols-5 h-full opacity-25">
             {ALL_IMAGES.slice(0, 10).map((img, i) => (
-              <div key={i} className="overflow-hidden protected-media">
+              <div key={i} className="overflow-hidden protected-media" onContextMenu={e => e.preventDefault()}>
+                <div className="wm" />
                 <img src={img} alt="" draggable={false}
                   className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-700" />
               </div>
@@ -177,17 +150,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Preview Strip — clickable lightbox ── */}
+      {/* ── Preview Strip ── */}
       <section className="py-6 overflow-hidden border-t border-b border-red-900/20 bg-black/60">
         <div style={{ display: "flex", overflowX: "auto", scrollbarWidth: "none" }}>
           <div className="flex gap-3 min-w-max px-4">
             {ALL_IMAGES.map((img, i) => (
-              <button
-                key={i}
+              <button key={i}
                 onClick={() => openLightbox(ALL_IMAGES, i)}
                 onContextMenu={e => e.preventDefault()}
-                className="w-16 h-20 flex-shrink-0 border border-red-900/20 hover:border-red-500/60 transition-all cursor-pointer group relative protected-media"
-              >
+                className="w-16 h-20 flex-shrink-0 border border-red-900/20 hover:border-red-500/60 transition-all cursor-pointer group relative protected-media">
+                <div className="wm" />
                 <img src={img} alt="" draggable={false}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               </button>
@@ -242,6 +214,7 @@ export default function Home() {
                     <div className="group relative border border-red-900/30 hover:border-red-600/60 transition-all duration-300 overflow-hidden cursor-pointer bg-card lava-pulse">
                       <div className="aspect-[3/4] overflow-hidden relative protected-media"
                         onContextMenu={e => e.preventDefault()}>
+                        <div className="wm" />
                         <img src={heroImg} alt={meta?.label ?? cat} draggable={false}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
@@ -253,6 +226,7 @@ export default function Home() {
                         {thumbs.map((t, ti) => (
                           <div key={ti} className="aspect-square overflow-hidden protected-media"
                             onContextMenu={e => e.preventDefault()}>
+                            <div className="wm" />
                             <img src={t} alt="" draggable={false}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                           </div>
@@ -313,11 +287,10 @@ export default function Home() {
             {CATEGORY_IMAGES.anime.map((img, i) => (
               <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
-                <button
-                  onClick={() => openLightbox(CATEGORY_IMAGES.anime, i)}
+                <button onClick={() => openLightbox(CATEGORY_IMAGES.anime, i)}
                   onContextMenu={e => e.preventDefault()}
-                  className="group w-full aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer block protected-media"
-                >
+                  className="group w-full aspect-[3/4] overflow-hidden border border-red-900/20 hover:border-purple-500/40 transition-all cursor-pointer block protected-media">
+                  <div className="wm" />
                   <img src={img} alt="" draggable={false}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 </button>
@@ -353,11 +326,10 @@ export default function Home() {
             {CATEGORY_IMAGES.neon.slice(0, 4).map((img, i) => (
               <motion.div key={i} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                <button
-                  onClick={() => openLightbox(CATEGORY_IMAGES.neon, i)}
+                <button onClick={() => openLightbox(CATEGORY_IMAGES.neon, i)}
                   onContextMenu={e => e.preventDefault()}
-                  className={`w-full overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all cursor-pointer block protected-media ${i === 0 ? "row-span-2" : ""}`}
-                >
+                  className={`w-full overflow-hidden border border-red-900/20 hover:border-red-500/40 transition-all cursor-pointer block protected-media ${i === 0 ? "row-span-2" : ""}`}>
+                  <div className="wm" />
                   <img src={img} alt="" draggable={false}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     style={{ minHeight: i === 0 ? "280px" : "130px" }} />
@@ -399,22 +371,20 @@ function ShowcaseSection({ title, subtitle, images, linkCat, reversed = false, o
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ${reversed ? "lg:flex-row-reverse" : ""}`}
           style={{ direction: reversed ? "rtl" : "ltr" }}>
           <div style={{ direction: "ltr" }} className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => onImageClick(images, 0)}
+            <button onClick={() => onImageClick(images, 0)}
               onContextMenu={e => e.preventDefault()}
-              className="col-span-2 row-span-2 overflow-hidden border border-red-900/30 cursor-pointer block protected-media"
-            >
+              className="col-span-2 row-span-2 overflow-hidden border border-red-900/30 cursor-pointer block protected-media">
+              <div className="wm" />
               <img src={main} alt="" draggable={false}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                 style={{ minHeight: "280px" }} />
             </button>
             {rest.slice(0, 4).map((img, i) => (
-              <button
-                key={i}
+              <button key={i}
                 onClick={() => onImageClick(images, i + 1)}
                 onContextMenu={e => e.preventDefault()}
-                className="overflow-hidden border border-red-900/20 cursor-pointer block protected-media"
-              >
+                className="overflow-hidden border border-red-900/20 cursor-pointer block protected-media">
+                <div className="wm" />
                 <img src={img} alt="" draggable={false}
                   className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
                   style={{ minHeight: "100px" }} />
@@ -456,6 +426,7 @@ function ProductCard({ product, index }: { product: any; index: number }) {
         <div className="group border border-red-900/30 bg-card hover:border-red-600/60 lava-pulse transition-all duration-300 overflow-hidden cursor-pointer">
           <div className="aspect-[3/4] overflow-hidden protected-media"
             onContextMenu={e => e.preventDefault()}>
+            <div className="wm" />
             <img src={imgSrc} alt={product.title} draggable={false}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
