@@ -106,7 +106,6 @@
    IMAGE PROTECTION — NO COPY / NO SAVE
 ═══════════════════════════════════════════ */
 
-/* Sabhi images pe drag disable */
 img {
   -webkit-user-drag: none;
   -khtml-user-drag: none;
@@ -118,7 +117,6 @@ img {
   pointer-events: none;
 }
 
-/* Buttons aur links pe pointer events wapis on karo */
 button img,
 a img,
 button,
@@ -130,7 +128,6 @@ select,
   pointer-events: auto;
 }
 
-/* Protected image container */
 .protected-media {
   position: relative;
   overflow: hidden;
@@ -145,7 +142,6 @@ select,
   user-drag: none;
 }
 
-/* Invisible overlay — right click block */
 .protected-media::after {
   content: "";
   position: absolute;
@@ -155,42 +151,62 @@ select,
   pointer-events: auto;
 }
 
-/* Watermark overlay */
-.protected-media::before {
-  content: "© CREEPYZONE STORE";
+/* Multiple tiled watermarks */
+.protected-media .wm {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  inset: -100%;
+  width: 300%;
+  height: 300%;
   z-index: 3;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  color: rgba(255, 255, 255, 0.35);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   pointer-events: none;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  transform: rotate(-35deg);
+  overflow: hidden;
 }
 
-/* Diagonal watermark for lightbox/full size */
-.protected-media-lg::before {
-  content: "© CREEPYZONE STORE — PREVIEW ONLY";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) rotate(-35deg);
-  z-index: 3;
+.protected-media .wm::before {
+  content:
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE\A"
+    "© CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE   © CREEPYZONE";
+  white-space: pre;
   font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.2em;
-  color: rgba(255, 255, 255, 0.18);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  letter-spacing: 0.1em;
+  line-height: 3;
+  color: rgba(255, 255, 255, 0.13);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   pointer-events: none;
-  white-space: nowrap;
 }
 
-/* Global selection disable */
+/* Lightbox large watermark */
+.protected-media-lg .wm::before {
+  content:
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY\A"
+    "© CREEPYZONE STORE   PREVIEW ONLY   © CREEPYZONE STORE   PREVIEW ONLY";
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.16);
+  line-height: 3.5;
+}
+
 .no-select {
   -webkit-user-select: none;
   -moz-user-select: none;
