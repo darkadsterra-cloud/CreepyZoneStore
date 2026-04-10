@@ -292,7 +292,6 @@ export function Navbar() {
               ))}
             </div>
           </div>
-          {/* Mobile Tools Section */}
           <div className="py-2 border-b border-red-900/10">
             <p className="text-purple-500 text-xs uppercase tracking-widest font-bold mb-2">⚡ Featured Tools</p>
             {TOOLS.map((tool, i) => (
