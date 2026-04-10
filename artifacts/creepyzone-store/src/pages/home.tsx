@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useGetFeaturedProducts } from "@workspace/api-client-react";
 import { ALL_IMAGES, CATEGORY_IMAGES, CATEGORY_META, getImageForProduct } from "@/lib/store-images";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useAuthModal } from "@/App";
 
 const ALL_CATS = ["animated","neon","horror","anime","vertical","interactive","minimal","grunge","overlay","alert","bundle","pack"];
 
@@ -96,6 +97,7 @@ export default function Home() {
   const { data: featuredData } = useGetFeaturedProducts();
   const featured = featuredData?.products ?? [];
   const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  const { openAuthModal } = useAuthModal();
 
   const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
   const closeLightbox = () => setLightbox(null);
@@ -133,11 +135,11 @@ export default function Home() {
           </motion.div>
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/products">
-              <button className="px-10 py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] text-sm lava-pulse border border-red-500 transition-all duration-300">
-                Enter the Store
-              </button>
-            </Link>
+            <button
+              onClick={() => openAuthModal("register")}
+              className="px-10 py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] text-sm lava-pulse border border-red-500 transition-all duration-300">
+              Join The Darkness
+            </button>
             <Link href="/products?category=bundle">
               <button className="px-10 py-4 bg-transparent hover:bg-red-950/30 text-red-500 font-bold uppercase tracking-[0.3em] text-sm border border-red-900/50 transition-all duration-300">
                 View Bundles
@@ -347,11 +349,11 @@ export default function Home() {
           <p className="text-gray-400 mb-8 text-lg tracking-wider">
             Get the most terrifying streaming setups in the game. Your audience will never forget.
           </p>
-          <Link href="/register">
-            <button className="px-12 py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] lava-pulse border border-red-500 transition-all">
-              Join the Darkness
-            </button>
-          </Link>
+          <button
+            onClick={() => openAuthModal("register")}
+            className="px-12 py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] lava-pulse border border-red-500 transition-all">
+            Join the Darkness
+          </button>
         </div>
       </section>
     </div>
