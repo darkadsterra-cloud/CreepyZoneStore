@@ -34,13 +34,13 @@ export default function HorrorStudio() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  const rafId = useRef<number>(0);
   const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
 
-  // Slideshow
   useEffect(() => {
     if (slideshowInterval.current) clearInterval(slideshowInterval.current);
     if (animMode === 'slideshow' && images.length > 1) {
@@ -51,7 +51,6 @@ export default function HorrorStudio() {
     return () => { if (slideshowInterval.current) clearInterval(slideshowInterval.current); };
   }, [animMode, images.length]);
 
-  // Random appear
   useEffect(() => {
     if (randomInterval.current) clearInterval(randomInterval.current);
     if (animMode === 'random-appear' && images.length > 0) {
@@ -66,10 +65,10 @@ export default function HorrorStudio() {
   const getPreviewImages = (): UploadedImage[] => {
     if (images.length === 0) return [];
     switch (animMode) {
-      case 'single':       return selectedImage ? [selectedImage] : images.slice(0, 1);
-      case 'slideshow':    return [images[slideshowIdx % images.length]];
-      case 'all-visible':  return images;
-      case 'random-appear':return images.filter(img => randomVisible.includes(img.id));
+      case 'single':        return selectedImage ? [selectedImage] : images.slice(0, 1);
+      case 'slideshow':     return [images[slideshowIdx % images.length]];
+      case 'all-visible':   return images;
+      case 'random-appear': return images.filter(img => randomVisible.includes(img.id));
     }
   };
 
@@ -111,7 +110,7 @@ export default function HorrorStudio() {
     updateImage(selectedId, { animation: animId });
   };
 
-  const toggleSound  = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleParticle = (id: string) => setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleDownload = () => {
@@ -127,24 +126,70 @@ export default function HorrorStudio() {
   };
 
   const handleRecord = () => {
-    if (recording) { mediaRecorder.current?.stop(); setRecording(false); return; }
-    const canvas = document.createElement('canvas');
-    canvas.width = ratio.width; canvas.height = ratio.height;
-    const stream = canvas.captureStream(30);
-    let mimeType = 'video/webm;codecs=vp9';
-    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType });
-    chunks.current = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
-    recorder.onstop = () => {
-      const blob = new Blob(chunks.current, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url; link.download = 'horror-overlay.webm'; link.click();
-      URL.revokeObjectURL(url);
-    };
-    recorder.start(); mediaRecorder.current = recorder; setRecording(true);
-    setTimeout(() => { if (recorder.state === 'recording') { recorder.stop(); setRecording(false); } }, 15000);
+    if (recording) {
+      mediaRecorder.current?.stop();
+      setRecording(false);
+      return;
+    }
+
+    if (!previewRef.current) return;
+
+    import('html2canvas').then(({ default: html2canvas }) => {
+      const recordingCanvas = document.createElement('canvas');
+      recordingCanvas.width = ratio.width;
+      recordingCanvas.height = ratio.height;
+      const ctx = recordingCanvas.getContext('2d')!;
+
+      const stream = recordingCanvas.captureStream(30);
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      chunks.current = [];
+
+      recorder.ondataavailable = e => {
+        if (e.data.size > 0) chunks.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        cancelAnimationFrame(rafId.current);
+        const blob = new Blob(chunks.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `horror-overlay-${Date.now()}.webm`;
+        link.click();
+        URL.revokeObjectURL(url);
+      };
+
+      const drawFrame = () => {
+        if (!previewRef.current) return;
+        html2canvas(previewRef.current, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 1,
+          width: previewRef.current.offsetWidth,
+          height: previewRef.current.offsetHeight,
+          backgroundColor: greenScreen ? '#00ff00' : '#000000',
+        }).then(frameCanvas => {
+          ctx.clearRect(0, 0, recordingCanvas.width, recordingCanvas.height);
+          ctx.drawImage(frameCanvas, 0, 0, recordingCanvas.width, recordingCanvas.height);
+        });
+        rafId.current = requestAnimationFrame(drawFrame);
+      };
+
+      drawFrame();
+      recorder.start(100);
+      mediaRecorder.current = recorder;
+      setRecording(true);
+
+      setTimeout(() => {
+        if (recorder.state === 'recording') {
+          recorder.stop();
+          setRecording(false);
+        }
+      }, 15000);
+    });
   };
 
   const previewImages = getPreviewImages();
@@ -208,7 +253,6 @@ export default function HorrorStudio() {
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
 
-      {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-red-700 rounded-lg flex items-center justify-center shadow-lg shadow-red-900/60">
@@ -233,9 +277,8 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* ─── LEFT ─── */}
+        {/* LEFT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
-          {/* Upload */}
           <div
             onDrop={handleDrop}
             onDragOver={e => { e.preventDefault(); setDragover(true); }}
@@ -249,7 +292,6 @@ export default function HorrorStudio() {
             <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={e => handleFiles(e.target.files)} className="hidden" />
           </div>
 
-          {/* Gallery */}
           {images.length > 0 && (
             <div className="mx-3 my-2 space-y-1 overflow-y-auto flex-shrink-0" style={{ maxHeight: '130px' }}>
               {images.map(img => (
@@ -271,7 +313,6 @@ export default function HorrorStudio() {
             </div>
           )}
 
-          {/* Tabs */}
           <div className="flex border-b border-zinc-800 flex-shrink-0">
             {(['animations', 'sounds', 'tts'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
@@ -293,9 +334,8 @@ export default function HorrorStudio() {
           </div>
         </div>
 
-        {/* ─── CENTER ─── */}
+        {/* CENTER */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
-          {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-600">Preview</span>
@@ -320,14 +360,12 @@ export default function HorrorStudio() {
             </div>
           </div>
 
-          {/* Canvas */}
           <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-hidden">
             <div className="flex items-center justify-center w-full h-full">
               <PreviewCanvas />
             </div>
           </div>
 
-          {/* Multi-image nav */}
           {images.length > 1 && animMode === 'single' && (
             <div className="flex items-center justify-center gap-2 py-2 border-t border-zinc-800 flex-shrink-0 bg-zinc-900/30">
               <button onClick={goLeft} disabled={selectedIdx === 0}
@@ -335,7 +373,7 @@ export default function HorrorStudio() {
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
               <div className="flex gap-1 items-center">
-                {images.map((img, i) => (
+                {images.map((img) => (
                   <button key={img.id} onClick={() => setSelectedId(img.id)}
                     className={`rounded-full transition-all ${selectedId === img.id ? 'bg-red-500 w-4 h-1.5' : 'bg-zinc-700 hover:bg-zinc-600 w-1.5 h-1.5'}`}
                   />
@@ -349,7 +387,7 @@ export default function HorrorStudio() {
           )}
         </div>
 
-        {/* ─── RIGHT ─── */}
+        {/* RIGHT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel
