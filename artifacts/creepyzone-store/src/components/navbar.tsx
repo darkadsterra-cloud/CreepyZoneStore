@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useGetMe, useGetCart } from "@workspace/api-client-react";
-import { ShoppingCart, User, LogOut, ChevronDown, Search, X } from "lucide-react";
+import { ShoppingCart, User, LogOut, ChevronDown, Search, X, Wrench } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
 import logoImg from "@assets/WhatsApp-Image-2026-04-05-at-2.43.53-PM_1775551028444.jpg";
@@ -22,16 +22,27 @@ const CATEGORIES = [
   { slug: "pack", label: "Sound Packs", icon: "🔊" },
 ];
 
+const TOOLS = [
+  {
+    label: "Horror Animation Studio",
+    icon: "🎭",
+    desc: "Livestream overlay generator",
+    url: "https://horror-animation-studio-e4uu9mg8p-darkadsterra-1219s-projects.vercel.app",
+  },
+];
+
 export function Navbar() {
   const { isAuthenticated, setToken } = useAuth();
   const { data: user } = useGetMe({ query: { enabled: isAuthenticated, queryKey: ["/api/auth/me"] } });
   const { data: cart } = useGetCart({ query: { enabled: isAuthenticated, queryKey: ["/api/cart"] } });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
   const catalogRef = useRef<HTMLDivElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const { openAuthModal } = useAuthModal();
@@ -51,9 +62,8 @@ export function Navbar() {
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (catalogRef.current && !catalogRef.current.contains(e.target as Node)) {
-        setCatalogOpen(false);
-      }
+      if (catalogRef.current && !catalogRef.current.contains(e.target as Node)) setCatalogOpen(false);
+      if (toolsRef.current && !toolsRef.current.contains(e.target as Node)) setToolsOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -64,10 +74,7 @@ export function Navbar() {
   }, [searchOpen]);
 
   useEffect(() => {
-    if (isDesktop) {
-      setMobileOpen(false);
-      setSearchOpen(false);
-    }
+    if (isDesktop) { setMobileOpen(false); setSearchOpen(false); }
   }, [isDesktop]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -101,8 +108,10 @@ export function Navbar() {
             <Link href="/about" className="text-gray-300 hover:text-red-500 hover-glitch transition-colors uppercase tracking-widest text-sm font-semibold">
               About
             </Link>
+
+            {/* Catalog Dropdown */}
             <div ref={catalogRef} className="relative">
-              <button onClick={() => setCatalogOpen(!catalogOpen)}
+              <button onClick={() => { setCatalogOpen(!catalogOpen); setToolsOpen(false); }}
                 className="flex items-center gap-1 text-gray-300 hover:text-red-500 transition-colors uppercase tracking-widest text-sm font-semibold">
                 Catalog <ChevronDown className={`w-3 h-3 transition-transform ${catalogOpen ? "rotate-180" : ""}`} />
               </button>
@@ -125,6 +134,37 @@ export function Navbar() {
                         </Link>
                       ))}
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Featured Tools Dropdown */}
+            <div ref={toolsRef} className="relative">
+              <button onClick={() => { setToolsOpen(!toolsOpen); setCatalogOpen(false); }}
+                className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors uppercase tracking-widest text-sm font-semibold border border-purple-800/40 px-3 py-1">
+                <Wrench className="w-3 h-3" />
+                Tools <ChevronDown className={`w-3 h-3 transition-transform ${toolsOpen ? "rotate-180" : ""}`} />
+              </button>
+              {toolsOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-80 border border-purple-900/40 bg-black/95 backdrop-blur-md shadow-2xl"
+                  style={{ boxShadow: "0 0 30px rgba(120,0,180,0.15)" }}>
+                  <div className="p-2">
+                    <p className="text-purple-500 text-xs uppercase tracking-widest font-bold px-4 py-2 border-b border-purple-900/20 mb-1">
+                      ⚡ Featured Tools
+                    </p>
+                    {TOOLS.map((tool, i) => (
+                      <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
+                        onClick={() => setToolsOpen(false)}
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-purple-950/20 transition-colors group">
+                        <span className="text-2xl">{tool.icon}</span>
+                        <div>
+                          <p className="text-white text-sm font-bold group-hover:text-purple-300 transition-colors">{tool.label}</p>
+                          <p className="text-gray-600 text-xs mt-0.5">{tool.desc}</p>
+                        </div>
+                        <span className="ml-auto text-purple-600 text-xs uppercase tracking-widest self-center">Open →</span>
+                      </a>
+                    ))}
                   </div>
                 </div>
               )}
@@ -192,11 +232,8 @@ export function Navbar() {
               </button>
             </div>
           ) : (
-            <Button
-              variant="outline"
-              onClick={() => openAuthModal("register")}
-              className="border-red-900/50 text-red-500 hover:bg-red-950/30 hover:text-red-400 uppercase tracking-widest font-bold text-xs"
-            >
+            <Button variant="outline" onClick={() => openAuthModal("register")}
+              className="border-red-900/50 text-red-500 hover:bg-red-950/30 hover:text-red-400 uppercase tracking-widest font-bold text-xs">
               Enter
             </Button>
           )}
@@ -255,9 +292,19 @@ export function Navbar() {
               ))}
             </div>
           </div>
+          {/* Mobile Tools Section */}
+          <div className="py-2 border-b border-red-900/10">
+            <p className="text-purple-500 text-xs uppercase tracking-widest font-bold mb-2">⚡ Featured Tools</p>
+            {TOOLS.map((tool, i) => (
+              <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-2 text-purple-400 hover:text-white py-1.5 text-xs uppercase tracking-wider">
+                <span>{tool.icon}</span>{tool.label}
+              </a>
+            ))}
+          </div>
           {!isAuthenticated && (
-            <button
-              onClick={() => { setMobileOpen(false); openAuthModal("register"); }}
+            <button onClick={() => { setMobileOpen(false); openAuthModal("register"); }}
               className="w-full mt-3 py-3 bg-red-700 text-white font-bold uppercase tracking-widest text-sm border border-red-500">
               Join The Darkness
             </button>
