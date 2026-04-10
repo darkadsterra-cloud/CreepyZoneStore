@@ -7,6 +7,8 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { ParticleEffects } from "@/components/particle-effects";
 import { ChatWidget } from "@/components/chat-widget";
+import { AuthModal } from "@/components/auth-modal";
+import { useState, createContext, useContext } from "react";
 import Home from "@/pages/home";
 import About from "@/pages/about";
 import Products from "@/pages/products";
@@ -22,12 +24,16 @@ import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 30000,
-    },
+    queries: { retry: 1, staleTime: 30000 },
   },
 });
+
+// Global auth modal context
+interface AuthModalContextType {
+  openAuthModal: (tab?: "login" | "register") => void;
+}
+export const AuthModalContext = createContext<AuthModalContextType>({ openAuthModal: () => {} });
+export const useAuthModal = () => useContext(AuthModalContext);
 
 function Router() {
   return (
@@ -49,22 +55,37 @@ function Router() {
 }
 
 function App() {
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("register");
+
+  const openAuthModal = (tab: "login" | "register" = "register") => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <div className="min-h-screen bg-background flex flex-col">
-              <ParticleEffects />
-              <Navbar />
-              <main className="flex-1">
-                <Router />
-              </main>
-              <Footer />
-              <ChatWidget />
-            </div>
-          </WouterRouter>
-          <Toaster />
+          <AuthModalContext.Provider value={{ openAuthModal }}>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <div className="min-h-screen bg-background flex flex-col">
+                <ParticleEffects />
+                <Navbar />
+                <main className="flex-1">
+                  <Router />
+                </main>
+                <Footer />
+                <ChatWidget />
+                <AuthModal
+                  isOpen={authModalOpen}
+                  onClose={() => setAuthModalOpen(false)}
+                  defaultTab={authModalTab}
+                />
+              </div>
+            </WouterRouter>
+            <Toaster />
+          </AuthModalContext.Provider>
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
