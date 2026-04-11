@@ -78,7 +78,7 @@ export default function AnimationPanel({ selectedAnimations, onToggle, onClearAl
                     >
                       <span className="text-sm flex-shrink-0">{preset.icon}</span>
                       <p className="text-[10px] font-medium leading-tight truncate">{preset.name}</p>
-                      {isSelected && <span className="ml-auto text-[8px] text-red-400">✓</span>}
+                      {isSelected && <span className="ml-auto text-[8px] text-red-400 flex-shrink-0">✓</span>}
                     </button>
                   );
                 })}
@@ -97,7 +97,7 @@ export default function AnimationPanel({ selectedAnimations, onToggle, onClearAl
               if (!preset) return null;
               return (
                 <button key={id} onClick={() => onToggle(id)}
-                  className="flex items-center gap-1 text-[9px] bg-red-500/15 border border-red-500/30 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-500/25">
+                  className="flex items-center gap-1 text-[9px] bg-red-500/15 border border-red-500/30 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-500/25 transition-colors">
                   {preset.icon} {preset.name} ×
                 </button>
               );
