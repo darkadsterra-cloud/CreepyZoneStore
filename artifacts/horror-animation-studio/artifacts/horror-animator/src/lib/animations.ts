@@ -158,6 +158,10 @@ export const HORROR_SOUNDS: HorrorSound[] = [
   { id: 'ritual-chant', name: 'Ritual Chant', category: 'ambient', description: 'Demonic ritual chanting drone' },
   { id: 'cemetery', name: 'Cemetery Silence', category: 'ambient', description: 'Dead quiet cemetery wind' },
   { id: 'static-loop', name: 'TV Static Loop', category: 'ambient', description: 'Endless TV static noise' },
+  { id: 'heavy-rain', name: 'Heavy Rain', category: 'ambient', description: 'Torrential horror rain storm' },
+  { id: 'thunderstorm', name: 'Thunderstorm', category: 'ambient', description: 'Full Hollywood thunderstorm' },
+  { id: 'dungeon-drip', name: 'Dungeon Drip', category: 'ambient', description: 'Dark dungeon water echoes' },
+  { id: 'sewer-ambience', name: 'Sewer Ambience', category: 'ambient', description: 'Creepy underground sewer' },
 
   // EFFECTS
   { id: 'heartbeat', name: 'Heartbeat', category: 'effect', description: 'Slow creepy heartbeat' },
@@ -172,6 +176,10 @@ export const HORROR_SOUNDS: HorrorSound[] = [
   { id: 'demon-roar', name: 'Demon Roar', category: 'effect', description: 'Full demon roar explosion' },
   { id: 'blood-drip', name: 'Blood Drip', category: 'effect', description: 'Thick blood dripping' },
   { id: 'electric-zap', name: 'Electric Zap', category: 'effect', description: 'Electric shock zap burst' },
+  { id: 'jumpscare-sting', name: 'Jumpscare Sting', category: 'effect', description: 'Hollywood jumpscare hit' },
+  { id: 'evil-laugh-sfx', name: 'Evil Laugh SFX', category: 'effect', description: 'Short evil laugh burst' },
+  { id: 'death-rattle', name: 'Death Rattle', category: 'effect', description: 'Final death rattle breath' },
+  { id: 'sword-slash', name: 'Sword Slash', category: 'effect', description: 'Sharp blade slash sound' },
 
   // MUSIC
   { id: 'dark-piano', name: 'Dark Piano Melody', category: 'music', description: 'Haunting minor key piano' },
@@ -187,8 +195,11 @@ export const HORROR_SOUNDS: HorrorSound[] = [
   { id: 'requiem', name: 'Dark Requiem', category: 'music', description: 'Haunting requiem mass' },
   { id: 'hell-symphony', name: 'Hell Symphony', category: 'music', description: 'Full hellscape orchestral' },
 
-  // VOICES
+  // VOICES & SCREAMS
   { id: 'scream', name: 'Terror Scream', category: 'voice', description: 'Blood-curdling scream' },
+  { id: 'scream-female', name: 'Female Horror Scream', category: 'voice', description: 'Hollywood female scream' },
+  { id: 'scream-distant', name: 'Distant Scream', category: 'voice', description: 'Far away terror scream' },
+  { id: 'scream-child', name: 'Child Scream', category: 'voice', description: 'Horrifying child scream' },
   { id: 'growl', name: 'Demonic Growl', category: 'voice', description: 'Deep demonic growl' },
   { id: 'laugh', name: 'Maniacal Laugh', category: 'voice', description: 'Evil maniacal laughter' },
   { id: 'crying', name: 'Ghost Crying', category: 'voice', description: 'Mournful ghost sobbing' },
@@ -200,6 +211,8 @@ export const HORROR_SOUNDS: HorrorSound[] = [
   { id: 'wail', name: 'Banshee Wail', category: 'voice', description: 'Piercing banshee wail' },
   { id: 'hiss', name: 'Serpent Hiss', category: 'voice', description: 'Demonic serpent hiss' },
   { id: 'howl', name: 'Werewolf Howl', category: 'voice', description: 'Monstrous werewolf howl' },
+  { id: 'possessed-scream', name: 'Possessed Scream', category: 'voice', description: 'Exorcism possession scream' },
+  { id: 'death-scream', name: 'Death Scream', category: 'voice', description: 'Final death agony scream' },
 ];
 
 export interface ParticleEffect {
@@ -226,6 +239,7 @@ export interface UploadedImage {
   url: string;
   name: string;
   animation: string | null;
+  animations?: string[];
   greenScreen: boolean;
   position: { x: number; y: number };
   scale: number;
