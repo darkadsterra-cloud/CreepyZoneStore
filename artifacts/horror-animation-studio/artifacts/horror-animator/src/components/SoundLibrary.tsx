@@ -543,10 +543,24 @@ export default function SoundLibrary({
   }, []);
 
   const startSound = useCallback((id: string) => {
-    const ctx = getCtx();
-    const nodes = createHorrorSound(ctx, id, masterVolume);
-    if (nodes) audioNodes.current[id] = nodes;
-  }, [getCtx, masterVolume]);
+  const sound = HORROR_SOUNDS.find(s => s.id === id);
+  if (sound?.file) {
+    const audio = new Audio(sound.file);
+    audio.loop = true;
+    audio.volume = masterVolume;
+    audio.play().catch(e => console.warn('Audio play failed:', e));
+    audioNodes.current[id] = {
+      ctx: null as any,
+      gainNode: null as any,
+      nodes: [],
+      stop: () => { audio.pause(); audio.currentTime = 0; },
+    };
+    return;
+  }
+  const ctx = getCtx();
+  const nodes = createHorrorSound(ctx, id, masterVolume);
+  if (nodes) audioNodes.current[id] = nodes;
+}, [getCtx, masterVolume]);
 
   const stopSound = useCallback((id: string) => {
     const n = audioNodes.current[id];
