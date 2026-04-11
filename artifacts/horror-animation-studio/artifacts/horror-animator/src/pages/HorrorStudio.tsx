@@ -7,6 +7,7 @@ import SoundLibrary from '@/components/SoundLibrary';
 import ControlPanel from '@/components/ControlPanel';
 import ParticleOverlay from '@/components/ParticleOverlay';
 import TTSPanel from '@/components/TTSPanel';
+import EnvironmentPanel, { ENVIRONMENT_THEMES } from '@/components/EnvironmentPanel';
 import {
   Upload, ImageIcon, Download, CircleDot,
   ChevronLeft, ChevronRight, Maximize2, Skull, X,
@@ -27,8 +28,9 @@ export default function HorrorStudio() {
   const [slideshowIdx, setSlideshowIdx] = useState(0);
   const [randomVisible, setRandomVisible] = useState<string[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'animations' | 'sounds' | 'tts'>('animations');
+  const [activeTab, setActiveTab] = useState<'animations' | 'sounds' | 'tts' | 'environment'>('animations');
   const [dragover, setDragover] = useState(false);
+  const [activeEnvironment, setActiveEnvironment] = useState<string | null>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,6 +42,46 @@ export default function HorrorStudio() {
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
+
+  // ── ENVIRONMENT helper ────────────────────────────────────
+  const getEnvStyle = (): React.CSSProperties => {
+    if (greenScreen) return { background: '#00ff00' };
+    if (!activeEnvironment) return { background: '#09090b' }; // zinc-950
+    const env = ENVIRONMENT_THEMES.find(e => e.id === activeEnvironment);
+    if (!env) return { background: '#09090b' };
+    return {
+      background: env.background,
+      filter: env.filter || undefined,
+    };
+  };
+
+  const getEnvOverlay = () => {
+    if (greenScreen || !activeEnvironment) return null;
+    const env = ENVIRONMENT_THEMES.find(e => e.id === activeEnvironment);
+    if (!env?.overlay) return null;
+    return (
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: env.overlay, zIndex: 1 }}
+      />
+    );
+  };
+
+  // ── ANIMATION helper — merges ALL selected animations into one inline style ──
+  const getAnimStyle = (img: UploadedImage): React.CSSProperties => {
+    const anims = img.animations ?? (img.animation ? [img.animation] : []);
+    if (anims.length === 0) return {};
+    const parts = anims
+      .map(id => {
+        const preset = ANIMATION_PRESETS.find(p => p.id === id);
+        if (!preset) return null;
+        // animationCSS is like: "animation: ha-float 4s ease-in-out infinite"
+        return preset.animationCSS.replace(/^animation:\s*/, '').trim();
+      })
+      .filter(Boolean) as string[];
+    if (parts.length === 0) return {};
+    return { animation: parts.join(', ') };
+  };
 
   useEffect(() => {
     if (slideshowInterval.current) clearInterval(slideshowInterval.current);
@@ -125,8 +167,10 @@ export default function HorrorStudio() {
     if (selectedId) updateImage(selectedId, { animations: [] });
   };
 
-  const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const toggleParticle = (id: string) => setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSound = (id: string) => setActiveSounds(prev =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleParticle = (id: string) => setActiveParticles(prev =>
+    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleDownload = () => {
     if (!previewRef.current) return;
@@ -194,11 +238,6 @@ export default function HorrorStudio() {
   const previewImages = getPreviewImages();
   const isVertical = ratio.height > ratio.width;
 
-  const getAnimClass = (img: UploadedImage) => {
-    const anims = img.animations ?? (img.animation ? [img.animation] : []);
-    return anims.map(a => `ha-${a}`).join(' ');
-  };
-
   const selectedIdx = images.findIndex(img => img.id === selectedId);
   const goLeft  = () => selectedIdx > 0 && setSelectedId(images[selectedIdx - 1].id);
   const goRight = () => selectedIdx < images.length - 1 && setSelectedId(images[selectedIdx + 1].id);
@@ -207,37 +246,69 @@ export default function HorrorStudio() {
     const size = isFullscreen
       ? { width: isVertical ? '40vh' : '100vw', aspectRatio: `${ratio.width} / ${ratio.height}` }
       : { width: '100%', aspectRatio: `${ratio.width} / ${ratio.height}`, maxWidth: isVertical ? '280px' : '100%' };
+
     return (
       <div style={size} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
         <div
           ref={isFullscreen ? undefined : previewRef}
-          className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}
+          className="w-full h-full relative overflow-hidden"
+          style={getEnvStyle()}
         >
-          {!greenScreen && (
-            <div className="absolute inset-0 pointer-events-none opacity-30"
-              style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }}
+          {/* Environment overlay */}
+          {getEnvOverlay()}
+
+          {/* Grid when no env */}
+          {!activeEnvironment && !greenScreen && (
+            <div className="absolute inset-0 pointer-events-none opacity-30" style={{ zIndex: 0,
+              backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+              backgroundSize: '10% 10%' }}
             />
           )}
-          {previewImages.map(img => (
-            <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-              style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
-            >
-              <img src={img.url} alt={img.name} draggable={false}
-                style={{ maxWidth: isFullscreen ? '400px' : '200px', maxHeight: isFullscreen ? '400px' : '200px', objectFit: 'contain', display: 'block' }}
-              />
-            </div>
-          ))}
+
+          {/* Images with MERGED animation styles */}
+          {previewImages.map(img => {
+            const positionStyle: React.CSSProperties = {
+              left: `${img.position.x}%`,
+              top: `${img.position.y}%`,
+              transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
+              opacity: img.opacity,
+              zIndex: 5,
+            };
+            const animStyle = getAnimStyle(img);
+            return (
+              <div
+                key={img.id}
+                className="absolute"
+                style={{ ...positionStyle, ...animStyle }}
+              >
+                <img
+                  src={img.url}
+                  alt={img.name}
+                  draggable={false}
+                  style={{
+                    maxWidth: isFullscreen ? '400px' : '200px',
+                    maxHeight: isFullscreen ? '400px' : '200px',
+                    objectFit: 'contain',
+                    display: 'block',
+                  }}
+                />
+              </div>
+            );
+          })}
+
           {previewImages.length === 0 && !isFullscreen && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ zIndex: 2 }}>
               <ImageIcon className="w-10 h-10 text-zinc-800" />
               <p className="text-xs text-zinc-700">Upload images to start</p>
-              <p className="text-[10px] text-zinc-800">They will appear here with animations</p>
             </div>
           )}
+
           <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
+
+          {/* Vignette — only when no env or has env */}
           {!greenScreen && (
-            <div className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10,
+              background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
             />
           )}
         </div>
@@ -274,12 +345,18 @@ export default function HorrorStudio() {
             <span className="text-red-500/60">{activeSounds.length}</span> sounds
             <span className="mx-1">·</span>
             <span className="text-red-500/60">{activeParticles.length}</span> particles
+            {activeEnvironment && (
+              <>
+                <span className="mx-1">·</span>
+                <span className="text-purple-400/80">env on</span>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* LEFT */}
+        {/* LEFT PANEL */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
           <div
             onDrop={handleDrop}
@@ -320,12 +397,13 @@ export default function HorrorStudio() {
             </div>
           )}
 
+          {/* TABS — now 4 tabs */}
           <div className="flex border-b border-zinc-800 flex-shrink-0">
-            {(['animations', 'sounds', 'tts'] as const).map(tab => (
+            {(['animations', 'environment', 'sounds', 'tts'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}
+                className={`flex-1 py-1.5 text-[8px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}
               >
-                {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Anim' : 'Sound'}
+                {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Anim' : tab === 'environment' ? 'Env' : 'Sound'}
               </button>
             ))}
           </div>
@@ -339,8 +417,19 @@ export default function HorrorStudio() {
                 disabled={!selectedId}
               />
             )}
+            {activeTab === 'environment' && (
+              <EnvironmentPanel
+                activeEnvironment={activeEnvironment}
+                onSelect={setActiveEnvironment}
+              />
+            )}
             {activeTab === 'sounds' && (
-              <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
+              <SoundLibrary
+                activeSounds={activeSounds}
+                onToggleSound={toggleSound}
+                masterVolume={masterVolume}
+                onVolumeChange={setMasterVolume}
+              />
             )}
             {activeTab === 'tts' && <TTSPanel />}
           </div>
@@ -353,6 +442,11 @@ export default function HorrorStudio() {
               <span className="text-xs text-zinc-600">Preview</span>
               <span className="text-[10px] text-zinc-700 font-mono">{ratio.width}×{ratio.height}</span>
               <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${tagColor(ratio.tag)}`}>{ratio.tag}</span>
+              {activeEnvironment && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded border bg-purple-500/15 border-purple-500/30 text-purple-400">
+                  {ENVIRONMENT_THEMES.find(e => e.id === activeEnvironment)?.icon} env
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={handleDownload}
@@ -425,21 +519,34 @@ export default function HorrorStudio() {
             className="absolute top-4 right-4 z-50 text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-2 border border-zinc-700">
             <X className="w-5 h-5" />
           </button>
-          <div onClick={e => e.stopPropagation()} style={{ width: isVertical ? '40vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }}
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: isVertical ? '40vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }}
             className="relative overflow-hidden rounded-xl shadow-2xl border border-zinc-700"
           >
-            <div className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}>
-              {previewImages.map(img => (
-                <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-                  style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
-                >
-                  <img src={img.url} alt="" draggable={false} style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
-                </div>
-              ))}
+            <div
+              className="w-full h-full relative overflow-hidden"
+              style={getEnvStyle()}
+            >
+              {getEnvOverlay()}
+              {previewImages.map(img => {
+                const positionStyle: React.CSSProperties = {
+                  left: `${img.position.x}%`,
+                  top: `${img.position.y}%`,
+                  transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
+                  opacity: img.opacity,
+                  zIndex: 5,
+                };
+                return (
+                  <div key={img.id} className="absolute" style={{ ...positionStyle, ...getAnimStyle(img) }}>
+                    <img src={img.url} alt="" draggable={false} style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
+                  </div>
+                );
+              })}
               <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
               {!greenScreen && (
-                <div className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%)' }}
+                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10,
+                  background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%)' }}
                 />
               )}
             </div>
