@@ -1,8 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ANIMATION_PRESETS, ASPECT_RATIOS } from '@/lib/animations';
 import type { UploadedImage, AnimationMode } from '@/lib/animations';
-import { loadProjects, saveProject, deleteProject, generateId } from '@/lib/project-store';
-import type { HorrorProject } from '@/lib/project-store';
+import {
+  loadProjects, saveProject, deleteProject, generateId,
+  addVideoToProject, deleteVideoFromProject,
+} from '@/lib/project-store';
+import type { HorrorProject, ProjectVideo } from '@/lib/project-store';
 import AppBackground from '@/components/AppBackground';
 import AnimationPanel from '@/components/AnimationPanel';
 import SoundLibrary from '@/components/SoundLibrary';
@@ -13,11 +16,22 @@ import {
   Upload, ImageIcon, Download, CircleDot,
   ChevronLeft, ChevronRight, Maximize2, Skull, X,
   FolderOpen, Plus, Save, CheckCircle, Clock, Trash2, User,
-  Settings, Music, Layers, ChevronUp,
+  Settings, Music, Layers, ChevronUp, Video, Film,
 } from 'lucide-react';
 
 let imageCounter = 0;
 
+// ── Video size to base64 (max ~50MB stored) ──
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res((reader.result as string).split(',')[1]);
+    reader.onerror = rej;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// ── Project Dashboard ──
 function ProjectDashboard({
   username, onNew, onOpen, onDelete,
 }: {
@@ -29,8 +43,11 @@ function ProjectDashboard({
   const [projects, setProjects] = useState<HorrorProject[]>([]);
   const [newName, setNewName] = useState('');
   const [showInput, setShowInput] = useState(false);
+  const [expandedVideos, setExpandedVideos] = useState<string | null>(null);
 
   useEffect(() => { setProjects(loadProjects()); }, []);
+
+  const refresh = () => setProjects(loadProjects());
 
   const handleNew = () => {
     const name = newName.trim() || `Project ${Date.now()}`;
@@ -40,13 +57,38 @@ function ProjectDashboard({
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     deleteProject(id);
-    setProjects(loadProjects());
+    refresh();
   };
+
+  const handleDownloadVideo = (v: ProjectVideo, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = document.createElement('a');
+    link.href = v.url;
+    link.download = v.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDeleteVideo = (projId: string, videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteVideoFromProject(projId, videoId);
+    refresh();
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatDur = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col overflow-y-auto">
       <AppBackground />
       <div className="relative z-10 flex flex-col min-h-full">
+        {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-red-900/30 bg-zinc-900/80 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-red-700 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/60">
@@ -67,6 +109,7 @@ function ProjectDashboard({
 
         <div className="flex-1 px-4 md:px-8 py-6">
           <div className="max-w-4xl mx-auto">
+            {/* New Project */}
             <div className="mb-6">
               {!showInput ? (
                 <button onClick={() => setShowInput(true)}
@@ -78,8 +121,7 @@ function ProjectDashboard({
                   <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleNew(); if (e.key === 'Escape') setShowInput(false); }}
                     placeholder="Project name..."
-                    className="px-4 py-2.5 bg-zinc-800 border border-red-700/50 text-white text-sm outline-none focus:border-red-500 flex-1"
-                  />
+                    className="px-4 py-2.5 bg-zinc-800 border border-red-700/50 text-white text-sm outline-none focus:border-red-500 flex-1" />
                   <div className="flex gap-2">
                     <button onClick={handleNew} className="flex-1 sm:flex-none px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white text-sm font-bold border border-red-500 transition-all">Create</button>
                     <button onClick={() => setShowInput(false)} className="flex-1 sm:flex-none px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm border border-zinc-700 transition-all">Cancel</button>
@@ -98,39 +140,76 @@ function ProjectDashboard({
                 <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">Your Projects ({projects.length})</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map(p => (
-                    <div key={p.id} onClick={() => onOpen(p)}
-                      className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all cursor-pointer group p-4 relative active:scale-95">
-                      {p.thumbnail ? (
-                        <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800">
-                          <img src={p.thumbnail} alt="" className="w-full h-full object-cover" />
+                    <div key={p.id} className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all group relative">
+                      {/* Project card — click to open */}
+                      <div onClick={() => onOpen(p)} className="cursor-pointer p-4 active:scale-95">
+                        {p.thumbnail ? (
+                          <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800">
+                            <img src={p.thumbnail} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-28 bg-zinc-800/50 flex items-center justify-center mb-3 border border-zinc-700/30">
+                            <Skull className="w-10 h-10 text-zinc-700" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-white font-bold text-sm truncate group-hover:text-red-300 transition-colors">{p.name}</h3>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {p.status === 'finished' ? (
+                                <span className="flex items-center gap-1 text-[9px] text-green-400 border border-green-800/40 px-1.5 py-0.5 rounded">
+                                  <CheckCircle className="w-2.5 h-2.5" /> Finished
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-[9px] text-yellow-500 border border-yellow-800/40 px-1.5 py-0.5 rounded">
+                                  <Clock className="w-2.5 h-2.5" /> Draft
+                                </span>
+                              )}
+                              <span className="text-[9px] text-zinc-600">{new Date(p.updatedAt).toLocaleDateString()}</span>
+                            </div>
+                            <p className="text-[10px] text-zinc-600 mt-1">{p.images.length} image{p.images.length !== 1 ? 's' : ''}</p>
+                          </div>
+                          <button onClick={e => handleDelete(p.id, e)}
+                            className="text-zinc-700 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      ) : (
-                        <div className="w-full h-28 bg-zinc-800/50 flex items-center justify-center mb-3 border border-zinc-700/30">
-                          <Skull className="w-10 h-10 text-zinc-700" />
+                      </div>
+
+                      {/* Videos section */}
+                      {(p.videos ?? []).length > 0 && (
+                        <div className="border-t border-zinc-800 px-4 py-2">
+                          <button
+                            onClick={e => { e.stopPropagation(); setExpandedVideos(expandedVideos === p.id ? null : p.id); }}
+                            className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-red-400 transition-colors w-full">
+                            <Film className="w-3 h-3" />
+                            {(p.videos ?? []).length} video{(p.videos ?? []).length !== 1 ? 's' : ''}
+                            <span className="ml-auto">{expandedVideos === p.id ? '▲' : '▼'}</span>
+                          </button>
+
+                          {expandedVideos === p.id && (
+                            <div className="mt-2 space-y-2">
+                              {(p.videos ?? []).map(v => (
+                                <div key={v.id} className="flex items-center gap-2 bg-zinc-800/50 rounded p-2 border border-zinc-700/30">
+                                  <Video className="w-4 h-4 text-red-400 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[10px] text-zinc-300 truncate">{v.name}</p>
+                                    <p className="text-[9px] text-zinc-600">{formatDur(v.duration)} · {formatSize(v.size)}</p>
+                                  </div>
+                                  <button onClick={e => handleDownloadVideo(v, e)}
+                                    className="p-1.5 bg-red-700 hover:bg-red-600 text-white rounded transition-colors flex-shrink-0" title="Download MP4">
+                                    <Download className="w-3 h-3" />
+                                  </button>
+                                  <button onClick={e => handleDeleteVideo(p.id, v.id, e)}
+                                    className="p-1.5 text-zinc-600 hover:text-red-500 transition-colors flex-shrink-0">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-bold text-sm truncate group-hover:text-red-300 transition-colors">{p.name}</h3>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {p.status === 'finished' ? (
-                              <span className="flex items-center gap-1 text-[9px] text-green-400 border border-green-800/40 px-1.5 py-0.5 rounded">
-                                <CheckCircle className="w-2.5 h-2.5" /> Finished
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-[9px] text-yellow-500 border border-yellow-800/40 px-1.5 py-0.5 rounded">
-                                <Clock className="w-2.5 h-2.5" /> Draft
-                              </span>
-                            )}
-                            <span className="text-[9px] text-zinc-600">{new Date(p.updatedAt).toLocaleDateString()}</span>
-                          </div>
-                          <p className="text-[10px] text-zinc-600 mt-1">{p.images.length} image{p.images.length !== 1 ? 's' : ''}</p>
-                        </div>
-                        <button onClick={e => handleDelete(p.id, e)}
-                          className="text-zinc-700 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -143,6 +222,7 @@ function ProjectDashboard({
   );
 }
 
+// ── Main Studio ──
 export default function HorrorStudio() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [currentProject, setCurrentProject] = useState<HorrorProject | null>(null);
@@ -166,6 +246,7 @@ export default function HorrorStudio() {
   const [autoSaveMsg, setAutoSaveMsg] = useState('');
   const [mobilePanel, setMobilePanel] = useState<'none' | 'tools' | 'settings'>('none');
   const [isMobile, setIsMobile] = useState(false);
+  const [savingVideo, setSavingVideo] = useState(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +258,7 @@ export default function HorrorStudio() {
   const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingStartTime = useRef<number>(0);
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
@@ -318,6 +400,37 @@ export default function HorrorStudio() {
     });
   };
 
+  // Save recorded video to project library
+  const saveVideoToProject = useCallback(async (blob: Blob, durationSec: number) => {
+    if (!currentProject) return;
+    setSavingVideo(true);
+    try {
+      const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+      const url = URL.createObjectURL(blob);
+      let base64 = '';
+      // Only store if < 40MB
+      if (blob.size < 40 * 1024 * 1024) {
+        base64 = await blobToBase64(blob);
+      }
+      const video: ProjectVideo = {
+        id: generateId(),
+        name: videoName,
+        url,
+        blob: base64,
+        mimeType: blob.type,
+        size: blob.size,
+        duration: durationSec,
+        createdAt: Date.now(),
+      };
+      addVideoToProject(currentProject.id, video);
+      setAutoSaveMsg('Video saved to project ✓');
+      setTimeout(() => setAutoSaveMsg(''), 3000);
+    } catch (e) {
+      console.error('Video save failed', e);
+    }
+    setSavingVideo(false);
+  }, [currentProject]);
+
   const stopRecording = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
       mediaRecorder.current.stop();
@@ -337,13 +450,18 @@ export default function HorrorStudio() {
 
     if (!previewRef.current) return;
 
+    // Use EXACT ratio dimensions for correct aspect ratio
+    const W = ratio.width;
+    const H = ratio.height;
+
     const recCanvas = document.createElement('canvas');
-    recCanvas.width = previewRef.current.offsetWidth * 2;
-    recCanvas.height = previewRef.current.offsetHeight * 2;
+    recCanvas.width = W;
+    recCanvas.height = H;
     const ctx = recCanvas.getContext('2d')!;
 
     const stream = recCanvas.captureStream(24);
 
+    // Best supported format
     const mimeTypes = [
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
@@ -353,67 +471,68 @@ export default function HorrorStudio() {
 
     let recorder: MediaRecorder;
     try {
-      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
+      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
     } catch {
       recorder = new MediaRecorder(stream);
     }
 
     chunks.current = [];
+    recordingStartTime.current = Date.now();
 
     recorder.ondataavailable = e => {
       if (e.data && e.data.size > 0) chunks.current.push(e.data);
     };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       cancelAnimationFrame(rafId.current);
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
 
       const blob = new Blob(chunks.current, { type: mimeType });
+      const durationSec = Math.round((Date.now() - recordingStartTime.current) / 1000);
+
       if (blob.size < 1000) {
-        alert('Recording failed — file too small. Try again.');
+        alert('Recording failed — no data. Try again in Chrome.');
         setRecording(false);
         setRecordingTime(0);
         return;
       }
 
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${currentProject?.name ?? 'horror'}-${Date.now()}.webm`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      // Save to project library first
+      await saveVideoToProject(blob, durationSec);
+
       setRecording(false);
       setRecordingTime(0);
     };
 
+    // Draw preview into canvas at full ratio size, capturing CSS animations via html2canvas
     let capturing = false;
 
     const drawFrame = () => {
-      if (!previewRef.current) {
-        rafId.current = requestAnimationFrame(drawFrame);
-        return;
-      }
       if (capturing) {
         rafId.current = requestAnimationFrame(drawFrame);
         return;
       }
+      if (!previewRef.current) {
+        rafId.current = requestAnimationFrame(drawFrame);
+        return;
+      }
       capturing = true;
+
       import('html2canvas').then(({ default: html2canvas }) => {
         html2canvas(previewRef.current!, {
           useCORS: true,
           allowTaint: true,
-          scale: 2,
+          scale: 1,
           width: previewRef.current!.offsetWidth,
           height: previewRef.current!.offsetHeight,
           backgroundColor: greenScreen ? '#00ff00' : '#000000',
           logging: false,
           imageTimeout: 0,
         }).then(frame => {
-          ctx.clearRect(0, 0, recCanvas.width, recCanvas.height);
-          ctx.drawImage(frame, 0, 0, recCanvas.width, recCanvas.height);
+          // Draw scaled to exact ratio size
+          ctx.clearRect(0, 0, W, H);
+          ctx.drawImage(frame, 0, 0, W, H);
           capturing = false;
           rafId.current = requestAnimationFrame(drawFrame);
         }).catch(() => {
@@ -433,13 +552,14 @@ export default function HorrorStudio() {
       setRecordingTime(t => t + 1);
     }, 1000);
 
+    // Auto stop at 5 min
     autoStopTimer.current = setTimeout(() => {
       if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
         mediaRecorder.current.stop();
       }
     }, 5 * 60 * 1000);
 
-  }, [recording, stopRecording, greenScreen, currentProject]);
+  }, [recording, stopRecording, ratio, greenScreen, saveVideoToProject]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -460,7 +580,8 @@ export default function HorrorStudio() {
       id: generateId(), name, status: 'draft',
       createdAt: Date.now(), updatedAt: Date.now(),
       aspectRatio: '16:9-1080', greenScreen: false, animMode: 'single',
-      activeParticles: [], activeSounds: [], masterVolume: 0.35, images: [],
+      activeParticles: [], activeSounds: [], masterVolume: 0.35,
+      images: [], videos: [],
     };
     saveProject(proj);
     setCurrentProject(proj);
@@ -546,6 +667,7 @@ export default function HorrorStudio() {
     );
   }
 
+  // ── MOBILE ──
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 overflow-hidden">
@@ -613,10 +735,10 @@ export default function HorrorStudio() {
                 className="flex items-center gap-1 px-2 py-1 rounded bg-zinc-800 text-[10px] text-zinc-300 border border-zinc-700">
                 <Download className="w-3 h-3" /> PNG
               </button>
-              <button onClick={handleRecord}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>
+              <button onClick={handleRecord} disabled={savingVideo}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : savingVideo ? 'bg-zinc-700 text-zinc-500 border-zinc-600' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
-                {recording ? formatTime(recordingTime) : 'Rec'}
+                {savingVideo ? 'Saving…' : recording ? formatTime(recordingTime) : 'Rec'}
               </button>
               <button onClick={() => setFullscreen(true)}
                 className="p-1.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
@@ -723,6 +845,7 @@ export default function HorrorStudio() {
     );
   }
 
+  // ── DESKTOP ──
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
@@ -764,6 +887,7 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
+        {/* Left Panel */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
           <div onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragover(true); }} onDragLeave={() => setDragover(false)}
             onClick={() => fileInputRef.current?.click()}
@@ -820,6 +944,7 @@ export default function HorrorStudio() {
           </div>
         </div>
 
+        {/* Center */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -832,10 +957,10 @@ export default function HorrorStudio() {
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] text-zinc-300 transition-colors border border-zinc-700">
                 <Download className="w-3 h-3" /> PNG
               </button>
-              <button onClick={handleRecord}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'}`}>
+              <button onClick={handleRecord} disabled={savingVideo}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : savingVideo ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait' : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'}`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
-                {recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
+                {savingVideo ? 'Saving to library…' : recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
               </button>
               <button onClick={() => setFullscreen(true)}
                 className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700">
@@ -868,6 +993,7 @@ export default function HorrorStudio() {
           )}
         </div>
 
+        {/* Right Panel */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel
@@ -880,6 +1006,7 @@ export default function HorrorStudio() {
         </div>
       </div>
 
+      {/* Fullscreen */}
       {fullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setFullscreen(false)}>
           <button onClick={() => setFullscreen(false)} className="absolute top-4 right-4 z-50 text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-2 border border-zinc-700">
