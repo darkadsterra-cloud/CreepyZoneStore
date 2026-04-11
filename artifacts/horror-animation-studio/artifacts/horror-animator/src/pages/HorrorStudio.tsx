@@ -79,7 +79,14 @@ export default function HorrorStudio() {
       if (!file.type.startsWith('image/')) return;
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
-      newImages.push({ id, file, url, name: file.name, animation: null, greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
+      newImages.push({
+        id, file, url, name: file.name,
+        animation: null,
+        animations: [],
+        greenScreen: false,
+        position: { x: 50, y: 50 },
+        scale: 1, rotation: 0, opacity: 1,
+      });
     });
     setImages(prev => {
       const next = [...prev, ...newImages];
@@ -105,9 +112,17 @@ export default function HorrorStudio() {
     });
   };
 
-  const setAnimation = (animId: string | null) => {
-    if (!selectedId) return;
-    updateImage(selectedId, { animation: animId });
+  const toggleAnimation = (animId: string) => {
+    if (!selectedId || !selectedImage) return;
+    const current = selectedImage.animations ?? [];
+    const updated = current.includes(animId)
+      ? current.filter(a => a !== animId)
+      : [...current, animId];
+    updateImage(selectedId, { animations: updated });
+  };
+
+  const clearAllAnimations = () => {
+    if (selectedId) updateImage(selectedId, { animations: [] });
   };
 
   const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -131,26 +146,18 @@ export default function HorrorStudio() {
       setRecording(false);
       return;
     }
-
     if (!previewRef.current) return;
-
     import('html2canvas').then(({ default: html2canvas }) => {
       const recordingCanvas = document.createElement('canvas');
       recordingCanvas.width = ratio.width;
       recordingCanvas.height = ratio.height;
       const ctx = recordingCanvas.getContext('2d')!;
-
       const stream = recordingCanvas.captureStream(30);
       let mimeType = 'video/webm;codecs=vp9';
       if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
-
       const recorder = new MediaRecorder(stream, { mimeType });
       chunks.current = [];
-
-      recorder.ondataavailable = e => {
-        if (e.data.size > 0) chunks.current.push(e.data);
-      };
-
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
       recorder.onstop = () => {
         cancelAnimationFrame(rafId.current);
         const blob = new Blob(chunks.current, { type: 'video/webm' });
@@ -161,13 +168,10 @@ export default function HorrorStudio() {
         link.click();
         URL.revokeObjectURL(url);
       };
-
       const drawFrame = () => {
         if (!previewRef.current) return;
         html2canvas(previewRef.current, {
-          useCORS: true,
-          allowTaint: true,
-          scale: 1,
+          useCORS: true, allowTaint: true, scale: 1,
           width: previewRef.current.offsetWidth,
           height: previewRef.current.offsetHeight,
           backgroundColor: greenScreen ? '#00ff00' : '#000000',
@@ -177,17 +181,12 @@ export default function HorrorStudio() {
         });
         rafId.current = requestAnimationFrame(drawFrame);
       };
-
       drawFrame();
       recorder.start(100);
       mediaRecorder.current = recorder;
       setRecording(true);
-
       setTimeout(() => {
-        if (recorder.state === 'recording') {
-          recorder.stop();
-          setRecording(false);
-        }
+        if (recorder.state === 'recording') { recorder.stop(); setRecording(false); }
       }, 15000);
     });
   };
@@ -195,7 +194,10 @@ export default function HorrorStudio() {
   const previewImages = getPreviewImages();
   const isVertical = ratio.height > ratio.width;
 
-  const getAnimClass = (img: UploadedImage) => img.animation ? `ha-${img.animation}` : '';
+  const getAnimClass = (img: UploadedImage) => {
+    const anims = img.animations ?? (img.animation ? [img.animation] : []);
+    return anims.map(a => `ha-${a}`).join(' ');
+  };
 
   const selectedIdx = images.findIndex(img => img.id === selectedId);
   const goLeft  = () => selectedIdx > 0 && setSelectedId(images[selectedIdx - 1].id);
@@ -294,22 +296,27 @@ export default function HorrorStudio() {
 
           {images.length > 0 && (
             <div className="mx-3 my-2 space-y-1 overflow-y-auto flex-shrink-0" style={{ maxHeight: '130px' }}>
-              {images.map(img => (
-                <div key={img.id} onClick={() => setSelectedId(img.id)}
-                  className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}
-                >
-                  <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800">
-                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+              {images.map(img => {
+                const activeAnims = img.animations ?? (img.animation ? [img.animation] : []);
+                return (
+                  <div key={img.id} onClick={() => setSelectedId(img.id)}
+                    className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}
+                  >
+                    <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800">
+                      <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-zinc-300 truncate">{img.name}</p>
+                      {activeAnims.length > 0 && (
+                        <p className="text-[9px] text-red-400 truncate">{activeAnims.length} anim{activeAnims.length > 1 ? 's' : ''} active</p>
+                      )}
+                    </div>
+                    <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0">
+                      <X className="w-3 h-3" />
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-zinc-300 truncate">{img.name}</p>
-                    {img.animation && <p className="text-[9px] text-red-400 truncate">{ANIMATION_PRESETS.find(p => p.id === img.animation)?.name}</p>}
-                  </div>
-                  <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -325,7 +332,12 @@ export default function HorrorStudio() {
 
           <div className="flex-1 overflow-y-auto p-3">
             {activeTab === 'animations' && (
-              <AnimationPanel selectedAnimation={selectedImage?.animation || null} onSelect={setAnimation} disabled={!selectedId} />
+              <AnimationPanel
+                selectedAnimations={selectedImage?.animations ?? (selectedImage?.animation ? [selectedImage.animation] : [])}
+                onToggle={toggleAnimation}
+                onClearAll={clearAllAnimations}
+                disabled={!selectedId}
+              />
             )}
             {activeTab === 'sounds' && (
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
@@ -406,7 +418,7 @@ export default function HorrorStudio() {
         </div>
       </div>
 
-      {/* Fullscreen modal */}
+      {/* Fullscreen */}
       {fullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setFullscreen(false)}>
           <button onClick={() => setFullscreen(false)}
