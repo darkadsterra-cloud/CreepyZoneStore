@@ -99,8 +99,7 @@ function ProjectDashboard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map(p => (
                     <div key={p.id} onClick={() => onOpen(p)}
-                      className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all cursor-pointer group p-4 relative active:scale-95"
-                    >
+                      className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all cursor-pointer group p-4 relative active:scale-95">
                       {p.thumbnail ? (
                         <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800">
                           <img src={p.thumbnail} alt="" className="w-full h-full object-cover" />
@@ -178,7 +177,6 @@ export default function HorrorStudio() {
   const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const previewImagesRef = useRef<UploadedImage[]>([]);
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
@@ -252,9 +250,6 @@ export default function HorrorStudio() {
   }, [images, animMode, selectedImage, slideshowIdx, randomVisible]);
 
   const previewImages = getPreviewImages();
-
-  // Keep ref in sync for recording
-  useEffect(() => { previewImagesRef.current = previewImages; }, [previewImages]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
@@ -340,61 +335,16 @@ export default function HorrorStudio() {
       return;
     }
 
-    // Build offscreen canvas
+    if (!previewRef.current) return;
+
     const recCanvas = document.createElement('canvas');
-    recCanvas.width = ratio.width;
-    recCanvas.height = ratio.height;
+    recCanvas.width = previewRef.current.offsetWidth * 2;
+    recCanvas.height = previewRef.current.offsetHeight * 2;
     const ctx = recCanvas.getContext('2d')!;
 
-    // Frame drawing loop — reads images directly from DOM
-    const drawFrame = () => {
-      if (!previewRef.current) { rafId.current = requestAnimationFrame(drawFrame); return; }
-
-      // Background
-      ctx.fillStyle = greenScreen ? '#00ff00' : '#000000';
-      ctx.fillRect(0, 0, recCanvas.width, recCanvas.height);
-
-      const containerW = previewRef.current.offsetWidth || 1;
-      const containerH = previewRef.current.offsetHeight || 1;
-      const scaleX = recCanvas.width / containerW;
-      const scaleY = recCanvas.height / containerH;
-
-      // Draw each image
-      previewImagesRef.current.forEach(img => {
-        const el = previewRef.current!.querySelector(`[data-imgid="${img.id}"]`) as HTMLImageElement;
-        if (!el || !el.complete) return;
-        const cx = (img.position.x / 100) * recCanvas.width;
-        const cy = (img.position.y / 100) * recCanvas.height;
-        const imgW = el.naturalWidth * img.scale * Math.min(scaleX, scaleY);
-        const imgH = el.naturalHeight * img.scale * Math.min(scaleX, scaleY);
-        ctx.save();
-        ctx.globalAlpha = img.opacity;
-        ctx.translate(cx, cy);
-        ctx.rotate((img.rotation * Math.PI) / 180);
-        ctx.drawImage(el, -imgW / 2, -imgH / 2, imgW, imgH);
-        ctx.restore();
-      });
-
-      // Dark vignette
-      if (!greenScreen) {
-        const grad = ctx.createRadialGradient(
-          recCanvas.width / 2, recCanvas.height / 2, recCanvas.width * 0.2,
-          recCanvas.width / 2, recCanvas.height / 2, recCanvas.width * 0.7,
-        );
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.7)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, recCanvas.width, recCanvas.height);
-      }
-
-      rafId.current = requestAnimationFrame(drawFrame);
-    };
-
-    const stream = recCanvas.captureStream(30);
+    const stream = recCanvas.captureStream(24);
 
     const mimeTypes = [
-      'video/mp4;codecs=avc1',
-      'video/mp4',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
@@ -403,9 +353,9 @@ export default function HorrorStudio() {
 
     let recorder: MediaRecorder;
     try {
-      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 });
     } catch {
-      recorder = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 });
+      recorder = new MediaRecorder(stream);
     }
 
     chunks.current = [];
@@ -420,18 +370,17 @@ export default function HorrorStudio() {
       if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
 
       const blob = new Blob(chunks.current, { type: mimeType });
-      if (blob.size === 0) {
-        alert('Recording failed — no data captured. Try a shorter recording or different browser.');
+      if (blob.size < 1000) {
+        alert('Recording failed — file too small. Try again.');
         setRecording(false);
         setRecordingTime(0);
         return;
       }
 
-      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${currentProject?.name ?? 'horror'}-${Date.now()}.${ext}`;
+      link.download = `${currentProject?.name ?? 'horror'}-${Date.now()}.webm`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -440,26 +389,57 @@ export default function HorrorStudio() {
       setRecordingTime(0);
     };
 
-    // Start drawing then recording
+    let capturing = false;
+
+    const drawFrame = () => {
+      if (!previewRef.current) {
+        rafId.current = requestAnimationFrame(drawFrame);
+        return;
+      }
+      if (capturing) {
+        rafId.current = requestAnimationFrame(drawFrame);
+        return;
+      }
+      capturing = true;
+      import('html2canvas').then(({ default: html2canvas }) => {
+        html2canvas(previewRef.current!, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 2,
+          width: previewRef.current!.offsetWidth,
+          height: previewRef.current!.offsetHeight,
+          backgroundColor: greenScreen ? '#00ff00' : '#000000',
+          logging: false,
+          imageTimeout: 0,
+        }).then(frame => {
+          ctx.clearRect(0, 0, recCanvas.width, recCanvas.height);
+          ctx.drawImage(frame, 0, 0, recCanvas.width, recCanvas.height);
+          capturing = false;
+          rafId.current = requestAnimationFrame(drawFrame);
+        }).catch(() => {
+          capturing = false;
+          rafId.current = requestAnimationFrame(drawFrame);
+        });
+      });
+    };
+
     drawFrame();
     recorder.start(500);
     mediaRecorder.current = recorder;
     setRecording(true);
     setRecordingTime(0);
 
-    // Timer
     recordingTimerRef.current = setInterval(() => {
       setRecordingTime(t => t + 1);
     }, 1000);
 
-    // Auto stop at 5 min
     autoStopTimer.current = setTimeout(() => {
       if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
         mediaRecorder.current.stop();
       }
     }, 5 * 60 * 1000);
 
-  }, [recording, stopRecording, ratio, greenScreen, currentProject]);
+  }, [recording, stopRecording, greenScreen, currentProject]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -523,17 +503,14 @@ export default function HorrorStudio() {
     return (
       <div style={size} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
         <div ref={isFullscreen ? undefined : previewRef}
-          className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}
-        >
+          className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}>
           {!greenScreen && (
             <div className="absolute inset-0 pointer-events-none opacity-30"
-              style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }}
-            />
+              style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
           )}
           {previewImages.map(img => (
             <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-              style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
-            >
+              style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
               <img
                 data-imgid={img.id}
                 src={img.url} alt={img.name} draggable={false}
@@ -551,8 +528,7 @@ export default function HorrorStudio() {
           <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
           {!greenScreen && (
             <div className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
-            />
+              style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }} />
           )}
         </div>
       </div>
@@ -570,7 +546,6 @@ export default function HorrorStudio() {
     );
   }
 
-  // ── MOBILE ──
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 overflow-hidden">
@@ -688,8 +663,7 @@ export default function HorrorStudio() {
               {mobilePanel === 'tools' && activeTab === 'animations' && (
                 <AnimationPanel
                   selectedAnimations={selectedImage?.animations ?? (selectedImage?.animation ? [selectedImage.animation] : [])}
-                  onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId}
-                />
+                  onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId} />
               )}
               {mobilePanel === 'tools' && activeTab === 'sounds' && (
                 <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
@@ -701,8 +675,7 @@ export default function HorrorStudio() {
                   greenScreenEnabled={greenScreen} animationMode={animMode}
                   activeParticles={activeParticles} onAspectRatioChange={setAspectRatio}
                   onGreenScreenToggle={setGreenScreen} onAnimationModeChange={setAnimMode}
-                  onParticleToggle={toggleParticle} onUpdateImage={updateImage}
-                />
+                  onParticleToggle={toggleParticle} onUpdateImage={updateImage} />
               )}
             </div>
           </div>
@@ -750,7 +723,6 @@ export default function HorrorStudio() {
     );
   }
 
-  // ── DESKTOP ──
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
@@ -839,8 +811,7 @@ export default function HorrorStudio() {
             {activeTab === 'animations' && (
               <AnimationPanel
                 selectedAnimations={selectedImage?.animations ?? (selectedImage?.animation ? [selectedImage.animation] : [])}
-                onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId}
-              />
+                onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId} />
             )}
             {activeTab === 'sounds' && (
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
@@ -904,8 +875,7 @@ export default function HorrorStudio() {
               greenScreenEnabled={greenScreen} animationMode={animMode}
               activeParticles={activeParticles} onAspectRatioChange={setAspectRatio}
               onGreenScreenToggle={setGreenScreen} onAnimationModeChange={setAnimMode}
-              onParticleToggle={toggleParticle} onUpdateImage={updateImage}
-            />
+              onParticleToggle={toggleParticle} onUpdateImage={updateImage} />
           </div>
         </div>
       </div>
