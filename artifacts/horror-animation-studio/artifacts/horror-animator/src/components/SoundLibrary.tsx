@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Volume2, VolumeX, Music, Zap, Wind, Mic } from 'lucide-react';
-import { HORROR_SOUNDS } from '@/lib/animations';
 
 interface SoundLibraryProps {
   activeSounds: string[];
@@ -11,146 +10,165 @@ interface SoundLibraryProps {
 
 const BASE = 'https://raw.githubusercontent.com/darkadsterra-cloud/CreepyZoneStore/main/artifacts/horror-animation-studio/artifacts/horror-animator/public/sounds/';
 
-const SOUND_URLS: Record<string, string> = {
-  // ── AMBIENT ──────────────────────────────────────────────
-  'deep-drone':      BASE + 'soundreality-rumble-winds-253834.mp3',
-  'wind-howl':       BASE + 'soundreality-rumble-winds-253834.mp3',
-  'thunder-rumble':  BASE + 'soundreality-horror-kick-247743.mp3',
-  'thunderstorm':    BASE + 'jorivermeer-horror-background-atmosphere-030-394198.mp3',
-  'heavy-rain':      BASE + 'jorivermeer-horror-background-atmosphere-030-394198.mp3',
-  'haunted-room':    BASE + 'universfield-horror-background-atmosphere-155482.mp3',
-  'inferno':         BASE + 'universfield-horror-background-atmosphere-06-190279 (1).mp3',
-  'void-hum':        BASE + 'universfield-dark-horror-soundscape-345814.mp3',
-  'cemetery':        BASE + 'universfield-horror-background-atmosphere-08-215794.mp3',
-  'static-loop':     BASE + 'freesound_community-horror-voice-flashbacks-14480.mp3',
-  'dark-water':      BASE + 'universfield-horror-background-atmosphere-09-219111.mp3',
-  'cave-drip':       BASE + 'universfield-horror-background-atmosphere-09-219111.mp3',
-  'ritual-chant':    BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
-  'forest-night':    BASE + 'universfield-horror-background-atmosphere-for-suspense-166944.mp3',
-  'dungeon-drip':    BASE + 'universfield-ghosts-on-film-185898.mp3',
-  'sewer-ambience':  BASE + 'universfield-dark-horror-soundscape-345814.mp3',
-  'tv-static':       BASE + 'freesound_community-horror-voice-flashbacks-14480.mp3',
+interface SoundEntry {
+  id: string;
+  name: string;
+  description: string;
+  category: 'ambient' | 'effect' | 'music' | 'voice';
+  file: string;
+}
 
-  // ── EFFECTS ──────────────────────────────────────────────
-  'heartbeat':       BASE + 'soundreality-horror-kick-247743.mp3',
-  'door-creak':      BASE + 'simplesound-dark-horror-opener-443328.mp3',
-  'chains':          BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
-  'glass-break':     BASE + 'simplesound-horror-trailer-443327.mp3',
-  'knife-scrape':    BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
-  'bone-crack':      BASE + 'tannerwan-flesh-growing-horror-392380.mp3',
-  'footsteps':       BASE + 'bryansantosobreton-biodynamic-impact-bream-tonal-dark-178441.mp3',
-  'church-bell':     BASE + 'simplesound-horror-piano-443326.mp3',
-  'thunder-strike':  BASE + 'soundreality-horror-kick-247743.mp3',
-  'demon-roar':      BASE + 'dragon-studio-deep-guttural-growl-472039.mp3',
-  'blood-drip':      BASE + 'tannerwan-flesh-growing-horror-392380.mp3',
-  'electric-zap':    BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
-  'jumpscare-sting': BASE + 'freesound_community-echo-jumpscare-10511.mp3',
-  'evil-laugh-sfx':  BASE + 'dragon-studio-evil-girl-laughing-401720.mp3',
-  'death-rattle':    BASE + 'freesound_community-echoed-screams-103515.mp3',
-  'sword-slash':     BASE + 'bryansantosobreton-biodynamic-impact-bream-tonal-dark-178441.mp3',
+const ALL_SOUNDS: SoundEntry[] = [
+  { id: 'deep-drone', name: 'Deep Drone', description: 'Low rumbling subsonic drone', category: 'ambient', file: 'soundreality-horror-rumble-winds-253834.mp3' },
+  { id: 'wind-howl', name: 'Wind Howl', description: 'Haunted howling wind', category: 'ambient', file: 'soundreality-horror-rumble-winds-253834.mp3' },
+  { id: 'thunder-rumble', name: 'Thunder Rumble', description: 'Distant rolling thunder', category: 'ambient', file: 'soundreality-horror-kick-247743.mp3' },
+  { id: 'thunderstorm', name: 'Thunderstorm', description: 'Full thunderstorm with rain', category: 'ambient', file: 'jorisvermeer-horror-background-atmosphere-030-394196.mp3' },
+  { id: 'heavy-rain', name: 'Heavy Rain', description: 'Torrential horror rain storm', category: 'ambient', file: 'jorisvermeer-horror-background-atmosphere-030-394196.mp3' },
+  { id: 'haunted-room', name: 'Haunted Room', description: 'Creaking haunted house', category: 'ambient', file: 'universfield-horror-background-atmosphere-156462.mp3' },
+  { id: 'void-hum', name: 'Void Hum', description: 'Infinite void resonance', category: 'ambient', file: 'universfield-dark-horror-soundscape-345814.mp3' },
+  { id: 'ritual-chant', name: 'Ritual Chant', description: 'Demonic ritual chanting', category: 'ambient', file: 'phatphrogstudio-demon-spirit-angry-chanting-no-ai-479754.mp3' },
+  { id: 'horror-bg-01', name: 'Horror Ambience 01', description: 'Dark horror atmosphere', category: 'ambient', file: 'freesound_community-horror-ambience-01-66708.mp3' },
+  { id: 'horror-bg-026', name: 'Horror Background 026', description: 'Suspense background', category: 'ambient', file: 'universfield-horror-background-atmosphere-026-30-352879.mp3' },
+  { id: 'horror-bg-06', name: 'Horror Background 06', description: 'Eerie background', category: 'ambient', file: 'universfield-horror-background-atmosphere-06-199279.mp3' },
+  { id: 'horror-bg-08', name: 'Horror Background 08', description: 'Dark background', category: 'ambient', file: 'universfield-horror-background-atmosphere-08-215794.mp3' },
+  { id: 'horror-bg-09', name: 'Horror Background 09', description: 'Horror background 09', category: 'ambient', file: 'universfield-horror-background-atmosphere-09-219111.mp3' },
+  { id: 'horror-suspense', name: 'Horror Suspense BG', description: 'Suspense horror background', category: 'ambient', file: 'universfield-horror-background-atmosphere-for-suspense-166944.mp3' },
+  { id: 'scary-atmosphere', name: 'Scary Atmosphere', description: 'Scary horror atmosphere', category: 'ambient', file: 'universfield-scary-horror-atmosphere-176754.mp3' },
+  { id: 'dark-soundscape', name: 'Dark Soundscape', description: 'Dark horror soundscape', category: 'ambient', file: 'universfield-dark-horror-soundscape-345814.mp3' },
+  { id: 'dark-suspense-30s', name: 'Dark Suspense 30s', description: 'Dark horror suspense', category: 'ambient', file: 'universfield-dark-horror-suspense-30s-355836.mp3' },
+  { id: 'tense-paranormal', name: 'Tense Paranormal', description: 'Tense paranormal horror', category: 'ambient', file: 'universfield-tense-paranormal-horror-15s-498138.mp3' },
+  { id: 'tense-cinematic', name: 'Tense Cinematic', description: 'Cinematic paranormal horror', category: 'ambient', file: 'universfield-tense-paranormal-horror-cinematic-15s-498207.mp3' },
+  { id: 'ghosts-on-film', name: 'Ghosts on Film', description: 'Ghost film atmosphere', category: 'ambient', file: 'universfield-ghosts-on-film-185898.mp3' },
+  { id: 'horror-rumble', name: 'Horror Rumble Winds', description: 'Rumbling horror winds', category: 'ambient', file: 'soundreality-horror-rumble-winds-253834.mp3' },
+  { id: 'horror-pad-crowd', name: 'Horror Pad Crowd', description: 'Horror pad pitch crowd', category: 'ambient', file: 'soundreality-horror-pad-pitch-crowd-391598.mp3' },
+  { id: 'flesh-horror', name: 'Flesh Growing Horror', description: 'Flesh growing horror sound', category: 'ambient', file: 'tanweraman-flesh-growing-horror-392360.mp3' },
 
-  // ── MUSIC ────────────────────────────────────────────────
-  'dark-piano':      BASE + 'simplesound-horror-piano-443326.mp3',
-  'horror-strings':  BASE + 'simplesound-horror-trailer-443327.mp3',
-  'music-box':       BASE + 'universfield-scary-music-box-165983.mp3',
-  'organ-drone':     BASE + 'universfield-dark-horror-soundscape-345814.mp3',
-  'violin-shriek':   BASE + 'soundreality-horror-thriller-action-247745.mp3',
-  'cello-deep':      BASE + 'soundreality-horror-thriller-action-247745.mp3',
-  'choir-dark':      BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
-  'synth-horror':    BASE + 'universfield-tense-paranormal-horror-15s-498207.mp3',
-  'lullaby-horror':  BASE + 'universfield-scary-music-box-165983.mp3',
-  'funeral-march':   BASE + 'soundreality-horror-pad-pitch-crowd-391588.mp3',
-  'requiem':         BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
-  'hell-symphony':   BASE + 'soundreality-horror-thriller-action-247745.mp3',
+  { id: 'heartbeat', name: 'Heartbeat', description: 'Slow creepy heartbeat', category: 'effect', file: 'soundreality-horror-kick-247743.mp3' },
+  { id: 'door-creak', name: 'Door Creak', description: 'Old door slowly creaking', category: 'effect', file: 'simplesound-dark-horror-opener-443328.mp3' },
+  { id: 'chains', name: 'Chains Rattling', description: 'Metal chains clanking', category: 'effect', file: 'alex_kizenkov-horror-hit-logo-142395.mp3' },
+  { id: 'church-bell', name: 'Funeral Bell', description: 'Slow tolling death bell', category: 'effect', file: 'simplesound-horror-piano-443326.mp3' },
+  { id: 'demon-roar', name: 'Demon Roar', description: 'Full demon roar explosion', category: 'effect', file: 'dragon-studio-deep-guttural-growl-472380.mp3' },
+  { id: 'electric-zap', name: 'Electric Zap', description: 'Electric shock zap burst', category: 'effect', file: 'alex_kizenkov-horror-hit-logo-142395.mp3' },
+  { id: 'jumpscare-sting', name: 'Jumpscare Sting', description: 'Hollywood jumpscare hit', category: 'effect', file: 'freesound_community-echo-jumpscare-80933.mp3' },
+  { id: 'evil-laugh-sfx', name: 'Evil Laugh SFX', description: 'Short evil laugh burst', category: 'effect', file: 'freesound_community-mocking-demon-laugh-growl-86811.mp3' },
+  { id: 'death-rattle', name: 'Death Rattle', description: 'Final death rattle breath', category: 'effect', file: 'freesound_community-echoed-screams-103515.mp3' },
+  { id: 'echo-jumpscare', name: 'Echo Jumpscare', description: 'Echo jumpscare hit', category: 'effect', file: 'freesound_community-echo-jumpscare-80933.mp3' },
+  { id: 'echoed-screams', name: 'Echoed Screams', description: 'Multiple echoed screams', category: 'effect', file: 'freesound_community-echoed-screams-103515.mp3' },
+  { id: 'monster-roar', name: 'Monster Roar', description: 'Full monster roar', category: 'effect', file: 'freesound_community-monster-roar-02-102957.mp3' },
+  { id: 'monster-growls', name: 'Monster Growls', description: 'Deep monster growls', category: 'effect', file: 'freesound_community-monster-growls-70784.mp3' },
+  { id: 'demonic-roar', name: 'Demonic Roar', description: 'Full demonic roar', category: 'effect', file: 'freesound_community-demonic-roar-40349.mp3' },
+  { id: 'demon-haunting', name: 'Demon Haunting', description: 'Scary demon haunting', category: 'effect', file: 'freesound_community-033203_scary-demon-haunting-sound-76189.mp3' },
+  { id: 'mocking-demon', name: 'Mocking Demon Laugh', description: 'Demon laughing growl', category: 'effect', file: 'freesound_community-mocking-demon-laugh-growl-86811.mp3' },
+  { id: 'horror-hit', name: 'Horror Hit Logo', description: 'Horror hit logo sting', category: 'effect', file: 'alex_kizenkov-horror-hit-logo-142395.mp3' },
+  { id: 'braam-dark', name: 'Braam Dark Impact', description: 'Biodynamic dark braam', category: 'effect', file: 'bryansantosbreton-biodynamic-impact-braam-tonal-dark-176441.mp3' },
+  { id: 'horror-kick', name: 'Horror Kick', description: 'Horror kick impact', category: 'effect', file: 'soundreality-horror-kick-247743.mp3' },
+  { id: 'horror-temptation', name: 'Horror Temptation', description: 'Horror temptation sting', category: 'effect', file: 'soundreality-horror-temptation-249034.mp3' },
+  { id: 'horror-action', name: 'Horror Thriller Action', description: 'Horror thriller action', category: 'effect', file: 'soundreality-horror-thriller-action-247745.mp3' },
+  { id: 'dinosaur-growls', name: 'Dinosaur Growls', description: 'Massive dinosaur growls', category: 'effect', file: 'gsmsea-dinosaur-growls-431298.mp3' },
+  { id: 'monster-noise', name: 'Monster Noise', description: 'Deep monster noise', category: 'effect', file: 'alex_jauk-monster-noise-256448.mp3' },
+  { id: 'monstrous-scream', name: 'Monstrous Scream', description: 'Full monstrous scream', category: 'effect', file: 'alex_jauk-monstrous-scream-187949.mp3' },
+  { id: 'creepy-growling', name: 'Creepy Growling', description: 'Creepy monster growling', category: 'effect', file: 'dragon-studio-creepy-growling-sfx-472368.mp3' },
+  { id: 'deep-guttural', name: 'Deep Guttural Growl', description: 'Deep guttural growl', category: 'effect', file: 'dragon-studio-deep-guttural-growl-472380.mp3' },
+  { id: 'beast-growl', name: 'Beast Growl', description: 'Growl of the beast', category: 'effect', file: 'dragon-studio-growl-of-the-beast-504021.mp3' },
+  { id: 'monster-growl', name: 'Monster Growl', description: 'Monster growl sound', category: 'effect', file: 'dragon-studio-monster-growl-390285.mp3' },
+  { id: 't-rex-growl', name: 'T-Rex Growl', description: 'T-Rex dinosaur growl', category: 'effect', file: 'dragon-studio-t-rex-growl-324746.mp3' },
+  { id: 'werewolf-growl', name: 'Werewolf Growl', description: 'Werewolf monster growl', category: 'effect', file: 'dragon-studio-werewolf-growl-511303.mp3' },
+  { id: 'thunder-dragon', name: 'Thunder Dragon Roar', description: 'Thunder dragon voice roar', category: 'effect', file: 'phatphrogstudio-thunder-dragon-voice-roar-478143.mp3' },
+  { id: 'dragon-growl', name: 'Dragon Growl', description: 'Dragon voice growl', category: 'effect', file: 'phatphrogstudio-dragon-voice-growl-496281.mp3' },
+  { id: 'evil-roar', name: 'Evil Roar', description: 'Evil roar sound', category: 'effect', file: 'kunal_acharjee-evil-roar-271402.mp3' },
+  { id: 'dark-horror-opener', name: 'Dark Horror Opener', description: 'Dark horror opener sting', category: 'effect', file: 'simplesound-dark-horror-opener-443328.mp3' },
 
-  // ── VOICES & SCREAMS ─────────────────────────────────────
-  'scream':           BASE + 'freesound_community-scream-85218.mp3',
-  'scream-female':    BASE + 'virtual_vibes-female-screaming-audio-hd-379382.mp3',
-  'scream-distant':   BASE + 'freesound_community-scream-60747.mp3',
-  'scream-child':     BASE + 'freesound_community-little-girl-screaming-101185.mp3',
-  'growl':            BASE + 'dragon-studio-creepy-growling-sfx-472180.mp3',
-  'laugh':            BASE + 'freesound_community-mocking-demon-laugh-growl-86811.mp3',
-  'crying':           BASE + 'freesound_community-girl-scream-45657.mp3',
-  'whisper':          BASE + 'phatphrogstudio-demon-voice-die-488316.mp3',
-  'breathing':        BASE + 'freesound_community-scary-scream-3-81274.mp3',
-  'moan':             BASE + 'freesound_community-zombie-pain-1-95166.mp3',
-  'child-laugh':      BASE + 'dragon-studio-evil-girl-laughing-401720.mp3',
-  'speak-evil':       BASE + 'phatphrogstudio-demon-voice-growling-503874.mp3',
-  'wail':             BASE + 'virtual_vibes-woman-scream-sound-hd-379381.mp3',
-  'hiss':             BASE + 'dragon-studio-creepy-monster-growling-472178.mp3',
-  'howl':             BASE + 'freesound_community-monster-growls-70784.mp3',
-  'possessed-scream': BASE + 'freesound_community-terrifying-scream-52389.mp3',
-  'death-scream':     BASE + 'universfield-male-death-scream-horror-352706.mp3',
-};
+  { id: 'dark-piano', name: 'Dark Piano Melody', description: 'Haunting minor key piano', category: 'music', file: 'simplesound-horror-piano-443326.mp3' },
+  { id: 'horror-strings', name: 'Horror Strings', description: 'Tense orchestral strings', category: 'music', file: 'simplesound-horror-trailer-443327.mp3' },
+  { id: 'music-box', name: 'Broken Music Box', description: 'Warped music box tune', category: 'music', file: 'universfield-scary-music-box-165983.mp3' },
+  { id: 'organ-drone', name: 'Gothic Organ', description: 'Dark cathedral organ drone', category: 'music', file: 'universfield-dark-horror-soundscape-345814.mp3' },
+  { id: 'violin-shriek', name: 'Violin Shriek', description: 'Screeching horror violin', category: 'music', file: 'soundreality-horror-thriller-action-247745.mp3' },
+  { id: 'choir-dark', name: 'Dark Choir', description: 'Demonic choral voices', category: 'music', file: 'phatphrogstudio-demon-spirit-angry-chanting-no-ai-479754.mp3' },
+  { id: 'synth-horror', name: 'Synth Horror', description: '80s horror synth atmosphere', category: 'music', file: 'universfield-tense-paranormal-horror-15s-498138.mp3' },
+  { id: 'horror-piano', name: 'Horror Piano', description: 'Simple horror piano', category: 'music', file: 'simplesound-horror-piano-443326.mp3' },
+  { id: 'horror-trailer', name: 'Horror Trailer', description: 'Horror trailer music', category: 'music', file: 'simplesound-horror-trailer-443327.mp3' },
+  { id: 'intense-horror', name: 'Intense Horror Music', description: 'Intense horror music', category: 'music', file: 'freesound_community-intense-horror-music-01-14890.mp3' },
+  { id: 'scary-music-box', name: 'Scary Music Box', description: 'Scary music box melody', category: 'music', file: 'universfield-scary-music-box-165983.mp3' },
+  { id: 'cosmic-oblivion', name: 'Cosmic Oblivion', description: 'Neon nexus cosmic music', category: 'music', file: 'phatphrogstudio-cosmic-oblivion-neon-nexus-477911.mp3' },
+  { id: 'cyber-attack', name: 'Cyber Attack', description: 'Datastorm rebellion music', category: 'music', file: 'phatphrogstudio-cyber-attack-datastorm-rebellion-477469.mp3' },
+  { id: 'infinite-expanse', name: 'Infinite Expanse', description: 'Piano nova trails music', category: 'music', file: 'phatphrogstudio-infinite-expanse-piano-nova-trails-477471.mp3' },
+  { id: 'internal-fury', name: 'Internal Fury', description: 'Fury dance horror music', category: 'music', file: 'phatphrogstudio-internal-fury-furyx27s-dance-477470.mp3' },
+  { id: 'plagued-bastion', name: 'Plagued Bastion', description: 'Survival undead haven', category: 'music', file: 'phatphrogstudio-plagued-bastion-survival-undead-haven-477915.mp3' },
+  { id: 'pyro-witch', name: 'Pyro Witch', description: 'Fireborn saga action music', category: 'music', file: 'phatphrogstudio-pyro-witch-fireborn-saga-royalty-free-action-music-502322.mp3' },
+  { id: 'creaking-cradle', name: 'Creaking Cradle', description: 'Nameless flesh music', category: 'music', file: 'phatphrogstudio-creaking-cradle-nameless-flesh-477965.mp3' },
+  { id: 'horror-flashbacks', name: 'Horror Voice Flashbacks', description: 'Horror voice flashback music', category: 'music', file: 'freesound_community-horror-voice-flashbacks-14469.mp3' },
+  { id: 'screams-agony', name: 'Screams of Agony', description: 'Screams of agony track', category: 'music', file: 'soundreality-screams-of-agony-142447.mp3' },
 
-// Extra sounds from your files mapped to new IDs for bonus use
-const EXTRA_SOUNDS: { id: string; name: string; category: string; url: string }[] = [
-  { id: 'x-demon-voice-1',    name: 'Demon Voice I Sense You',   category: 'voice',   url: BASE + 'phatphrogstudio-lich-demonic-voice-i-sense-you-490452.mp3' },
-  { id: 'x-demon-come-closer',name: 'Demon Come Closer',         category: 'voice',   url: BASE + 'phatphrogstudio-lich-demonic-voice-come-closer-502312.mp3' },
-  { id: 'x-demon-no-mercy',   name: 'Demon No Mercy',            category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-mercy-477827.mp3' },
-  { id: 'x-demon-no-running', name: 'Demon No More Running',     category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-more-running-480582.mp3' },
-  { id: 'x-demon-flesh',      name: 'Demon Smell Your Flesh',    category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-smell-flesh-no-ai-479322.mp3' },
-  { id: 'x-dragon-voice',     name: 'Dragon Voice',              category: 'voice',   url: BASE + 'phatphrogstudio-dragon-voice-growl-496281 (1).mp3' },
-  { id: 'x-demonic-laughter', name: 'Demonic Laughter',          category: 'voice',   url: BASE + 'phatphrogstudio-oni-demon-voice-demonic-laughter-3-488654.mp3' },
-  { id: 'x-evil-doll-laugh',  name: 'Evil Doll Laugh',           category: 'voice',   url: BASE + 'phatphrogstudio-evil-doll-voice-creepy-laugh-477344.mp3' },
-  { id: 'x-spirit-whispers',  name: 'Spirit Whispers',           category: 'voice',   url: BASE + 'phatphrogstudio-demon-spirit-voice-ghost-whispers-amp-muttering-496706.mp3' },
-  { id: 'x-monster-zombie',   name: 'Monster Zombie Scream',     category: 'voice',   url: BASE + 'dragon-studio-zombie-screech-sound-effect-311085.mp3' },
-  { id: 'x-werewolf',         name: 'Werewolf Growl',            category: 'voice',   url: BASE + 'dragon-studio-werewolf-growl-511103.mp3' },
-  { id: 'x-beast-growl',      name: 'Beast Growl',               category: 'voice',   url: BASE + 'dragon-studio-growl-of-the-beast-504521.mp3' },
-  { id: 'x-monster-roar-2',   name: 'Monster Roar',              category: 'voice',   url: BASE + 'dragon-studio-monster-growl-390285.mp3' },
-  { id: 'x-scary-scream',     name: 'Scary Scream',              category: 'voice',   url: BASE + 'dragon-studio-scary-scream-401725.mp3' },
-  { id: 'x-zombie-female',    name: 'Female Zombie Scream',      category: 'voice',   url: BASE + 'dragon-studio-female-zombie-scream-324744.mp3' },
-  { id: 'x-woman-scream',     name: 'Woman Screaming',           category: 'voice',   url: BASE + 'dragon-studio-woman-screaming-cfx-streaming-sound-effect-320169.mp3' },
-  { id: 'x-multiple-screams', name: 'Multiple Female Screams',   category: 'voice',   url: BASE + 'freesound_community-multiple-female-screams-70736.mp3' },
-  { id: 'x-very-intense-hell',name: 'Very Intense Hell Scream',  category: 'voice',   url: BASE + 'freesound_community-very-intense-hell-72137.mp3' },
-  { id: 'x-scream-echo',      name: 'Scream With Echo',          category: 'voice',   url: BASE + 'freesound_community-scream-with-echo-46585.mp3' },
-  { id: 'x-ghastly-groan',    name: 'Ghastly Groan',             category: 'voice',   url: BASE + 'freesound_community-ghastly-groan-48064.mp3' },
-  { id: 'x-young-girl-scream',name: 'Young Girl Screaming',      category: 'voice',   url: BASE + 'freesound_community-young-girl-screaming-1-90510.mp3' },
-  { id: 'x-angry-man-yell',   name: 'Angry Man Yell',            category: 'voice',   url: BASE + 'virtual_vibes-angry-man-yell-sound-hd-379386.mp3' },
-  { id: 'x-ultra-scream',     name: 'Ultra Realistic Scream',    category: 'voice',   url: BASE + 'virtual_vibes-scary-woman-scream-ultra-realistic-379378.mp3' },
-  { id: 'x-infinite-piano',   name: 'Infinite Expanse Piano',    category: 'music',   url: BASE + 'phatphrogstudio-infinite-expanse-piano-nova-trails-47747.mp3' },
-  { id: 'x-cosmic-oblivion',  name: 'Cosmic Oblivion',           category: 'music',   url: BASE + 'phatphrogstudio-cosmic-oblivion-neon-nexus-477911.mp3' },
-  { id: 'x-cyber-attack',     name: 'Cyber Attack',              category: 'music',   url: BASE + 'phatphrogstudio-cyber-attack-datastore-rebellion-477469.mp3' },
-  { id: 'x-internal-fury',    name: 'Internal Fury',             category: 'music',   url: BASE + 'phatphrogstudio-internal-fury-fury27s-dance-477470.mp3' },
-  { id: 'x-witch-action',     name: 'Witch Action Music',        category: 'music',   url: BASE + 'phatphrogstudio-pyro-witch-firebom-saga-royalty-free-action-music-502322.mp3' },
-  { id: 'x-horror-thriller',  name: 'Horror Thriller',           category: 'music',   url: BASE + 'soundreality-horror-thriller-action-247745.mp3' },
-  { id: 'x-horror-temptation',name: 'Horror Temptation',         category: 'music',   url: BASE + 'soundreality-temptation-249034.mp3' },
-  { id: 'x-paranormal-15s',   name: 'Tense Paranormal',          category: 'music',   url: BASE + 'universfield-tense-paranormal-horror-15s-498138.mp3' },
-  { id: 'x-paranormal-cinematic', name: 'Paranormal Cinematic',  category: 'music',   url: BASE + 'universfield-tense-paranormal-horror-cinematic-15s-498207.mp3' },
-  { id: 'x-horror-suspense',  name: 'Horror Suspense',           category: 'music',   url: BASE + 'universfield-dark-horror-suspense-30s-355838.mp3' },
-  { id: 'x-scary-atmosphere', name: 'Scary Atmosphere',          category: 'ambient', url: BASE + 'universfield-scary-horror-atmosphere-176754.mp3' },
-  { id: 'x-forest-monster',   name: 'Forest Monster',            category: 'ambient', url: BASE + 'freesound_community-forest-monster-scream-1-104247.mp3' },
-  { id: 'x-demon-haunting',   name: 'Demon Haunting',            category: 'ambient', url: BASE + 'freesound_community-033203_scary-demon-haunting-sound-76189.mp3' },
-  { id: 'x-free-demon-ghost', name: 'Demon Ghost Sound',         category: 'ambient', url: BASE + 'freesound_community-free-demon-ghost-sounds-27789 (1).mp3' },
-  { id: 'x-horror-atmosphere',name: 'Horror Atmosphere',         category: 'ambient', url: BASE + 'freesound_community-horror-ambiance-01-66708.mp3' },
-  { id: 'x-intense-music',    name: 'Intense Horror Music',      category: 'music',   url: BASE + 'freesound_community-intense-horror-music-01-14890.mp3' },
-  { id: 'x-eerie-scream',     name: 'Eerie Scream Growling',     category: 'voice',   url: BASE + 'gimsea-shark-eerie-scream-terrifying-growling-and-screaming-17-431581.mp3' },
-  { id: 'x-demon-grow-halloween', name: 'Halloween Demon Growl', category: 'voice',   url: BASE + 'freesound_community-demon-growl-for-halloween-spooky-creepy-scary-monster-ghoul-ghost-sounds-100123.mp3' },
-  { id: 'x-jusatt-scream-1',  name: 'Horror Scream cfx 1',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490899.mp3' },
-  { id: 'x-jusatt-scream-2',  name: 'Horror Scream cfx 2',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490908.mp3' },
-  { id: 'x-jusatt-scream-3',  name: 'Horror Scream cfx 3',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490909.mp3' },
-  { id: 'x-jusatt-scream-4',  name: 'Horror Scream cfx 4',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490910.mp3' },
-  { id: 'x-jusatt-scream-5',  name: 'Horror Scream cfx 5',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490916 (1).mp3' },
-  { id: 'x-high-quality-screech', name: 'High Quality Screech',  category: 'voice',   url: BASE + 'freesound_community-high-quality-monster-screech-65012.mp3' },
-  { id: 'x-demonic-woman',    name: 'Demonic Woman Scream',      category: 'voice',   url: BASE + 'freesound_community-demonic-woman-scream-6333.mp3' },
-  { id: 'x-demonic-roar',     name: 'Demonic Roar 45k',         category: 'voice',   url: BASE + 'freesound_community-demonic-roar-45549.mp3' },
-  { id: 'x-evil-cat',         name: 'Evil Cat Scream',           category: 'voice',   url: BASE + 'freesound_community-manei_corentin_2016_2017_evil-cat-scream-71799.mp3' },
-  { id: 'x-monster-moan',     name: 'Monster Moan & Squeal',     category: 'voice',   url: BASE + 'wiktworklaweckords_llc-monster-moan-and-squeel-146632.mp3' },
-  { id: 'x-snarls-growls-1',  name: 'Snarls & Growls 1',        category: 'voice',   url: BASE + 'voicebosch-snarls-and-growls-172823 (1).mp3' },
-  { id: 'x-snarls-growls-2',  name: 'Snarls & Growls 2',        category: 'voice',   url: BASE + 'voicebosch-snarls-and-growls-172823.mp3' },
-  { id: 'x-man-scream',       name: 'Man Scream',                category: 'voice',   url: BASE + 'universfield-man-scream-08-352430.mp3' },
-  { id: 'x-distorted-scream', name: 'Distorted Demonic Scream',  category: 'voice',   url: BASE + 'u_503d70fc-distant-demonic-scream-and-debris-346596.mp3' },
-  { id: 'x-distorted-demon-growl', name: 'Distorted Demon Growl',category: 'voice',   url: BASE + 'u_b1k8celi2s-distorted-demon-growl-203405.mp3' },
-  { id: 'x-phobic-screaming', name: 'Phobic Screaming',          category: 'voice',   url: BASE + 'phobic-frantic-screaming-211549.mp3' },
-  { id: 'x-scream-debris',    name: 'Scream of Agony',           category: 'voice',   url: BASE + 'soundreality-screams-of-agony-142447.mp3' },
-  { id: 'x-horror-music-intense', name: 'Horror Music Intense',  category: 'music',   url: BASE + 'freesound_community-horror-intense-music-01-14890.mp3' },
-  { id: 'x-demon-voice-mercy',name: 'Demon: No Mercy',           category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-mercy-477827.mp3' },
-  { id: 'x-haunted-house',    name: 'Haunted House Entertainment',category: 'ambient', url: BASE + 'hauntedhousentertainment-demon-voice-246555.mp3' },
-  { id: 'x-zombie-groans-3',  name: 'Zombie Groans 3',           category: 'voice',   url: BASE + 'freesound_community-zombie-groan-3-4663 (1).mp3' },
-  { id: 'x-zombie-groan-104k',name: 'Zombie Groan',              category: 'voice',   url: BASE + 'freesound_community-zombie-groan-104542 (1).mp3' },
-  { id: 'x-dinosaur-roar',    name: 'Dinosaur Roar',             category: 'voice',   url: BASE + 'dfdb-dinosaur-roar-with-screams-and-growth-193210.mp3' },
-  { id: 'x-monster-roar-alex',name: 'Monster Roar (Big)',        category: 'voice',   url: BASE + 'alexiadavina-horror-sound-lurking-horror-monster-189948.mp3' },
-  { id: 'x-alien-noise',      name: 'Low Pitch Alien Noise',     category: 'voice',   url: BASE + 'fluld8211-low-pitch-alien-noise-person-screaming-496480.mp3' },
+  { id: 'scream', name: 'Terror Scream', description: 'Blood-curdling scream', category: 'voice', file: 'freesound_community-scream-85218.mp3' },
+  { id: 'scream-female', name: 'Female Horror Scream', description: 'Hollywood female scream', category: 'voice', file: 'virtual_vibes-female-screaming-audio-hd-379382.mp3' },
+  { id: 'growl', name: 'Demonic Growl', description: 'Deep demonic growl', category: 'voice', file: 'dragon-studio-creepy-growling-sfx-472368.mp3' },
+  { id: 'laugh', name: 'Maniacal Laugh', description: 'Evil maniacal laughter', category: 'voice', file: 'freesound_community-mocking-demon-laugh-growl-86811.mp3' },
+  { id: 'whisper', name: 'Demonic Whisper', description: 'Close demonic whisper', category: 'voice', file: 'phatphrogstudio-demon-spirit-voice-ghost-whispers-amp-muttering-496706.mp3' },
+  { id: 'breathing', name: 'Heavy Breathing', description: 'Ragged heavy breathing', category: 'voice', file: 'freesound_community-scary-scream-3-81274.mp3' },
+  { id: 'moan', name: 'Death Moan', description: 'Low death moan groan', category: 'voice', file: 'freesound_community-zombie-pain-1-95166.mp3' },
+  { id: 'child-laugh', name: 'Ghost Child Laugh', description: 'Creepy child laughter', category: 'voice', file: 'phatphrogstudio-evil-doll-voice-creepy-laugh-477944.mp3' },
+  { id: 'wail', name: 'Banshee Wail', description: 'Piercing banshee wail', category: 'voice', file: 'virtual_vibes-woman-scream-sound-hd-379381.mp3' },
+  { id: 'possessed-scream', name: 'Possessed Scream', description: 'Exorcism possession scream', category: 'voice', file: 'freesound_community-terrifying-scream-32389.mp3' },
+  { id: 'death-scream', name: 'Death Scream', description: 'Final death agony scream', category: 'voice', file: 'universfield-male-death-scream-horror-352706.mp3' },
+  { id: 'demonic-woman', name: 'Demonic Woman Scream', description: 'Demonic woman scream', category: 'voice', file: 'freesound_community-demonic-woman-scream-6333.mp3' },
+  { id: 'evil-shriek', name: 'Evil Shriek', description: 'Evil high shriek', category: 'voice', file: 'freesound_community-evil-shreik-45560.mp3' },
+  { id: 'forest-monster', name: 'Forest Monster Scream', description: 'Forest monster scream', category: 'voice', file: 'freesound_community-forest-monster-scream1-104247.mp3' },
+  { id: 'ghastly-groan', name: 'Ghastly Groan', description: 'Ghastly groaning sound', category: 'voice', file: 'freesound_community-ghastly-groan-48064.mp3' },
+  { id: 'girl-scream-1', name: 'Girl Scream 1', description: 'Girl horror scream', category: 'voice', file: 'freesound_community-girl-scream-45657.mp3' },
+  { id: 'girl-scream-2', name: 'Girl Scream 2', description: 'Girl horror scream 2', category: 'voice', file: 'freesound_community-girl-scream-83987.mp3' },
+  { id: 'monster-screech', name: 'Monster Screech', description: 'High quality monster screech', category: 'voice', file: 'freesound_community-high-quality-monster-screech-65012.mp3' },
+  { id: 'little-girl-scream', name: 'Little Girl Scream', description: 'Little girl screaming', category: 'voice', file: 'freesound_community-little-girl-screaming-101185.mp3' },
+  { id: 'young-girl-scream', name: 'Young Girl Scream', description: 'Young girl scream', category: 'voice', file: 'freesound_community-young-girl-screaming-1-90519.mp3' },
+  { id: 'multiple-screams', name: 'Multiple Female Screams', description: 'Multiple female screams', category: 'voice', file: 'freesound_community-multiple-female-screams-70786.mp3' },
+  { id: 'scary-scream', name: 'Scary Scream', description: 'Scary scream burst', category: 'voice', file: 'freesound_community-scary-scream-3-81274.mp3' },
+  { id: 'scream-1', name: 'Scream 1', description: 'Pure scream sound', category: 'voice', file: 'freesound_community-scream-85218.mp3' },
+  { id: 'scream-2', name: 'Scream 2', description: 'Scream 2 sound', category: 'voice', file: 'freesound_community-scream-90747.mp3' },
+  { id: 'scream-echo', name: 'Scream With Echo', description: 'Echoing scream', category: 'voice', file: 'freesound_community-scream-with-echo-46585.mp3' },
+  { id: 'terrifying-scream', name: 'Terrifying Scream', description: 'Most terrifying scream', category: 'voice', file: 'freesound_community-terrifying-scream-32389.mp3' },
+  { id: 'very-intense-hell', name: 'Very Intense Hell', description: 'Intense hell screaming', category: 'voice', file: 'freesound_community-very-intense-hell-72137.mp3' },
+  { id: 'whispers-screams', name: 'Whispers & Screams', description: 'Whispers and screams mix', category: 'voice', file: 'freesound_community-whispers-and-screams-87177.mp3' },
+  { id: 'zombie-growl', name: 'Zombie Growl', description: 'Zombie growl sound', category: 'voice', file: 'freesound_community-zombie-growl-3-6863.mp3' },
+  { id: 'zombie-pain', name: 'Zombie Pain', description: 'Zombie pain moan', category: 'voice', file: 'freesound_community-zombie-pain-1-95166.mp3' },
+  { id: 'zombie-roar', name: 'Zombie Roar', description: 'Zombie roar sound', category: 'voice', file: 'freesound_community-zombie-roar-104542.mp3' },
+  { id: 'zombie-scream', name: 'Zombie Scream', description: 'Monster zombie scream', category: 'voice', file: 'freesound_community-monster-zombie-scream-105972.mp3' },
+  { id: 'female-zombie', name: 'Female Zombie Screams', description: 'Female zombie screams', category: 'voice', file: 'dragon-studio-female-zombie-screams-324744.mp3' },
+  { id: 'woman-screaming', name: 'Woman Screaming', description: 'Woman screaming SFX', category: 'voice', file: 'dragon-studio-woman-screaming-sfx-screaming-sound-effect-320169.mp3' },
+  { id: 'zombie-screech', name: 'Zombie Screech', description: 'Zombie screech sound', category: 'voice', file: 'dragon-studio-zombie-screech-sound-effect-312865.mp3' },
+  { id: 'scary-woman-scream', name: 'Scary Woman Scream', description: 'Ultra realistic woman scream', category: 'voice', file: 'virtual_vibes-scary-woman-scream-ultra-realistic-379378.mp3' },
+  { id: 'woman-scream-hd', name: 'Woman Scream HD', description: 'HD woman scream', category: 'voice', file: 'virtual_vibes-woman-scream-sound-hd-379381.mp3' },
+  { id: 'female-screaming-hd', name: 'Female Screaming HD', description: 'Female screaming audio HD', category: 'voice', file: 'virtual_vibes-female-screaming-audio-hd-379382.mp3' },
+  { id: 'angry-man-yell', name: 'Angry Man Yell', description: 'Angry man yell HD', category: 'voice', file: 'virtual_vibes-angry-man-yell-sound-hd-379386.mp3' },
+  { id: 'frantic-scream', name: 'Frantic Screaming', description: 'Frantic non-stop screaming', category: 'voice', file: 'phobiix-frantic-screaming-213549.mp3' },
+  { id: 'scared-woman', name: 'Scared Woman Scream', description: 'Halloween scared woman', category: 'voice', file: 'scottishperson-sound-effect-halloween-scared-woman-scream-01-253233.mp3' },
+  { id: 'male-death-scream', name: 'Male Death Scream', description: 'Male death scream horror', category: 'voice', file: 'universfield-male-death-scream-horror-352706.mp3' },
+  { id: 'man-scream', name: 'Man Scream', description: 'Man scream 08', category: 'voice', file: 'universfield-man-scream-08-352438.mp3' },
+  { id: 'demon-voice', name: 'Demon Voice', description: 'Haunted demon voice', category: 'voice', file: 'hauntedhouseentertainment-demon-voice-246555.mp3' },
+  { id: 'demon-chanting', name: 'Demon Spirit Chanting', description: 'Demon spirit angry chanting', category: 'voice', file: 'phatphrogstudio-demon-spirit-angry-chanting-no-ai-479754.mp3' },
+  { id: 'demon-whispers', name: 'Demon Spirit Whispers', description: 'Demon ghost whispers', category: 'voice', file: 'phatphrogstudio-demon-spirit-voice-ghost-whispers-amp-muttering-496706.mp3' },
+  { id: 'demon-die', name: 'Demon Voice: Die', description: 'Demon voice saying die', category: 'voice', file: 'phatphrogstudio-demon-voice-die-488316.mp3' },
+  { id: 'demon-growling', name: 'Demon Voice Growling', description: 'Demon voice growling', category: 'voice', file: 'phatphrogstudio-demon-voice-growling-503874.mp3' },
+  { id: 'demon-no-mercy', name: 'Demon: No Mercy', description: 'Demon voice no mercy', category: 'voice', file: 'phatphrogstudio-demon-voice-no-mercy-477827.mp3' },
+  { id: 'demon-no-running', name: 'Demon: No More Running', description: 'Demon no more running', category: 'voice', file: 'phatphrogstudio-demon-voice-no-more-running-480562.mp3' },
+  { id: 'demon-smell-flesh', name: 'Demon: Smell Flesh', description: 'Demon smells flesh', category: 'voice', file: 'phatphrogstudio-demon-voice-smell-flesh-no-ai-479322.mp3' },
+  { id: 'evil-doll-laugh', name: 'Evil Doll Laugh', description: 'Evil doll creepy laugh', category: 'voice', file: 'phatphrogstudio-evil-doll-voice-creepy-laugh-477944.mp3' },
+  { id: 'lich-come-closer', name: 'Lich: Come Closer', description: 'Lich demon come closer', category: 'voice', file: 'phatphrogstudio-lich-demonic-voice-come-closer-502312.mp3' },
+  { id: 'lich-i-sense-you', name: 'Lich: I Sense You', description: 'Lich demon I sense you', category: 'voice', file: 'phatphrogstudio-lich-demonic-voice-i-sense-you-490452.mp3' },
+  { id: 'oni-laugh-1', name: 'Oni Demon Laugh', description: 'Oni demon laughter', category: 'voice', file: 'phatphrogstudio-oni-demon-voice-demonic-laughter-477923.mp3' },
+  { id: 'oni-laugh-2', name: 'Oni Demon Laugh 2', description: 'Oni demon laughter 2', category: 'voice', file: 'phatphrogstudio-oni-demon-voice-demonic-laughter-2-no-ai-479320.mp3' },
+  { id: 'oni-laugh-3', name: 'Oni Demon Laugh 3', description: 'Oni demon laughter 3', category: 'voice', file: 'phatphrogstudio-oni-demon-voice-demonic-laughter-3-488654.mp3' },
+  { id: 'zombie-moans', name: 'Zombie Idle Moans', description: 'Zombie idle moaning', category: 'voice', file: 'phatphrogstudio-zombie-voice-idle-moans-2-no-ai-479321.mp3' },
+  { id: 'snarls-growls', name: 'Snarls & Growls', description: 'Snarls and growls mix', category: 'voice', file: 'voicebosch-snarls-and-growls-172823.mp3' },
+  { id: 'monster-moan', name: 'Monster Moan', description: 'Monster moan and squeel', category: 'voice', file: 'wikitwonkaweckords_llc-monster-moan-and-squeel-146632.mp3' },
+  { id: 'nazgul', name: 'Nazgul Screech', description: 'Nazgul with low bass', category: 'voice', file: 'freesound_community-nazgul-w-low-bass-37269.mp3' },
+  { id: 'lurking-horror', name: 'Lurking Horror', description: 'Lurking horror monster sound', category: 'voice', file: 'alesiadavina-horror-sound-lurking-horror-monster-189948.mp3' },
+  { id: 'scream-sfx-1', name: 'Scream SFX 1', description: 'Horror scream SFX', category: 'voice', file: 'jusatti890-scream-horror-sfx-490899.mp3' },
+  { id: 'scream-sfx-2', name: 'Scream SFX 2', description: 'Horror scream SFX 2', category: 'voice', file: 'jusatti890-scream-horror-sfx-490908.mp3' },
+  { id: 'scream-sfx-3', name: 'Scream SFX 3', description: 'Horror scream SFX 3', category: 'voice', file: 'jusatti890-scream-horror-sfx-490909.mp3' },
+  { id: 'scream-sfx-4', name: 'Scream SFX 4', description: 'Horror scream SFX 4', category: 'voice', file: 'jusatti890-scream-horror-sfx-490910.mp3' },
+  { id: 'scream-sfx-5', name: 'Scream SFX 5', description: 'Horror scream SFX 5', category: 'voice', file: 'jusatti890-scream-horror-sfx-490916.mp3' },
+  { id: 'free-demon-ghost', name: 'Free Demon Ghost', description: 'Free demon ghost sounds', category: 'voice', file: 'freesound_community-free-demon-ghost-sounds-27789.mp3' },
+  { id: 'distant-demonic', name: 'Distant Demonic Scream', description: 'Distant demonic scream', category: 'voice', file: 'u_503t47r0fo-distant-demonic-scream-and-debris-346596.mp3' },
+  { id: 'alien-noise', name: 'Alien Noise Scream', description: 'Alien noise person screaming', category: 'voice', file: 'flutie8211-low-pitch-alien-noise-person-screaming-499466.mp3' },
 ];
 
 const categoryMeta = {
@@ -163,67 +181,68 @@ const categoryMeta = {
 export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume, onVolumeChange }: SoundLibraryProps) {
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({
-    ambient: true, effect: false, music: false, voice: false, extra: false,
+    ambient: true, effect: false, music: false, voice: false,
   });
   const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    Object.values(audioRefs.current).forEach(a => {
-      a.volume = Math.max(0, Math.min(1, masterVolume));
-    });
+    const vol = Math.max(0, Math.min(1, masterVolume));
+    Object.values(audioRefs.current).forEach(a => { a.volume = vol; });
   }, [masterVolume]);
 
   useEffect(() => {
     return () => {
-      Object.values(audioRefs.current).forEach(a => { a.pause(); a.src = ''; });
+      Object.values(audioRefs.current).forEach(a => {
+        try { a.pause(); a.src = ''; } catch {}
+      });
     };
   }, []);
 
- const startSound = useCallback((id: string) => {
-  const sound = HORROR_SOUNDS.find(s => s.id === id);
-  if (sound?.file) {
-    const audio = new Audio(sound.file);
-    audio.loop = true;
-    audio.volume = masterVolume;
-    audio.play().catch(e => console.warn('Audio play failed:', e));
-    audioNodes.current[id] = {
-      ctx: null as any,
-      gainNode: null as any,
-      nodes: [],
-      stop: () => { audio.pause(); audio.currentTime = 0; },
-    };
-    return;
-  }
-  const ctx = getCtx();
-  const nodes = createHorrorSound(ctx, id, masterVolume);
-  if (nodes) audioNodes.current[id] = nodes;
-}, [getCtx, masterVolume]);
+  const startSound = useCallback((id: string, fileUrl: string) => {
+    try {
+      if (audioRefs.current[id]) {
+        audioRefs.current[id].pause();
+        audioRefs.current[id].src = '';
+      }
+      const audio = new Audio(fileUrl);
+      audio.loop = true;
+      audio.volume = Math.max(0, Math.min(1, masterVolume));
+      audio.onerror = () => setLoadErrors(prev => ({ ...prev, [id]: true }));
+      audioRefs.current[id] = audio;
+      audio.play().catch(() => setLoadErrors(prev => ({ ...prev, [id]: true })));
+    } catch (e) {
+      console.warn('startSound error:', e);
+    }
+  }, [masterVolume]);
 
   const stopSound = useCallback((id: string) => {
-    const a = audioRefs.current[id];
-    if (a) { a.pause(); a.currentTime = 0; }
+    try {
+      const a = audioRefs.current[id];
+      if (a) { a.pause(); a.currentTime = 0; }
+    } catch {}
   }, []);
 
-  const handleToggle = (id: string, url: string) => {
+  const handleToggle = useCallback((id: string, fileUrl: string) => {
     if (activeSounds.includes(id)) stopSound(id);
-    else startSound(id, url);
+    else startSound(id, fileUrl);
     onToggleSound(id);
-  };
+  }, [activeSounds, startSound, stopSound, onToggleSound]);
 
-  const renderSound = (id: string, name: string, description: string, url: string) => {
+  const renderSound = (sound: SoundEntry) => {
+    const { id, name, description, file } = sound;
+    const url = BASE + file;
     const isActive = activeSounds.includes(id);
     const hasError = loadErrors[id];
     return (
       <button key={id} onClick={() => handleToggle(id, url)}
         className={`flex items-center gap-2 p-1.5 rounded-lg text-left transition-all w-full ${
-          hasError
-            ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400'
-            : isActive
-            ? 'bg-red-500/20 border border-red-500/40 text-red-300'
-            : 'bg-zinc-800/30 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-        }`}
-      >
-        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-red-500 animate-pulse' : hasError ? 'bg-orange-500' : 'bg-zinc-700'}`} />
+          hasError ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400'
+          : isActive ? 'bg-red-500/20 border border-red-500/40 text-red-300'
+          : 'bg-zinc-800/30 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+        }`}>
+        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+          isActive ? 'bg-red-500 animate-pulse' : hasError ? 'bg-orange-500' : 'bg-zinc-700'
+        }`} />
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-medium truncate">{name}</p>
           <p className="text-[8px] text-zinc-600 truncate">{hasError ? '⚠ Load failed' : description}</p>
@@ -243,7 +262,6 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
           </span>
         )}
       </div>
-
       <div className="flex items-center gap-2">
         {activeSounds.length > 0
           ? <Volume2 className="w-3 h-3 text-zinc-400 flex-shrink-0" />
@@ -253,12 +271,10 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
           className="flex-1 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-red-500" />
         <span className="text-[9px] text-zinc-500 font-mono w-6">{Math.round(masterVolume * 100)}</span>
       </div>
-
-      {/* Standard categories from HORROR_SOUNDS */}
       {(Object.keys(categoryMeta) as (keyof typeof categoryMeta)[]).map(cat => {
         const meta = categoryMeta[cat];
         const Icon = meta.icon;
-        const sounds = HORROR_SOUNDS.filter(s => s.category === cat);
+        const sounds = ALL_SOUNDS.filter(s => s.category === cat);
         const activeInCat = sounds.filter(s => activeSounds.includes(s.id)).length;
         const isOpen = openCats[cat];
         return (
@@ -269,41 +285,21 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
                 <Icon className={`w-3 h-3 ${meta.color}`} />
                 <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
                 {activeInCat > 0 && (
-                  <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">{activeInCat} on</span>
+                  <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">
+                    {activeInCat} on
+                  </span>
                 )}
               </div>
-              <span className="text-[10px] text-zinc-600">{sounds.length}</span>
+              <span className="text-[10px] text-zinc-600">{sounds.length} ▾</span>
             </button>
             {isOpen && (
-              <div className="grid grid-cols-1 gap-1 p-2 bg-zinc-900/30 max-h-[250px] overflow-y-auto">
-                {sounds.map(s => renderSound(s.id, s.name, s.description, SOUND_URLS[s.id] || ''))}
+              <div className="grid grid-cols-1 gap-1 p-2 bg-zinc-900/30 max-h-[260px] overflow-y-auto">
+                {sounds.map(s => renderSound(s))}
               </div>
             )}
           </div>
         );
       })}
-
-      {/* EXTRA sounds from your 137 files */}
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
-        <button onClick={() => setOpenCats(p => ({ ...p, extra: !p.extra }))}
-          className="w-full flex items-center justify-between p-2 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors">
-          <div className="flex items-center gap-2">
-            <Mic className="w-3 h-3 text-yellow-400" />
-            <span className="text-xs font-semibold text-yellow-400">Extra Horror Sounds</span>
-            {EXTRA_SOUNDS.filter(s => activeSounds.includes(s.id)).length > 0 && (
-              <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">
-                {EXTRA_SOUNDS.filter(s => activeSounds.includes(s.id)).length} on
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] text-zinc-600">{EXTRA_SOUNDS.length}</span>
-        </button>
-        {openCats.extra && (
-          <div className="grid grid-cols-1 gap-1 p-2 bg-zinc-900/30 max-h-[300px] overflow-y-auto">
-            {EXTRA_SOUNDS.map(s => renderSound(s.id, s.name, s.category, s.url))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
