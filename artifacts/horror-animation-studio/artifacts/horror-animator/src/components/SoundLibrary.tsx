@@ -9,355 +9,149 @@ interface SoundLibraryProps {
   onVolumeChange: (v: number) => void;
 }
 
-type SoundInstance = {
-  gainNode: GainNode;
-  stopFns: (() => void)[];
+const BASE = 'https://raw.githubusercontent.com/darkadsterra-cloud/CreepyZoneStore/main/artifacts/horror-animation-studio/artifacts/horror-animator/public/sounds/';
+
+const SOUND_URLS: Record<string, string> = {
+  // ── AMBIENT ──────────────────────────────────────────────
+  'deep-drone':      BASE + 'soundreality-rumble-winds-253834.mp3',
+  'wind-howl':       BASE + 'soundreality-rumble-winds-253834.mp3',
+  'thunder-rumble':  BASE + 'soundreality-horror-kick-247743.mp3',
+  'thunderstorm':    BASE + 'jorivermeer-horror-background-atmosphere-030-394198.mp3',
+  'heavy-rain':      BASE + 'jorivermeer-horror-background-atmosphere-030-394198.mp3',
+  'haunted-room':    BASE + 'universfield-horror-background-atmosphere-155482.mp3',
+  'inferno':         BASE + 'universfield-horror-background-atmosphere-06-190279 (1).mp3',
+  'void-hum':        BASE + 'universfield-dark-horror-soundscape-345814.mp3',
+  'cemetery':        BASE + 'universfield-horror-background-atmosphere-08-215794.mp3',
+  'static-loop':     BASE + 'freesound_community-horror-voice-flashbacks-14480.mp3',
+  'dark-water':      BASE + 'universfield-horror-background-atmosphere-09-219111.mp3',
+  'cave-drip':       BASE + 'universfield-horror-background-atmosphere-09-219111.mp3',
+  'ritual-chant':    BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
+  'forest-night':    BASE + 'universfield-horror-background-atmosphere-for-suspense-166944.mp3',
+  'dungeon-drip':    BASE + 'universfield-ghosts-on-film-185898.mp3',
+  'sewer-ambience':  BASE + 'universfield-dark-horror-soundscape-345814.mp3',
+  'tv-static':       BASE + 'freesound_community-horror-voice-flashbacks-14480.mp3',
+
+  // ── EFFECTS ──────────────────────────────────────────────
+  'heartbeat':       BASE + 'soundreality-horror-kick-247743.mp3',
+  'door-creak':      BASE + 'simplesound-dark-horror-opener-443328.mp3',
+  'chains':          BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
+  'glass-break':     BASE + 'simplesound-horror-trailer-443327.mp3',
+  'knife-scrape':    BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
+  'bone-crack':      BASE + 'tannerwan-flesh-growing-horror-392380.mp3',
+  'footsteps':       BASE + 'bryansantosobreton-biodynamic-impact-bream-tonal-dark-178441.mp3',
+  'church-bell':     BASE + 'simplesound-horror-piano-443326.mp3',
+  'thunder-strike':  BASE + 'soundreality-horror-kick-247743.mp3',
+  'demon-roar':      BASE + 'dragon-studio-deep-guttural-growl-472039.mp3',
+  'blood-drip':      BASE + 'tannerwan-flesh-growing-horror-392380.mp3',
+  'electric-zap':    BASE + 'alex_kizenkow-horror-hit-logo-142395.mp3',
+  'jumpscare-sting': BASE + 'freesound_community-echo-jumpscare-10511.mp3',
+  'evil-laugh-sfx':  BASE + 'dragon-studio-evil-girl-laughing-401720.mp3',
+  'death-rattle':    BASE + 'freesound_community-echoed-screams-103515.mp3',
+  'sword-slash':     BASE + 'bryansantosobreton-biodynamic-impact-bream-tonal-dark-178441.mp3',
+
+  // ── MUSIC ────────────────────────────────────────────────
+  'dark-piano':      BASE + 'simplesound-horror-piano-443326.mp3',
+  'horror-strings':  BASE + 'simplesound-horror-trailer-443327.mp3',
+  'music-box':       BASE + 'universfield-scary-music-box-165983.mp3',
+  'organ-drone':     BASE + 'universfield-dark-horror-soundscape-345814.mp3',
+  'violin-shriek':   BASE + 'soundreality-horror-thriller-action-247745.mp3',
+  'cello-deep':      BASE + 'soundreality-horror-thriller-action-247745.mp3',
+  'choir-dark':      BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
+  'synth-horror':    BASE + 'universfield-tense-paranormal-horror-15s-498207.mp3',
+  'lullaby-horror':  BASE + 'universfield-scary-music-box-165983.mp3',
+  'funeral-march':   BASE + 'soundreality-horror-pad-pitch-crowd-391588.mp3',
+  'requiem':         BASE + 'phatphrogstudio-spirit-angry-chanting-no-ai-479754 (1).mp3',
+  'hell-symphony':   BASE + 'soundreality-horror-thriller-action-247745.mp3',
+
+  // ── VOICES & SCREAMS ─────────────────────────────────────
+  'scream':           BASE + 'freesound_community-scream-85218.mp3',
+  'scream-female':    BASE + 'virtual_vibes-female-screaming-audio-hd-379382.mp3',
+  'scream-distant':   BASE + 'freesound_community-scream-60747.mp3',
+  'scream-child':     BASE + 'freesound_community-little-girl-screaming-101185.mp3',
+  'growl':            BASE + 'dragon-studio-creepy-growling-sfx-472180.mp3',
+  'laugh':            BASE + 'freesound_community-mocking-demon-laugh-growl-86811.mp3',
+  'crying':           BASE + 'freesound_community-girl-scream-45657.mp3',
+  'whisper':          BASE + 'phatphrogstudio-demon-voice-die-488316.mp3',
+  'breathing':        BASE + 'freesound_community-scary-scream-3-81274.mp3',
+  'moan':             BASE + 'freesound_community-zombie-pain-1-95166.mp3',
+  'child-laugh':      BASE + 'dragon-studio-evil-girl-laughing-401720.mp3',
+  'speak-evil':       BASE + 'phatphrogstudio-demon-voice-growling-503874.mp3',
+  'wail':             BASE + 'virtual_vibes-woman-scream-sound-hd-379381.mp3',
+  'hiss':             BASE + 'dragon-studio-creepy-monster-growling-472178.mp3',
+  'howl':             BASE + 'freesound_community-monster-growls-70784.mp3',
+  'possessed-scream': BASE + 'freesound_community-terrifying-scream-52389.mp3',
+  'death-scream':     BASE + 'universfield-male-death-scream-horror-352706.mp3',
 };
 
-function createHorrorSound(ctx: AudioContext, id: string, vol: number): SoundInstance | null {
-  try {
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = Math.max(0, Math.min(1, vol));
-    gainNode.connect(ctx.destination);
-    const stopFns: (() => void)[] = [];
-
-    const osc = (freq: number, type: OscillatorType = 'sine') => {
-      const o = ctx.createOscillator(); o.type = type; o.frequency.value = freq; return o;
-    };
-    const mkGain = (val: number) => { const g = ctx.createGain(); g.gain.value = val; return g; };
-    const mkFilter = (type: BiquadFilterType, freq: number, q = 1) => {
-      const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; return f;
-    };
-    const startOsc = (o: OscillatorNode) => {
-      o.start(); stopFns.push(() => { try { o.stop(); o.disconnect(); } catch {} });
-    };
-    const mkNoise = (secs = 2) => {
-      const size = ctx.sampleRate * secs;
-      const buf = ctx.createBuffer(1, size, ctx.sampleRate);
-      const d = buf.getChannelData(0);
-      for (let i = 0; i < size; i++) d[i] = Math.random() * 2 - 1;
-      return buf;
-    };
-    const startNoise = (buf: AudioBuffer) => {
-      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
-      stopFns.push(() => { try { s.stop(); s.disconnect(); } catch {} });
-      return s;
-    };
-    const addInterval = (fn: () => void, ms: number) => {
-      fn();
-      const id = setInterval(() => { if (ctx.state !== 'closed') fn(); }, ms);
-      stopFns.push(() => clearInterval(id));
-    };
-
-    switch (id) {
-      case 'deep-drone': {
-        [30, 60, 90].forEach((freq, i) => {
-          const o = osc(freq + i * 0.3, 'sawtooth');
-          const g = mkGain(0.25);
-          const lfo = ctx.createOscillator(); lfo.frequency.value = 0.15 + i * 0.05;
-          const lg = mkGain(4); lfo.connect(lg); lg.connect(o.frequency);
-          o.connect(g); g.connect(gainNode); o.start(); lfo.start();
-          stopFns.push(() => { try { o.stop(); lfo.stop(); } catch {} });
-        });
-        break;
-      }
-      case 'wind-howl': {
-        const o = osc(180, 'sawtooth');
-        const f = mkFilter('bandpass', 700, 0.4); const g = mkGain(0.35);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.25;
-        const lg = mkGain(350); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); o.start(); lfo.start();
-        stopFns.push(() => { try { o.stop(); lfo.stop(); } catch {} });
-        break;
-      }
-      case 'heavy-rain': {
-        const s = startNoise(mkNoise(2));
-        const f1 = mkFilter('bandpass', 2500, 0.2); const f2 = mkFilter('highpass', 800, 0.5);
-        const g = mkGain(0.55); s.connect(f1); f1.connect(f2); f2.connect(g); g.connect(gainNode); s.start();
-        break;
-      }
-      case 'thunderstorm': {
-        const s1 = startNoise(mkNoise(2));
-        const ft = mkFilter('lowpass', 100, 2); const gt = mkGain(0.6);
-        s1.connect(ft); ft.connect(gt); gt.connect(gainNode); s1.start();
-        const s2 = startNoise(mkNoise(2));
-        const fr = mkFilter('bandpass', 3000, 0.25); const gr = mkGain(0.35);
-        s2.connect(fr); fr.connect(gr); gr.connect(gainNode); s2.start();
-        break;
-      }
-      case 'thunder-rumble': {
-        const s = startNoise(mkNoise(2));
-        const f = mkFilter('lowpass', 100, 2); const g = mkGain(0.45);
-        s.connect(f); f.connect(g); g.connect(gainNode); s.start();
-        break;
-      }
-      case 'void-hum': {
-        const o = osc(18, 'sine'); const g = mkGain(0.5);
-        o.connect(g); g.connect(gainNode); startOsc(o);
-        break;
-      }
-      case 'static-loop':
-      case 'tv-static': {
-        const s = startNoise(mkNoise(1));
-        const f = mkFilter('bandpass', 2000, 0.4); const g = mkGain(0.25);
-        s.connect(f); f.connect(g); g.connect(gainNode); s.start();
-        break;
-      }
-      case 'haunted-room': {
-        const o = osc(50, 'sine'); const f = mkFilter('lowpass', 180, 3); const g = mkGain(0.18);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.08;
-        const lg = mkGain(8); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); o.start(); lfo.start();
-        stopFns.push(() => { try { o.stop(); lfo.stop(); } catch {} });
-        break;
-      }
-      case 'inferno': {
-        const s = startNoise(mkNoise(2));
-        const f = mkFilter('bandpass', 350, 0.4); const g = mkGain(0.45);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 1.5;
-        const lg = mkGain(0.25); lfo.connect(lg); lg.connect(g.gain);
-        s.connect(f); f.connect(g); g.connect(gainNode); s.start(); lfo.start();
-        stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'ritual-chant': {
-        [110, 130, 165].forEach((freq, i) => {
-          const o = osc(freq, 'sine'); const g = mkGain(0.18);
-          const lfo = ctx.createOscillator(); lfo.frequency.value = 0.25 + i * 0.08;
-          const lg = mkGain(6); lfo.connect(lg); lg.connect(o.frequency);
-          o.connect(g); g.connect(gainNode); o.start(); lfo.start();
-          stopFns.push(() => { try { o.stop(); lfo.stop(); } catch {} });
-        });
-        break;
-      }
-      case 'heartbeat': {
-        addInterval(() => {
-          const beat = (freq: number, vol: number, delay: number) => {
-            setTimeout(() => {
-              if (ctx.state === 'closed') return;
-              const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
-              o.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-              const g = ctx.createGain();
-              g.gain.setValueAtTime(vol, ctx.currentTime);
-              g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-              o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 0.25);
-            }, delay);
-          };
-          beat(60, 0.9, 0); beat(52, 0.7, 140);
-        }, 950);
-        break;
-      }
-      case 'church-bell': {
-        addInterval(() => {
-          [220, 440, 880].forEach(freq => {
-            if (ctx.state === 'closed') return;
-            const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = freq;
-            const g = ctx.createGain();
-            g.gain.setValueAtTime(0.25, ctx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3);
-            o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 3);
-          });
-        }, 4200);
-        break;
-      }
-      case 'jumpscare-sting': {
-        addInterval(() => {
-          if (ctx.state === 'closed') return;
-          const o = ctx.createOscillator(); o.type = 'sawtooth';
-          o.frequency.setValueAtTime(700, ctx.currentTime);
-          o.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.3);
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.9, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-          o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 0.3);
-        }, 5500);
-        break;
-      }
-      case 'scream':
-      case 'scream-female':
-      case 'possessed-scream':
-      case 'death-scream':
-      case 'wail': {
-        const base = id === 'scream-female' ? 750 : id === 'death-scream' ? 280 : id === 'wail' ? 550 : 460;
-        const o1 = osc(base, 'sawtooth'); const o2 = osc(base * 1.4, 'square');
-        const f = mkFilter('bandpass', base * 1.8, 1.5); const g = mkGain(0.35);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = id === 'possessed-scream' ? 14 : 7;
-        const lg = mkGain(120); lfo.connect(lg); lg.connect(o1.frequency);
-        o1.connect(f); o2.connect(f); f.connect(g); g.connect(gainNode);
-        o1.start(); o2.start(); lfo.start();
-        stopFns.push(() => { try { o1.stop(); o2.stop(); lfo.stop(); } catch {} });
-        break;
-      }
-      case 'demon-roar':
-      case 'growl': {
-        [38, 76, 152].forEach(freq => {
-          const o = osc(freq, 'sawtooth'); const f = mkFilter('lowpass', 450, 4); const g = mkGain(0.22);
-          const lfo = ctx.createOscillator(); lfo.frequency.value = 2.5;
-          const lg = mkGain(15); lfo.connect(lg); lg.connect(o.frequency);
-          o.connect(f); f.connect(g); g.connect(gainNode); o.start(); lfo.start();
-          stopFns.push(() => { try { o.stop(); lfo.stop(); } catch {} });
-        });
-        break;
-      }
-      case 'violin-shriek': {
-        const o = osc(840, 'sawtooth'); const f = mkFilter('highpass', 550, 4); const g = mkGain(0.28);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 11;
-        const lg = mkGain(18); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'dark-piano': {
-        const notes = [130.81, 155.56, 146.83, 123.47, 116.54];
-        let ni = 0;
-        addInterval(() => {
-          if (ctx.state === 'closed') return;
-          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = notes[ni++ % notes.length];
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.45, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
-          o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 2.5);
-        }, 2200);
-        break;
-      }
-      case 'horror-strings': {
-        [220, 277, 330].forEach((freq, i) => {
-          const o = osc(freq, 'sawtooth'); const f = mkFilter('bandpass', freq * 2, 1); const g = mkGain(0.12);
-          const lfo = ctx.createOscillator(); lfo.frequency.value = 5 + i;
-          const lg = mkGain(2.5); lfo.connect(lg); lg.connect(o.detune);
-          o.connect(f); f.connect(g); g.connect(gainNode); startOsc(o);
-          lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        });
-        break;
-      }
-      case 'organ-drone': {
-        [65, 130, 195, 260].forEach(freq => {
-          const o = osc(freq, 'square'); const g = mkGain(0.08);
-          o.connect(g); g.connect(gainNode); startOsc(o);
-        });
-        break;
-      }
-      case 'whisper':
-      case 'breathing': {
-        const s = startNoise(mkNoise(2));
-        const f = mkFilter('bandpass', 1400, 1.5); const g = mkGain(0.28);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = id === 'breathing' ? 0.28 : 0.08;
-        const lg = mkGain(0.22); lfo.connect(lg); lg.connect(g.gain);
-        s.connect(f); f.connect(g); g.connect(gainNode); s.start(); lfo.start();
-        stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'electric-zap': {
-        addInterval(() => {
-          if (ctx.state === 'closed') return;
-          const o = ctx.createOscillator(); o.type = 'sawtooth';
-          o.frequency.setValueAtTime(150 + Math.random() * 350, ctx.currentTime);
-          o.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.18);
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.7, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
-          o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 0.18);
-        }, 2200);
-        break;
-      }
-      case 'door-creak': {
-        const o = osc(180, 'sawtooth'); const f = mkFilter('bandpass', 280, 2.5); const g = mkGain(0.28);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.4;
-        const lg = mkGain(80); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'chains': {
-        addInterval(() => {
-          if (ctx.state === 'closed') return;
-          const s = ctx.createBufferSource(); s.buffer = mkNoise(0.25);
-          const f = mkFilter('highpass', 900, 1.5); const g = ctx.createGain();
-          g.gain.setValueAtTime(0.7, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-          s.connect(f); f.connect(g); g.connect(gainNode); s.start(); s.stop(ctx.currentTime + 0.25);
-        }, 1600);
-        break;
-      }
-      case 'child-laugh':
-      case 'laugh':
-      case 'evil-laugh-sfx': {
-        const base = id === 'child-laugh' ? 380 : 190;
-        const o = osc(base, 'sine'); const g = mkGain(0.28);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 4.5;
-        const lg = mkGain(45); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'moan':
-      case 'crying':
-      case 'death-rattle': {
-        const freq = id === 'crying' ? 280 : id === 'death-rattle' ? 120 : 140;
-        const o = osc(freq, 'sine'); const g = mkGain(0.22);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.35;
-        const lg = mkGain(id === 'death-rattle' ? 25 : 12); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'music-box': {
-        const notes = [523, 587, 659, 698, 784, 698, 659, 587];
-        let ni = 0;
-        addInterval(() => {
-          if (ctx.state === 'closed') return;
-          const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = notes[ni++ % notes.length] * 0.5;
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0.28, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
-          o.connect(g); g.connect(gainNode); o.start(); o.stop(ctx.currentTime + 0.7);
-        }, 620);
-        break;
-      }
-      case 'choir-dark': {
-        [108, 216, 162].forEach((freq, i) => {
-          const o = osc(freq, 'sine'); const g = mkGain(0.12);
-          const lfo = ctx.createOscillator(); lfo.frequency.value = 4.5 + i * 0.25;
-          const lg = mkGain(1.8); lfo.connect(lg); lg.connect(o.detune);
-          o.connect(g); g.connect(gainNode); startOsc(o);
-          lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        });
-        break;
-      }
-      case 'synth-horror': {
-        const o = osc(52, 'square'); const f = mkFilter('lowpass', 280, 1.5); const g = mkGain(0.28);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.45;
-        const lg = mkGain(90); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      case 'hiss': {
-        const s = startNoise(mkNoise(1));
-        const f = mkFilter('highpass', 3000, 1); const g = mkGain(0.35);
-        s.connect(f); f.connect(g); g.connect(gainNode); s.start();
-        break;
-      }
-      case 'howl': {
-        const o = osc(120, 'sawtooth'); const f = mkFilter('bandpass', 600, 1.2); const g = mkGain(0.32);
-        const lfo = ctx.createOscillator(); lfo.frequency.value = 0.5;
-        const lg = mkGain(200); lfo.connect(lg); lg.connect(o.frequency);
-        o.connect(f); f.connect(g); g.connect(gainNode); startOsc(o);
-        lfo.start(); stopFns.push(() => { try { lfo.stop(); } catch {} });
-        break;
-      }
-      default: {
-        const o = osc(55 + Math.random() * 30, 'sine'); const g = mkGain(0.12);
-        o.connect(g); g.connect(gainNode); startOsc(o);
-        break;
-      }
-    }
-    return { gainNode, stopFns };
-  } catch (err) {
-    console.warn('SoundLibrary error for', id, err);
-    return null;
-  }
-}
+// Extra sounds from your files mapped to new IDs for bonus use
+const EXTRA_SOUNDS: { id: string; name: string; category: string; url: string }[] = [
+  { id: 'x-demon-voice-1',    name: 'Demon Voice I Sense You',   category: 'voice',   url: BASE + 'phatphrogstudio-lich-demonic-voice-i-sense-you-490452.mp3' },
+  { id: 'x-demon-come-closer',name: 'Demon Come Closer',         category: 'voice',   url: BASE + 'phatphrogstudio-lich-demonic-voice-come-closer-502312.mp3' },
+  { id: 'x-demon-no-mercy',   name: 'Demon No Mercy',            category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-mercy-477827.mp3' },
+  { id: 'x-demon-no-running', name: 'Demon No More Running',     category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-more-running-480582.mp3' },
+  { id: 'x-demon-flesh',      name: 'Demon Smell Your Flesh',    category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-smell-flesh-no-ai-479322.mp3' },
+  { id: 'x-dragon-voice',     name: 'Dragon Voice',              category: 'voice',   url: BASE + 'phatphrogstudio-dragon-voice-growl-496281 (1).mp3' },
+  { id: 'x-demonic-laughter', name: 'Demonic Laughter',          category: 'voice',   url: BASE + 'phatphrogstudio-oni-demon-voice-demonic-laughter-3-488654.mp3' },
+  { id: 'x-evil-doll-laugh',  name: 'Evil Doll Laugh',           category: 'voice',   url: BASE + 'phatphrogstudio-evil-doll-voice-creepy-laugh-477344.mp3' },
+  { id: 'x-spirit-whispers',  name: 'Spirit Whispers',           category: 'voice',   url: BASE + 'phatphrogstudio-demon-spirit-voice-ghost-whispers-amp-muttering-496706.mp3' },
+  { id: 'x-monster-zombie',   name: 'Monster Zombie Scream',     category: 'voice',   url: BASE + 'dragon-studio-zombie-screech-sound-effect-311085.mp3' },
+  { id: 'x-werewolf',         name: 'Werewolf Growl',            category: 'voice',   url: BASE + 'dragon-studio-werewolf-growl-511103.mp3' },
+  { id: 'x-beast-growl',      name: 'Beast Growl',               category: 'voice',   url: BASE + 'dragon-studio-growl-of-the-beast-504521.mp3' },
+  { id: 'x-monster-roar-2',   name: 'Monster Roar',              category: 'voice',   url: BASE + 'dragon-studio-monster-growl-390285.mp3' },
+  { id: 'x-scary-scream',     name: 'Scary Scream',              category: 'voice',   url: BASE + 'dragon-studio-scary-scream-401725.mp3' },
+  { id: 'x-zombie-female',    name: 'Female Zombie Scream',      category: 'voice',   url: BASE + 'dragon-studio-female-zombie-scream-324744.mp3' },
+  { id: 'x-woman-scream',     name: 'Woman Screaming',           category: 'voice',   url: BASE + 'dragon-studio-woman-screaming-cfx-streaming-sound-effect-320169.mp3' },
+  { id: 'x-multiple-screams', name: 'Multiple Female Screams',   category: 'voice',   url: BASE + 'freesound_community-multiple-female-screams-70736.mp3' },
+  { id: 'x-very-intense-hell',name: 'Very Intense Hell Scream',  category: 'voice',   url: BASE + 'freesound_community-very-intense-hell-72137.mp3' },
+  { id: 'x-scream-echo',      name: 'Scream With Echo',          category: 'voice',   url: BASE + 'freesound_community-scream-with-echo-46585.mp3' },
+  { id: 'x-ghastly-groan',    name: 'Ghastly Groan',             category: 'voice',   url: BASE + 'freesound_community-ghastly-groan-48064.mp3' },
+  { id: 'x-young-girl-scream',name: 'Young Girl Screaming',      category: 'voice',   url: BASE + 'freesound_community-young-girl-screaming-1-90510.mp3' },
+  { id: 'x-angry-man-yell',   name: 'Angry Man Yell',            category: 'voice',   url: BASE + 'virtual_vibes-angry-man-yell-sound-hd-379386.mp3' },
+  { id: 'x-ultra-scream',     name: 'Ultra Realistic Scream',    category: 'voice',   url: BASE + 'virtual_vibes-scary-woman-scream-ultra-realistic-379378.mp3' },
+  { id: 'x-infinite-piano',   name: 'Infinite Expanse Piano',    category: 'music',   url: BASE + 'phatphrogstudio-infinite-expanse-piano-nova-trails-47747.mp3' },
+  { id: 'x-cosmic-oblivion',  name: 'Cosmic Oblivion',           category: 'music',   url: BASE + 'phatphrogstudio-cosmic-oblivion-neon-nexus-477911.mp3' },
+  { id: 'x-cyber-attack',     name: 'Cyber Attack',              category: 'music',   url: BASE + 'phatphrogstudio-cyber-attack-datastore-rebellion-477469.mp3' },
+  { id: 'x-internal-fury',    name: 'Internal Fury',             category: 'music',   url: BASE + 'phatphrogstudio-internal-fury-fury27s-dance-477470.mp3' },
+  { id: 'x-witch-action',     name: 'Witch Action Music',        category: 'music',   url: BASE + 'phatphrogstudio-pyro-witch-firebom-saga-royalty-free-action-music-502322.mp3' },
+  { id: 'x-horror-thriller',  name: 'Horror Thriller',           category: 'music',   url: BASE + 'soundreality-horror-thriller-action-247745.mp3' },
+  { id: 'x-horror-temptation',name: 'Horror Temptation',         category: 'music',   url: BASE + 'soundreality-temptation-249034.mp3' },
+  { id: 'x-paranormal-15s',   name: 'Tense Paranormal',          category: 'music',   url: BASE + 'universfield-tense-paranormal-horror-15s-498138.mp3' },
+  { id: 'x-paranormal-cinematic', name: 'Paranormal Cinematic',  category: 'music',   url: BASE + 'universfield-tense-paranormal-horror-cinematic-15s-498207.mp3' },
+  { id: 'x-horror-suspense',  name: 'Horror Suspense',           category: 'music',   url: BASE + 'universfield-dark-horror-suspense-30s-355838.mp3' },
+  { id: 'x-scary-atmosphere', name: 'Scary Atmosphere',          category: 'ambient', url: BASE + 'universfield-scary-horror-atmosphere-176754.mp3' },
+  { id: 'x-forest-monster',   name: 'Forest Monster',            category: 'ambient', url: BASE + 'freesound_community-forest-monster-scream-1-104247.mp3' },
+  { id: 'x-demon-haunting',   name: 'Demon Haunting',            category: 'ambient', url: BASE + 'freesound_community-033203_scary-demon-haunting-sound-76189.mp3' },
+  { id: 'x-free-demon-ghost', name: 'Demon Ghost Sound',         category: 'ambient', url: BASE + 'freesound_community-free-demon-ghost-sounds-27789 (1).mp3' },
+  { id: 'x-horror-atmosphere',name: 'Horror Atmosphere',         category: 'ambient', url: BASE + 'freesound_community-horror-ambiance-01-66708.mp3' },
+  { id: 'x-intense-music',    name: 'Intense Horror Music',      category: 'music',   url: BASE + 'freesound_community-intense-horror-music-01-14890.mp3' },
+  { id: 'x-eerie-scream',     name: 'Eerie Scream Growling',     category: 'voice',   url: BASE + 'gimsea-shark-eerie-scream-terrifying-growling-and-screaming-17-431581.mp3' },
+  { id: 'x-demon-grow-halloween', name: 'Halloween Demon Growl', category: 'voice',   url: BASE + 'freesound_community-demon-growl-for-halloween-spooky-creepy-scary-monster-ghoul-ghost-sounds-100123.mp3' },
+  { id: 'x-jusatt-scream-1',  name: 'Horror Scream cfx 1',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490899.mp3' },
+  { id: 'x-jusatt-scream-2',  name: 'Horror Scream cfx 2',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490908.mp3' },
+  { id: 'x-jusatt-scream-3',  name: 'Horror Scream cfx 3',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490909.mp3' },
+  { id: 'x-jusatt-scream-4',  name: 'Horror Scream cfx 4',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490910.mp3' },
+  { id: 'x-jusatt-scream-5',  name: 'Horror Scream cfx 5',      category: 'voice',   url: BASE + 'jusatt890-scream-horror-cfx-490916 (1).mp3' },
+  { id: 'x-high-quality-screech', name: 'High Quality Screech',  category: 'voice',   url: BASE + 'freesound_community-high-quality-monster-screech-65012.mp3' },
+  { id: 'x-demonic-woman',    name: 'Demonic Woman Scream',      category: 'voice',   url: BASE + 'freesound_community-demonic-woman-scream-6333.mp3' },
+  { id: 'x-demonic-roar',     name: 'Demonic Roar 45k',         category: 'voice',   url: BASE + 'freesound_community-demonic-roar-45549.mp3' },
+  { id: 'x-evil-cat',         name: 'Evil Cat Scream',           category: 'voice',   url: BASE + 'freesound_community-manei_corentin_2016_2017_evil-cat-scream-71799.mp3' },
+  { id: 'x-monster-moan',     name: 'Monster Moan & Squeal',     category: 'voice',   url: BASE + 'wiktworklaweckords_llc-monster-moan-and-squeel-146632.mp3' },
+  { id: 'x-snarls-growls-1',  name: 'Snarls & Growls 1',        category: 'voice',   url: BASE + 'voicebosch-snarls-and-growls-172823 (1).mp3' },
+  { id: 'x-snarls-growls-2',  name: 'Snarls & Growls 2',        category: 'voice',   url: BASE + 'voicebosch-snarls-and-growls-172823.mp3' },
+  { id: 'x-man-scream',       name: 'Man Scream',                category: 'voice',   url: BASE + 'universfield-man-scream-08-352430.mp3' },
+  { id: 'x-distorted-scream', name: 'Distorted Demonic Scream',  category: 'voice',   url: BASE + 'u_503d70fc-distant-demonic-scream-and-debris-346596.mp3' },
+  { id: 'x-distorted-demon-growl', name: 'Distorted Demon Growl',category: 'voice',   url: BASE + 'u_b1k8celi2s-distorted-demon-growl-203405.mp3' },
+  { id: 'x-phobic-screaming', name: 'Phobic Screaming',          category: 'voice',   url: BASE + 'phobic-frantic-screaming-211549.mp3' },
+  { id: 'x-scream-debris',    name: 'Scream of Agony',           category: 'voice',   url: BASE + 'soundreality-screams-of-agony-142447.mp3' },
+  { id: 'x-horror-music-intense', name: 'Horror Music Intense',  category: 'music',   url: BASE + 'freesound_community-horror-intense-music-01-14890.mp3' },
+  { id: 'x-demon-voice-mercy',name: 'Demon: No Mercy',           category: 'voice',   url: BASE + 'phatphrogstudio-demon-voice-no-mercy-477827.mp3' },
+  { id: 'x-haunted-house',    name: 'Haunted House Entertainment',category: 'ambient', url: BASE + 'hauntedhousentertainment-demon-voice-246555.mp3' },
+  { id: 'x-zombie-groans-3',  name: 'Zombie Groans 3',           category: 'voice',   url: BASE + 'freesound_community-zombie-groan-3-4663 (1).mp3' },
+  { id: 'x-zombie-groan-104k',name: 'Zombie Groan',              category: 'voice',   url: BASE + 'freesound_community-zombie-groan-104542 (1).mp3' },
+  { id: 'x-dinosaur-roar',    name: 'Dinosaur Roar',             category: 'voice',   url: BASE + 'dfdb-dinosaur-roar-with-screams-and-growth-193210.mp3' },
+  { id: 'x-monster-roar-alex',name: 'Monster Roar (Big)',        category: 'voice',   url: BASE + 'alexiadavina-horror-sound-lurking-horror-monster-189948.mp3' },
+  { id: 'x-alien-noise',      name: 'Low Pitch Alien Noise',     category: 'voice',   url: BASE + 'fluld8211-low-pitch-alien-noise-person-screaming-496480.mp3' },
+];
 
 const categoryMeta = {
   ambient: { label: 'Ambient',          icon: Wind,  color: 'text-blue-400'   },
@@ -367,65 +161,73 @@ const categoryMeta = {
 };
 
 export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume, onVolumeChange }: SoundLibraryProps) {
-  const instancesRef = useRef<Record<string, SoundInstance>>({});
-  const ctxRef = useRef<AudioContext | null>(null);
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({
-    ambient: true, effect: false, music: false, voice: false,
+    ambient: true, effect: false, music: false, voice: false, extra: false,
   });
-
-  const getCtx = useCallback((): AudioContext | null => {
-    try {
-      if (!ctxRef.current || ctxRef.current.state === 'closed') {
-        ctxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      if (ctxRef.current.state === 'suspended') {
-        ctxRef.current.resume().catch(() => {});
-      }
-      return ctxRef.current;
-    } catch (e) {
-      console.warn('AudioContext failed:', e);
-      return null;
-    }
-  }, []);
-
-  const stopInstance = useCallback((id: string) => {
-    const inst = instancesRef.current[id];
-    if (inst) {
-      inst.stopFns.forEach(fn => { try { fn(); } catch {} });
-      try { inst.gainNode.disconnect(); } catch {}
-      delete instancesRef.current[id];
-    }
-  }, []);
-
-  const startInstance = useCallback((id: string) => {
-    const ctx = getCtx();
-    if (!ctx) return;
-    stopInstance(id);
-    const inst = createHorrorSound(ctx, id, masterVolume);
-    if (inst) instancesRef.current[id] = inst;
-  }, [getCtx, stopInstance, masterVolume]);
-
-  const handleToggle = (id: string) => {
-    if (activeSounds.includes(id)) {
-      stopInstance(id);
-    } else {
-      startInstance(id);
-    }
-    onToggleSound(id);
-  };
+  const [loadErrors, setLoadErrors] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    Object.values(instancesRef.current).forEach(inst => {
-      try { inst.gainNode.gain.value = Math.max(0, Math.min(1, masterVolume)); } catch {}
+    Object.values(audioRefs.current).forEach(a => {
+      a.volume = Math.max(0, Math.min(1, masterVolume));
     });
   }, [masterVolume]);
 
   useEffect(() => {
     return () => {
-      Object.keys(instancesRef.current).forEach(id => stopInstance(id));
-      try { ctxRef.current?.close(); } catch {}
+      Object.values(audioRefs.current).forEach(a => { a.pause(); a.src = ''; });
     };
-  }, [stopInstance]);
+  }, []);
+
+  const startSound = useCallback((id: string, url: string) => {
+    if (audioRefs.current[id]) {
+      audioRefs.current[id].volume = masterVolume;
+      audioRefs.current[id].play().catch(() => {});
+      return;
+    }
+    const audio = new Audio();
+    audio.crossOrigin = 'anonymous';
+    audio.loop = true;
+    audio.volume = Math.max(0, Math.min(1, masterVolume));
+    audio.src = url;
+    audio.onerror = () => setLoadErrors(p => ({ ...p, [id]: true }));
+    audio.play().catch(() => setLoadErrors(p => ({ ...p, [id]: true })));
+    audioRefs.current[id] = audio;
+  }, [masterVolume]);
+
+  const stopSound = useCallback((id: string) => {
+    const a = audioRefs.current[id];
+    if (a) { a.pause(); a.currentTime = 0; }
+  }, []);
+
+  const handleToggle = (id: string, url: string) => {
+    if (activeSounds.includes(id)) stopSound(id);
+    else startSound(id, url);
+    onToggleSound(id);
+  };
+
+  const renderSound = (id: string, name: string, description: string, url: string) => {
+    const isActive = activeSounds.includes(id);
+    const hasError = loadErrors[id];
+    return (
+      <button key={id} onClick={() => handleToggle(id, url)}
+        className={`flex items-center gap-2 p-1.5 rounded-lg text-left transition-all w-full ${
+          hasError
+            ? 'bg-orange-500/10 border border-orange-500/20 text-orange-400'
+            : isActive
+            ? 'bg-red-500/20 border border-red-500/40 text-red-300'
+            : 'bg-zinc-800/30 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+        }`}
+      >
+        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-red-500 animate-pulse' : hasError ? 'bg-orange-500' : 'bg-zinc-700'}`} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-medium truncate">{name}</p>
+          <p className="text-[8px] text-zinc-600 truncate">{hasError ? '⚠ Load failed' : description}</p>
+        </div>
+        {isActive && <span className="text-[8px] text-red-400 flex-shrink-0">▶</span>}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-2">
@@ -448,6 +250,7 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
         <span className="text-[9px] text-zinc-500 font-mono w-6">{Math.round(masterVolume * 100)}</span>
       </div>
 
+      {/* Standard categories from HORROR_SOUNDS */}
       {(Object.keys(categoryMeta) as (keyof typeof categoryMeta)[]).map(cat => {
         const meta = categoryMeta[cat];
         const Icon = meta.icon;
@@ -456,47 +259,47 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
         const isOpen = openCats[cat];
         return (
           <div key={cat} className="rounded-lg border border-zinc-800 overflow-hidden">
-            <button
-              onClick={() => setOpenCats(p => ({ ...p, [cat]: !p[cat] }))}
-              className="w-full flex items-center justify-between p-2 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors"
-            >
+            <button onClick={() => setOpenCats(p => ({ ...p, [cat]: !p[cat] }))}
+              className="w-full flex items-center justify-between p-2 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors">
               <div className="flex items-center gap-2">
                 <Icon className={`w-3 h-3 ${meta.color}`} />
                 <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
                 {activeInCat > 0 && (
-                  <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">
-                    {activeInCat} on
-                  </span>
+                  <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">{activeInCat} on</span>
                 )}
               </div>
               <span className="text-[10px] text-zinc-600">{sounds.length}</span>
             </button>
             {isOpen && (
               <div className="grid grid-cols-1 gap-1 p-2 bg-zinc-900/30 max-h-[250px] overflow-y-auto">
-                {sounds.map(sound => {
-                  const isActive = activeSounds.includes(sound.id);
-                  return (
-                    <button key={sound.id} onClick={() => handleToggle(sound.id)}
-                      className={`flex items-center gap-2 p-1.5 rounded-lg text-left transition-all ${
-                        isActive
-                          ? 'bg-red-500/20 border border-red-500/40 text-red-300'
-                          : 'bg-zinc-800/30 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
-                      }`}
-                    >
-                      <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isActive ? 'bg-red-500 animate-pulse' : 'bg-zinc-700'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-medium truncate">{sound.name}</p>
-                        <p className="text-[8px] text-zinc-600 truncate">{sound.description}</p>
-                      </div>
-                      {isActive && <span className="text-[8px] text-red-400 flex-shrink-0">▶</span>}
-                    </button>
-                  );
-                })}
+                {sounds.map(s => renderSound(s.id, s.name, s.description, SOUND_URLS[s.id] || ''))}
               </div>
             )}
           </div>
         );
       })}
+
+      {/* EXTRA sounds from your 137 files */}
+      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+        <button onClick={() => setOpenCats(p => ({ ...p, extra: !p.extra }))}
+          className="w-full flex items-center justify-between p-2 bg-zinc-800/40 hover:bg-zinc-800/70 transition-colors">
+          <div className="flex items-center gap-2">
+            <Mic className="w-3 h-3 text-yellow-400" />
+            <span className="text-xs font-semibold text-yellow-400">Extra Horror Sounds</span>
+            {EXTRA_SOUNDS.filter(s => activeSounds.includes(s.id)).length > 0 && (
+              <span className="text-[9px] bg-red-500/20 text-red-400 border border-red-500/30 px-1 rounded">
+                {EXTRA_SOUNDS.filter(s => activeSounds.includes(s.id)).length} on
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-zinc-600">{EXTRA_SOUNDS.length}</span>
+        </button>
+        {openCats.extra && (
+          <div className="grid grid-cols-1 gap-1 p-2 bg-zinc-900/30 max-h-[300px] overflow-y-auto">
+            {EXTRA_SOUNDS.map(s => renderSound(s.id, s.name, s.category, s.url))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
