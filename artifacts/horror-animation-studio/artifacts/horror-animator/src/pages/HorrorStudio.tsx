@@ -8,6 +8,12 @@ import ControlPanel from '@/components/ControlPanel';
 import ParticleOverlay from '@/components/ParticleOverlay';
 import TTSPanel from '@/components/TTSPanel';
 import EnvironmentPanel, { ENVIRONMENT_THEMES } from '@/components/EnvironmentPanel';
+import TextOverlayTool from "../components/TextOverlayTool";
+
+{/* Add inside UI */}
+<div className="mt-10">
+  <TextOverlayTool />
+</div>
 import {
   saveImageBlob, loadAllImageBlobs, deleteImageBlob,
   saveProject, loadProject,
