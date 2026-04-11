@@ -179,21 +179,25 @@ export default function SoundLibrary({ activeSounds, onToggleSound, masterVolume
     };
   }, []);
 
-  const startSound = useCallback((id: string, url: string) => {
-    if (audioRefs.current[id]) {
-      audioRefs.current[id].volume = masterVolume;
-      audioRefs.current[id].play().catch(() => {});
-      return;
-    }
-    const audio = new Audio();
-    audio.crossOrigin = 'anonymous';
+ const startSound = useCallback((id: string) => {
+  const sound = HORROR_SOUNDS.find(s => s.id === id);
+  if (sound?.file) {
+    const audio = new Audio(sound.file);
     audio.loop = true;
-    audio.volume = Math.max(0, Math.min(1, masterVolume));
-    audio.src = url;
-    audio.onerror = () => setLoadErrors(p => ({ ...p, [id]: true }));
-    audio.play().catch(() => setLoadErrors(p => ({ ...p, [id]: true })));
-    audioRefs.current[id] = audio;
-  }, [masterVolume]);
+    audio.volume = masterVolume;
+    audio.play().catch(e => console.warn('Audio play failed:', e));
+    audioNodes.current[id] = {
+      ctx: null as any,
+      gainNode: null as any,
+      nodes: [],
+      stop: () => { audio.pause(); audio.currentTime = 0; },
+    };
+    return;
+  }
+  const ctx = getCtx();
+  const nodes = createHorrorSound(ctx, id, masterVolume);
+  if (nodes) audioNodes.current[id] = nodes;
+}, [getCtx, masterVolume]);
 
   const stopSound = useCallback((id: string) => {
     const a = audioRefs.current[id];
