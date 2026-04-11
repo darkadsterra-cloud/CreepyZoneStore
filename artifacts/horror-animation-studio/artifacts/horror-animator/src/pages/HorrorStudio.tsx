@@ -18,12 +18,8 @@ import {
 
 let imageCounter = 0;
 
-// ── Project Dashboard ──
 function ProjectDashboard({
-  username,
-  onNew,
-  onOpen,
-  onDelete,
+  username, onNew, onOpen, onDelete,
 }: {
   username: string;
   onNew: (name: string) => void;
@@ -51,7 +47,6 @@ function ProjectDashboard({
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col overflow-y-auto">
       <AppBackground />
       <div className="relative z-10 flex flex-col min-h-full">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-red-900/30 bg-zinc-900/80 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-red-700 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/60">
@@ -70,10 +65,8 @@ function ProjectDashboard({
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 px-4 md:px-8 py-6">
           <div className="max-w-4xl mx-auto">
-            {/* New Project */}
             <div className="mb-6">
               {!showInput ? (
                 <button onClick={() => setShowInput(true)}
@@ -95,7 +88,6 @@ function ProjectDashboard({
               )}
             </div>
 
-            {/* Projects Grid */}
             {projects.length === 0 ? (
               <div className="text-center py-16">
                 <FolderOpen className="w-14 h-14 text-zinc-800 mx-auto mb-4" />
@@ -152,7 +144,6 @@ function ProjectDashboard({
   );
 }
 
-// ── Main Studio ──
 export default function HorrorStudio() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [currentProject, setCurrentProject] = useState<HorrorProject | null>(null);
@@ -174,7 +165,6 @@ export default function HorrorStudio() {
   const [activeTab, setActiveTab] = useState<'animations' | 'sounds' | 'tts'>('animations');
   const [dragover, setDragover] = useState(false);
   const [autoSaveMsg, setAutoSaveMsg] = useState('');
-  // Mobile: bottom panel open/close
   const [mobilePanel, setMobilePanel] = useState<'none' | 'tools' | 'settings'>('none');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -184,9 +174,11 @@ export default function HorrorStudio() {
   const chunks = useRef<Blob[]>([]);
   const rafId = useRef<number>(0);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewImagesRef = useRef<UploadedImage[]>([]);
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
@@ -249,7 +241,7 @@ export default function HorrorStudio() {
     return () => { if (randomInterval.current) clearInterval(randomInterval.current); };
   }, [animMode, images]);
 
-  const getPreviewImages = (): UploadedImage[] => {
+  const getPreviewImages = useCallback((): UploadedImage[] => {
     if (images.length === 0) return [];
     switch (animMode) {
       case 'single':        return selectedImage ? [selectedImage] : images.slice(0, 1);
@@ -257,7 +249,12 @@ export default function HorrorStudio() {
       case 'all-visible':   return images;
       case 'random-appear': return images.filter(img => randomVisible.includes(img.id));
     }
-  };
+  }, [images, animMode, selectedImage, slideshowIdx, randomVisible]);
+
+  const previewImages = getPreviewImages();
+
+  // Keep ref in sync for recording
+  useEffect(() => { previewImagesRef.current = previewImages; }, [previewImages]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
@@ -266,7 +263,13 @@ export default function HorrorStudio() {
       if (!file.type.startsWith('image/')) return;
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
-      newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
+      newImages.push({
+        id, file, url, name: file.name,
+        animation: null, animations: [],
+        greenScreen: false,
+        position: { x: 50, y: 50 },
+        scale: 1, rotation: 0, opacity: 1,
+      });
     });
     setImages(prev => {
       const next = [...prev, ...newImages];
@@ -298,9 +301,15 @@ export default function HorrorStudio() {
     updateImage(selectedId, { animations: updated });
   };
 
-  const clearAllAnimations = () => { if (selectedId) updateImage(selectedId, { animations: [], animation: null }); };
-  const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-  const toggleParticle = (id: string) => setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const clearAllAnimations = () => {
+    if (selectedId) updateImage(selectedId, { animations: [], animation: null });
+  };
+
+  const toggleSound = (id: string) =>
+    setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleParticle = (id: string) =>
+    setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleDownload = () => {
     if (!previewRef.current) return;
@@ -314,59 +323,147 @@ export default function HorrorStudio() {
     });
   };
 
-  const handleRecord = () => {
+  const stopRecording = useCallback(() => {
+    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+      mediaRecorder.current.stop();
+    }
+    cancelAnimationFrame(rafId.current);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+    setRecording(false);
+    setRecordingTime(0);
+  }, []);
+
+  const handleRecord = useCallback(() => {
     if (recording) {
-      mediaRecorder.current?.stop();
-      setRecording(false);
-      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      stopRecording();
       return;
     }
-    if (!previewRef.current) return;
-    setRecordingTime(0);
-    recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
 
-    import('html2canvas').then(({ default: html2canvas }) => {
-      const recCanvas = document.createElement('canvas');
-      recCanvas.width = ratio.width; recCanvas.height = ratio.height;
-      const ctx = recCanvas.getContext('2d')!;
-      const stream = recCanvas.captureStream(30);
-      const mimeTypes = ['video/mp4;codecs=h264','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
-      const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
-      const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
-      chunks.current = [];
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data); };
-      recorder.onstop = () => {
-        cancelAnimationFrame(rafId.current);
-        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-        const blob = new Blob(chunks.current, { type: mimeType });
-        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${currentProject?.name ?? 'horror'}-${Date.now()}.${ext}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    // Build offscreen canvas
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = ratio.width;
+    recCanvas.height = ratio.height;
+    const ctx = recCanvas.getContext('2d')!;
+
+    // Frame drawing loop — reads images directly from DOM
+    const drawFrame = () => {
+      if (!previewRef.current) { rafId.current = requestAnimationFrame(drawFrame); return; }
+
+      // Background
+      ctx.fillStyle = greenScreen ? '#00ff00' : '#000000';
+      ctx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+
+      const containerW = previewRef.current.offsetWidth || 1;
+      const containerH = previewRef.current.offsetHeight || 1;
+      const scaleX = recCanvas.width / containerW;
+      const scaleY = recCanvas.height / containerH;
+
+      // Draw each image
+      previewImagesRef.current.forEach(img => {
+        const el = previewRef.current!.querySelector(`[data-imgid="${img.id}"]`) as HTMLImageElement;
+        if (!el || !el.complete) return;
+        const cx = (img.position.x / 100) * recCanvas.width;
+        const cy = (img.position.y / 100) * recCanvas.height;
+        const imgW = el.naturalWidth * img.scale * Math.min(scaleX, scaleY);
+        const imgH = el.naturalHeight * img.scale * Math.min(scaleX, scaleY);
+        ctx.save();
+        ctx.globalAlpha = img.opacity;
+        ctx.translate(cx, cy);
+        ctx.rotate((img.rotation * Math.PI) / 180);
+        ctx.drawImage(el, -imgW / 2, -imgH / 2, imgW, imgH);
+        ctx.restore();
+      });
+
+      // Dark vignette
+      if (!greenScreen) {
+        const grad = ctx.createRadialGradient(
+          recCanvas.width / 2, recCanvas.height / 2, recCanvas.width * 0.2,
+          recCanvas.width / 2, recCanvas.height / 2, recCanvas.width * 0.7,
+        );
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.7)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+      }
+
+      rafId.current = requestAnimationFrame(drawFrame);
+    };
+
+    const stream = recCanvas.captureStream(30);
+
+    const mimeTypes = [
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
+    const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
+
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    } catch {
+      recorder = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 });
+    }
+
+    chunks.current = [];
+
+    recorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) chunks.current.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      cancelAnimationFrame(rafId.current);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+
+      const blob = new Blob(chunks.current, { type: mimeType });
+      if (blob.size === 0) {
+        alert('Recording failed — no data captured. Try a shorter recording or different browser.');
+        setRecording(false);
         setRecordingTime(0);
-      };
-      const drawFrame = () => {
-        if (!previewRef.current) return;
-        html2canvas(previewRef.current, { useCORS: true, allowTaint: true, scale: 1, width: previewRef.current.offsetWidth, height: previewRef.current.offsetHeight, backgroundColor: greenScreen ? '#00ff00' : '#000000', logging: false })
-          .then(fc => { ctx.clearRect(0, 0, recCanvas.width, recCanvas.height); ctx.drawImage(fc, 0, 0, recCanvas.width, recCanvas.height); }).catch(() => {});
-        rafId.current = requestAnimationFrame(drawFrame);
-      };
-      drawFrame();
-      recorder.start(200);
-      mediaRecorder.current = recorder;
-      setRecording(true);
-      setTimeout(() => { if (recorder.state === 'recording') { recorder.stop(); setRecording(false); } }, 5 * 60 * 1000);
-    });
-  };
+        return;
+      }
 
-  const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentProject?.name ?? 'horror'}-${Date.now()}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setRecording(false);
+      setRecordingTime(0);
+    };
 
-  const previewImages = getPreviewImages();
+    // Start drawing then recording
+    drawFrame();
+    recorder.start(500);
+    mediaRecorder.current = recorder;
+    setRecording(true);
+    setRecordingTime(0);
+
+    // Timer
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime(t => t + 1);
+    }, 1000);
+
+    // Auto stop at 5 min
+    autoStopTimer.current = setTimeout(() => {
+      if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+        mediaRecorder.current.stop();
+      }
+    }, 5 * 60 * 1000);
+
+  }, [recording, stopRecording, ratio, greenScreen, currentProject]);
+
+  const formatTime = (s: number) =>
+    `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+
   const isVertical = ratio.height > ratio.width;
 
   const getAnimClass = (img: UploadedImage) => {
@@ -437,7 +534,10 @@ export default function HorrorStudio() {
             <div key={img.id} className={`absolute ${getAnimClass(img)}`}
               style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
             >
-              <img src={img.url} alt={img.name} draggable={false}
+              <img
+                data-imgid={img.id}
+                src={img.url} alt={img.name} draggable={false}
+                crossOrigin="anonymous"
                 style={{ maxWidth: isFullscreen ? '400px' : '180px', maxHeight: isFullscreen ? '400px' : '180px', objectFit: 'contain', display: 'block' }}
               />
             </div>
@@ -470,13 +570,11 @@ export default function HorrorStudio() {
     );
   }
 
-  // ── MOBILE LAYOUT ──
+  // ── MOBILE ──
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 overflow-hidden">
         <AppBackground />
-
-        {/* Mobile Header */}
         <header className="relative z-20 flex items-center justify-between px-3 py-2 bg-zinc-900/95 border-b border-red-900/30 flex-shrink-0">
           <button onClick={() => setShowDashboard(true)} className="flex items-center gap-2">
             <div className="w-7 h-7 bg-red-700 rounded-lg flex items-center justify-center">
@@ -502,30 +600,22 @@ export default function HorrorStudio() {
           </div>
         </header>
 
-        {/* Upload + Image Strip */}
         <div className="relative z-10 flex-shrink-0 bg-zinc-900/80 border-b border-zinc-800 px-3 py-2">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-            {/* Upload button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-12 h-12 flex-shrink-0 border-2 border-dashed border-zinc-700 hover:border-red-500 flex items-center justify-center rounded-lg transition-all"
-            >
+            <button onClick={() => fileInputRef.current?.click()}
+              className="w-12 h-12 flex-shrink-0 border-2 border-dashed border-zinc-700 hover:border-red-500 flex items-center justify-center rounded-lg transition-all">
               <Upload className="w-4 h-4 text-zinc-600" />
               <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={e => handleFiles(e.target.files)} className="hidden" />
             </button>
-
             {images.map(img => {
               const isSelected = img.id === selectedId;
               const activeAnims = img.animations ?? [];
               return (
                 <div key={img.id} onClick={() => setSelectedId(img.id)}
-                  className={`relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${isSelected ? 'border-red-500' : 'border-zinc-700'}`}
-                >
+                  className={`relative w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${isSelected ? 'border-red-500' : 'border-zinc-700'}`}>
                   <img src={img.url} alt="" className="w-full h-full object-cover" />
                   {activeAnims.length > 0 && (
-                    <div className="absolute bottom-0 right-0 bg-red-500 text-[7px] text-white px-0.5 rounded-tl">
-                      {activeAnims.length}
-                    </div>
+                    <div className="absolute bottom-0 right-0 bg-red-500 text-[7px] text-white px-0.5 rounded-tl">{activeAnims.length}</div>
                   )}
                   <button onClick={e => { e.stopPropagation(); removeImage(img.id); }}
                     className="absolute top-0 right-0 bg-black/60 text-zinc-300 p-0.5 rounded-bl">
@@ -537,9 +627,7 @@ export default function HorrorStudio() {
           </div>
         </div>
 
-        {/* Preview Area */}
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center bg-zinc-950 px-4 py-3 overflow-hidden">
-          {/* Toolbar */}
           <div className="flex items-center justify-between w-full mb-2">
             <div className="flex items-center gap-1.5">
               <span className="text-[9px] text-zinc-600 font-mono">{ratio.width}×{ratio.height}</span>
@@ -551,8 +639,7 @@ export default function HorrorStudio() {
                 <Download className="w-3 h-3" /> PNG
               </button>
               <button onClick={handleRecord}
-                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}
-              >
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
                 {recording ? formatTime(recordingTime) : 'Rec'}
               </button>
@@ -562,11 +649,9 @@ export default function HorrorStudio() {
               </button>
             </div>
           </div>
-
           <div className="flex items-center justify-center w-full flex-1">
             <PreviewCanvas />
           </div>
-
           {images.length > 1 && animMode === 'single' && (
             <div className="flex items-center justify-center gap-2 mt-2">
               <button onClick={goLeft} disabled={selectedIdx === 0} className="p-1 rounded bg-zinc-800 text-zinc-400 disabled:opacity-30">
@@ -574,8 +659,7 @@ export default function HorrorStudio() {
               </button>
               {images.map(img => (
                 <button key={img.id} onClick={() => setSelectedId(img.id)}
-                  className={`rounded-full transition-all ${selectedId === img.id ? 'bg-red-500 w-4 h-1.5' : 'bg-zinc-700 w-1.5 h-1.5'}`}
-                />
+                  className={`rounded-full transition-all ${selectedId === img.id ? 'bg-red-500 w-4 h-1.5' : 'bg-zinc-700 w-1.5 h-1.5'}`} />
               ))}
               <button onClick={goRight} disabled={selectedIdx === images.length - 1} className="p-1 rounded bg-zinc-800 text-zinc-400 disabled:opacity-30">
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -584,15 +668,12 @@ export default function HorrorStudio() {
           )}
         </div>
 
-        {/* Mobile Bottom Panel */}
         {mobilePanel !== 'none' && (
           <div className="relative z-20 bg-zinc-900/98 border-t border-zinc-800 flex-shrink-0" style={{ maxHeight: '45vh', overflowY: 'auto' }}>
-            {/* Panel Tabs */}
             <div className="flex items-center border-b border-zinc-800 sticky top-0 bg-zinc-900/98 z-10">
               {(['animations', 'sounds', 'tts'] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}
-                >
+                  className={`flex-1 py-2 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
                   {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Animations' : 'Sounds'}
                 </button>
               ))}
@@ -607,9 +688,7 @@ export default function HorrorStudio() {
               {mobilePanel === 'tools' && activeTab === 'animations' && (
                 <AnimationPanel
                   selectedAnimations={selectedImage?.animations ?? (selectedImage?.animation ? [selectedImage.animation] : [])}
-                  onToggle={toggleAnimation}
-                  onClearAll={clearAllAnimations}
-                  disabled={!selectedId}
+                  onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId}
                 />
               )}
               {mobilePanel === 'tools' && activeTab === 'sounds' && (
@@ -618,62 +697,48 @@ export default function HorrorStudio() {
               {mobilePanel === 'tools' && activeTab === 'tts' && <TTSPanel />}
               {mobilePanel === 'settings' && (
                 <ControlPanel
-                  selectedImage={selectedImage}
-                  aspectRatio={aspectRatio}
-                  greenScreenEnabled={greenScreen}
-                  animationMode={animMode}
-                  activeParticles={activeParticles}
-                  onAspectRatioChange={setAspectRatio}
-                  onGreenScreenToggle={setGreenScreen}
-                  onAnimationModeChange={setAnimMode}
-                  onParticleToggle={toggleParticle}
-                  onUpdateImage={updateImage}
+                  selectedImage={selectedImage} aspectRatio={aspectRatio}
+                  greenScreenEnabled={greenScreen} animationMode={animMode}
+                  activeParticles={activeParticles} onAspectRatioChange={setAspectRatio}
+                  onGreenScreenToggle={setGreenScreen} onAnimationModeChange={setAnimMode}
+                  onParticleToggle={toggleParticle} onUpdateImage={updateImage}
                 />
               )}
             </div>
           </div>
         )}
 
-        {/* Mobile Bottom Nav */}
         <div className="relative z-20 flex border-t border-zinc-800 bg-zinc-900/95 flex-shrink-0">
-          <button
-            onClick={() => setMobilePanel(p => p === 'tools' ? 'none' : 'tools')}
-            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'tools' ? 'text-red-400' : 'text-zinc-600'}`}
-          >
+          <button onClick={() => setMobilePanel(p => p === 'tools' ? 'none' : 'tools')}
+            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'tools' ? 'text-red-400' : 'text-zinc-600'}`}>
             <Layers className="w-4 h-4" />
             <span className="text-[8px] uppercase tracking-wider">Tools</span>
           </button>
-          <button
-            onClick={() => { setMobilePanel(p => p === 'tools' ? 'none' : 'tools'); setActiveTab('sounds'); }}
-            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'tools' && activeTab === 'sounds' ? 'text-red-400' : 'text-zinc-600'}`}
-          >
+          <button onClick={() => { setMobilePanel(p => p === 'tools' ? 'none' : 'tools'); setActiveTab('sounds'); }}
+            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'tools' && activeTab === 'sounds' ? 'text-red-400' : 'text-zinc-600'}`}>
             <Music className="w-4 h-4" />
             <span className="text-[8px] uppercase tracking-wider">Sound</span>
           </button>
-          <button
-            onClick={() => setMobilePanel(p => p === 'settings' ? 'none' : 'settings')}
-            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'settings' ? 'text-purple-400' : 'text-zinc-600'}`}
-          >
+          <button onClick={() => setMobilePanel(p => p === 'settings' ? 'none' : 'settings')}
+            className={`flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors ${mobilePanel === 'settings' ? 'text-purple-400' : 'text-zinc-600'}`}>
             <Settings className="w-4 h-4" />
             <span className="text-[8px] uppercase tracking-wider">Settings</span>
           </button>
         </div>
 
-        {/* Fullscreen */}
         {fullscreen && (
           <div className="fixed inset-0 z-50 bg-black flex items-center justify-center" onClick={() => setFullscreen(false)}>
             <button onClick={() => setFullscreen(false)} className="absolute top-4 right-4 z-50 text-white bg-zinc-800 rounded-full p-2 border border-zinc-700">
               <X className="w-5 h-5" />
             </button>
-            <div onClick={e => e.stopPropagation()} style={{ width: isVertical ? '100vw' : '100vw', aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: '100vh' }}
-              className="relative overflow-hidden"
-            >
+            <div onClick={e => e.stopPropagation()} style={{ width: '100vw', aspectRatio: `${ratio.width} / ${ratio.height}`, maxHeight: '100vh' }}
+              className="relative overflow-hidden">
               <div className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-black'}`}>
                 {previewImages.map(img => (
                   <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-                    style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
-                  >
-                    <img src={img.url} alt="" draggable={false} style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} />
+                    style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
+                    <img data-imgid={img.id} src={img.url} alt="" draggable={false} crossOrigin="anonymous"
+                      style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} />
                   </div>
                 ))}
                 <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
@@ -685,11 +750,10 @@ export default function HorrorStudio() {
     );
   }
 
-  // ── DESKTOP LAYOUT ──
+  // ── DESKTOP ──
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
-
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={() => setShowDashboard(true)}
@@ -728,12 +792,10 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* LEFT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
           <div onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragover(true); }} onDragLeave={() => setDragover(false)}
             onClick={() => fileInputRef.current?.click()}
-            className={`mx-3 mt-3 flex-shrink-0 rounded-lg border-2 border-dashed cursor-pointer transition-all p-3 flex flex-col items-center justify-center gap-1.5 ${dragover ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/20 hover:bg-zinc-800/40'}`}
-          >
+            className={`mx-3 mt-3 flex-shrink-0 rounded-lg border-2 border-dashed cursor-pointer transition-all p-3 flex flex-col items-center justify-center gap-1.5 ${dragover ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/20 hover:bg-zinc-800/40'}`}>
             <Upload className={`w-5 h-5 ${dragover ? 'text-red-400' : 'text-zinc-600'}`} />
             <p className={`text-[10px] font-medium ${dragover ? 'text-red-300' : 'text-zinc-500'}`}>Drop images or click to upload</p>
             <p className="text-[9px] text-zinc-700">PNG · JPG · WebP · bulk supported</p>
@@ -746,8 +808,7 @@ export default function HorrorStudio() {
                 const activeAnims = img.animations ?? (img.animation ? [img.animation] : []);
                 return (
                   <div key={img.id} onClick={() => setSelectedId(img.id)}
-                    className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}
-                  >
+                    className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}>
                     <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800">
                       <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
                     </div>
@@ -755,7 +816,8 @@ export default function HorrorStudio() {
                       <p className="text-[10px] text-zinc-300 truncate">{img.name}</p>
                       {activeAnims.length > 0 && <p className="text-[9px] text-red-400">{activeAnims.length} anims</p>}
                     </div>
-                    <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0">
+                    <button onClick={e => { e.stopPropagation(); removeImage(img.id); }}
+                      className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -767,8 +829,7 @@ export default function HorrorStudio() {
           <div className="flex border-b border-zinc-800 flex-shrink-0">
             {(['animations', 'sounds', 'tts'] as const).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}
-              >
+                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
                 {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Anim' : 'Sound'}
               </button>
             ))}
@@ -778,9 +839,7 @@ export default function HorrorStudio() {
             {activeTab === 'animations' && (
               <AnimationPanel
                 selectedAnimations={selectedImage?.animations ?? (selectedImage?.animation ? [selectedImage.animation] : [])}
-                onToggle={toggleAnimation}
-                onClearAll={clearAllAnimations}
-                disabled={!selectedId}
+                onToggle={toggleAnimation} onClearAll={clearAllAnimations} disabled={!selectedId}
               />
             )}
             {activeTab === 'sounds' && (
@@ -790,7 +849,6 @@ export default function HorrorStudio() {
           </div>
         </div>
 
-        {/* CENTER */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -804,8 +862,7 @@ export default function HorrorStudio() {
                 <Download className="w-3 h-3" /> PNG
               </button>
               <button onClick={handleRecord}
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'}`}
-              >
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'}`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
                 {recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
               </button>
@@ -830,8 +887,7 @@ export default function HorrorStudio() {
               <div className="flex gap-1 items-center">
                 {images.map(img => (
                   <button key={img.id} onClick={() => setSelectedId(img.id)}
-                    className={`rounded-full transition-all ${selectedId === img.id ? 'bg-red-500 w-4 h-1.5' : 'bg-zinc-700 hover:bg-zinc-600 w-1.5 h-1.5'}`}
-                  />
+                    className={`rounded-full transition-all ${selectedId === img.id ? 'bg-red-500 w-4 h-1.5' : 'bg-zinc-700 hover:bg-zinc-600 w-1.5 h-1.5'}`} />
                 ))}
               </div>
               <button onClick={goRight} disabled={selectedIdx === images.length - 1} className="p-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 disabled:opacity-30">
@@ -841,47 +897,38 @@ export default function HorrorStudio() {
           )}
         </div>
 
-        {/* RIGHT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel
-              selectedImage={selectedImage}
-              aspectRatio={aspectRatio}
-              greenScreenEnabled={greenScreen}
-              animationMode={animMode}
-              activeParticles={activeParticles}
-              onAspectRatioChange={setAspectRatio}
-              onGreenScreenToggle={setGreenScreen}
-              onAnimationModeChange={setAnimMode}
-              onParticleToggle={toggleParticle}
-              onUpdateImage={updateImage}
+              selectedImage={selectedImage} aspectRatio={aspectRatio}
+              greenScreenEnabled={greenScreen} animationMode={animMode}
+              activeParticles={activeParticles} onAspectRatioChange={setAspectRatio}
+              onGreenScreenToggle={setGreenScreen} onAnimationModeChange={setAnimMode}
+              onParticleToggle={toggleParticle} onUpdateImage={updateImage}
             />
           </div>
         </div>
       </div>
 
-      {/* Fullscreen Desktop */}
       {fullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setFullscreen(false)}>
           <button onClick={() => setFullscreen(false)} className="absolute top-4 right-4 z-50 text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-2 border border-zinc-700">
             <X className="w-5 h-5" />
           </button>
           <div onClick={e => e.stopPropagation()} style={{ width: isVertical ? '40vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }}
-            className="relative overflow-hidden rounded-xl shadow-2xl border border-zinc-700"
-          >
+            className="relative overflow-hidden rounded-xl shadow-2xl border border-zinc-700">
             <div className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}>
               {previewImages.map(img => (
                 <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-                  style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}
-                >
-                  <img src={img.url} alt="" draggable={false} style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
+                  style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
+                  <img data-imgid={img.id} src={img.url} alt="" draggable={false} crossOrigin="anonymous"
+                    style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
                 </div>
               ))}
               <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
               {!greenScreen && (
                 <div className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%)' }}
-                />
+                  style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%)' }} />
               )}
             </div>
           </div>
