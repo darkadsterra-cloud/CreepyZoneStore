@@ -13,8 +13,8 @@ import {
   Upload, ImageIcon, Download, CircleDot,
   ChevronLeft, ChevronRight, Maximize2, Skull, X,
   FolderOpen, Plus, Save, CheckCircle, Clock, Trash2, User,
-  Settings, Music, Layers, ChevronUp, Film, Video, Play, Pause,
-  ChevronDown, Monitor, Square,
+  Film, Video, Play, Pause,
+  ChevronDown, Monitor,
 } from 'lucide-react';
 
 let imageCounter = 0;
@@ -49,12 +49,11 @@ function removeProjectVideo(pid: string, vid: string) {
 }
 
 const imageBlobStore: Record<string, string> = {};
-// Cache loaded HTMLImageElement objects for canvas drawing
 const imageElementCache: Record<string, HTMLImageElement> = {};
 
 function loadImageElement(id: string, url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    if (imageElementCache[id] && imageElementCache[id].complete) {
+    if (imageElementCache[id]?.complete && imageElementCache[id].naturalWidth > 0) {
       resolve(imageElementCache[id]);
       return;
     }
@@ -62,48 +61,48 @@ function loadImageElement(id: string, url: string): Promise<HTMLImageElement> {
     img.crossOrigin = 'anonymous';
     img.onload = () => { imageElementCache[id] = img; resolve(img); };
     img.onerror = () => {
-      // Try without crossOrigin as fallback
       const img2 = new Image();
       img2.onload = () => { imageElementCache[id] = img2; resolve(img2); };
       img2.onerror = reject;
-      img2.src = url;
+      img2.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
     };
     img.src = url;
   });
 }
 
-// ── Video Player Modal ──
+// ── Video Player Modal — properly centered ──
 function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [url] = useState(() => URL.createObjectURL(video.blob));
-  useEffect(() => { return () => URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
-    if (playing) { videoRef.current.pause(); setPlaying(false); }
-    else { videoRef.current.play(); setPlaying(true); }
-  };
-
-  const handleDownload = () => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = video.name.replace(/\.(webm|mp4)$/, '') + '.webm';
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    playing ? videoRef.current.pause() : videoRef.current.play();
+    setPlaying(!playing);
   };
 
   return (
-    // FIX: Use flex items-center justify-center with fixed inset-0 — was missing proper centering
     <div
-      className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
       onClick={onClose}
-      style={{ alignItems: 'center', justifyContent: 'center', display: 'flex' }}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.96)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '16px',
+      }}
     >
       <div
-        className="bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden w-full shadow-2xl"
-        style={{ maxWidth: '780px', margin: 'auto' }}
         onClick={e => e.stopPropagation()}
+        style={{
+          background: '#18181b', border: '1px solid #3f3f46',
+          borderRadius: '12px', overflow: 'hidden',
+          width: '100%', maxWidth: '780px',
+          boxShadow: '0 25px 50px rgba(0,0,0,0.8)',
+          margin: 'auto',
+        }}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
           <div className="flex items-center gap-2">
@@ -112,8 +111,14 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             <span className="text-zinc-500 text-xs">{formatDur(video.duration)} · {formatSize(video.size)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500 transition-all">
+            <button
+              onClick={() => {
+                const a = document.createElement('a');
+                a.href = url; a.download = video.name;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500 transition-all"
+            >
               <Download className="w-3.5 h-3.5" /> Download
             </button>
             <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800">
@@ -121,26 +126,26 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             </button>
           </div>
         </div>
-        <div className="relative bg-black">
-          <video ref={videoRef} src={url} className="w-full"
-            style={{ maxHeight: '60vh', display: 'block' }}
+        <div className="relative bg-black" style={{ lineHeight: 0 }}>
+          <video
+            ref={videoRef} src={url} onClick={togglePlay}
             onEnded={() => setPlaying(false)}
             onTimeUpdate={() => {
-              if (videoRef.current && videoRef.current.duration) {
+              if (videoRef.current?.duration)
                 setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100);
-              }
             }}
-            onClick={togglePlay}
-            style={{ cursor: 'pointer', maxHeight: '60vh', display: 'block', width: '100%' }}
+            style={{ width: '100%', maxHeight: '65vh', display: 'block', cursor: 'pointer', background: '#000' }}
           />
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-3">
-            <div className="w-full h-1 bg-zinc-700 rounded mb-2 cursor-pointer" onClick={e => {
-              if (!videoRef.current) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              const pct = (e.clientX - rect.left) / rect.width;
-              videoRef.current.currentTime = pct * videoRef.current.duration;
-            }}>
-              <div className="h-full bg-red-500 rounded" style={{ width: `${progress}%` }} />
+            <div
+              className="w-full h-1.5 bg-zinc-700 rounded mb-2 cursor-pointer"
+              onClick={e => {
+                if (!videoRef.current) return;
+                const r = e.currentTarget.getBoundingClientRect();
+                videoRef.current.currentTime = ((e.clientX - r.left) / r.width) * videoRef.current.duration;
+              }}
+            >
+              <div className="h-full bg-red-500 rounded transition-all" style={{ width: `${progress}%` }} />
             </div>
             <div className="flex items-center gap-3">
               <button onClick={togglePlay}
@@ -152,46 +157,6 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Recording Size Selector Modal ──
-function RecordingSizeModal({ onSelect, onCancel, ratioOptions }: {
-  onSelect: (width: number, height: number, label: string) => void;
-  onCancel: () => void;
-  ratioOptions: typeof ASPECT_RATIOS;
-}) {
-  return (
-    <div className="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-2 mb-4">
-          <Monitor className="w-5 h-5 text-red-400" />
-          <h3 className="text-white font-bold text-sm">Recording Size Select Karo</h3>
-        </div>
-        <p className="text-zinc-500 text-xs mb-4">Preview area automatically record hoga — sirf ye select karo ke output ka resolution kya ho.</p>
-        <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-          {ratioOptions.map(r => (
-            <button key={r.id} onClick={() => onSelect(r.width, r.height, r.label)}
-              className="flex items-center justify-between px-4 py-3 bg-zinc-800 hover:bg-red-900/30 border border-zinc-700 hover:border-red-700/50 rounded-lg transition-all text-left group">
-              <div>
-                <p className="text-white text-sm font-semibold group-hover:text-red-300">{r.label}</p>
-                <p className="text-zinc-500 text-xs">{r.width}×{r.height}</p>
-              </div>
-              <span className={`text-[9px] px-2 py-1 rounded border font-bold ${
-                r.tag === 'TikTok' ? 'bg-pink-500/15 border-pink-500/30 text-pink-400' :
-                r.tag === 'Twitch' ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' :
-                r.tag === 'OBS' || r.tag === 'OBS 4K' ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' :
-                'bg-zinc-700/50 border-zinc-700 text-zinc-400'
-              }`}>{r.tag}</span>
-            </button>
-          ))}
-        </div>
-        <button onClick={onCancel}
-          className="mt-3 w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700 transition-all">
-          Cancel
-        </button>
       </div>
     </div>
   );
@@ -215,15 +180,10 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
       <div className="absolute top-full left-0 mt-1 z-50 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-80 overflow-hidden">
         <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
           <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">Project Library</p>
-          <button onClick={onGoLibrary} className="text-[9px] text-red-400 hover:text-red-300 transition-colors">
-            Full Library →
-          </button>
+          <button onClick={onGoLibrary} className="text-[9px] text-red-400 hover:text-red-300">Full Library →</button>
         </div>
-
         <div className="max-h-[70vh] overflow-y-auto">
-          {projects.length === 0 && (
-            <p className="text-zinc-600 text-xs px-3 py-4 text-center">No projects yet</p>
-          )}
+          {projects.length === 0 && <p className="text-zinc-600 text-xs px-3 py-4 text-center">No projects yet</p>}
           {projects.map(p => {
             const videos = getProjectVideos(p.id);
             const isExpanded = expandedId === p.id;
@@ -232,13 +192,10 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
               <div key={p.id} className={`border-b border-zinc-800/50 ${isCurrent ? 'bg-red-900/10' : ''}`}>
                 <div className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/50 transition-colors">
                   <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-zinc-800 cursor-pointer" onClick={() => { onOpen(p); onClose(); }}>
-                    {p.thumbnail
-                      ? <img src={p.thumbnail} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><Skull className="w-5 h-5 text-zinc-600" /></div>
-                    }
+                    {p.thumbnail ? <img src={p.thumbnail} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Skull className="w-5 h-5 text-zinc-600" /></div>}
                   </div>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onOpen(p); onClose(); }}>
-                    <p className="text-white text-xs font-bold truncate hover:text-red-300 transition-colors">{p.name}</p>
+                    <p className="text-white text-xs font-bold truncate hover:text-red-300">{p.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className={`text-[8px] px-1 py-0.5 rounded ${p.status === 'finished' ? 'text-green-400 bg-green-900/20' : 'text-yellow-500 bg-yellow-900/20'}`}>
                         {p.status === 'finished' ? '✓ Done' : '● Draft'}
@@ -249,57 +206,36 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
                     </div>
                   </div>
                   {videos.length > 0 && (
-                    <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                      className="p-1 text-zinc-600 hover:text-zinc-300 transition-colors flex-shrink-0">
+                    <button onClick={() => setExpandedId(isExpanded ? null : p.id)} className="p-1 text-zinc-600 hover:text-zinc-300 flex-shrink-0">
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                   )}
                 </div>
-
                 {isExpanded && videos.length > 0 && (
                   <div className="px-3 pb-2 space-y-1.5">
                     {videos.map(v => (
                       <div key={v.id} className="bg-zinc-800/60 rounded-lg border border-zinc-700/30 overflow-hidden">
-                        {v.thumbnail ? (
-                          <div className="w-full h-16 bg-zinc-900 relative cursor-pointer" onClick={() => setPlayingVideo(v)}>
-                            <img src={v.thumbnail} alt="" className="w-full h-full object-cover opacity-60" />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-8 h-8 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600 transition-all">
-                                <Play className="w-4 h-4 text-white ml-0.5" />
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="w-full h-12 bg-zinc-900 flex items-center justify-center cursor-pointer" onClick={() => setPlayingVideo(v)}>
-                            <div className="w-8 h-8 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600 transition-all">
+                        <div className="w-full h-14 bg-zinc-900 relative cursor-pointer" onClick={() => setPlayingVideo(v)}>
+                          {v.thumbnail && <img src={v.thumbnail} alt="" className="w-full h-full object-cover opacity-60" />}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-8 h-8 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600">
                               <Play className="w-4 h-4 text-white ml-0.5" />
                             </div>
                           </div>
-                        )}
+                        </div>
                         <div className="flex items-center gap-2 p-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-[9px] text-zinc-400 truncate">{v.name}</p>
                             <p className="text-[8px] text-zinc-600">{formatDur(v.duration)} · {formatSize(v.size)}</p>
                           </div>
-                          <button onClick={() => setPlayingVideo(v)}
-                            className="flex items-center gap-1 px-1.5 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[8px] rounded transition-colors">
-                            <Play className="w-2 h-2" /> Play
-                          </button>
+                          <button onClick={() => setPlayingVideo(v)} className="flex items-center gap-1 px-1.5 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[8px] rounded"><Play className="w-2 h-2" /> Play</button>
                           <button onClick={() => {
                             const url = URL.createObjectURL(v.blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = v.name.replace(/\.(webm|mp4)$/, '') + '.webm';
-                            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                            const a = document.createElement('a'); a.href = url; a.download = v.name;
+                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
                             setTimeout(() => URL.revokeObjectURL(url), 5000);
-                          }}
-                            className="flex items-center gap-1 px-1.5 py-1 bg-red-700 hover:bg-red-600 text-white text-[8px] rounded transition-colors font-bold">
-                            <Download className="w-2 h-2" /> DL
-                          </button>
-                          <button onClick={() => removeProjectVideo(p.id, v.id)}
-                            className="p-1 text-zinc-600 hover:text-red-500 transition-colors">
-                            <Trash2 className="w-2.5 h-2.5" />
-                          </button>
+                          }} className="flex items-center gap-1 px-1.5 py-1 bg-red-700 hover:bg-red-600 text-white text-[8px] rounded font-bold"><Download className="w-2 h-2" /> DL</button>
+                          <button onClick={() => removeProjectVideo(p.id, v.id)} className="p-1 text-zinc-600 hover:text-red-500"><Trash2 className="w-2.5 h-2.5" /></button>
                         </div>
                       </div>
                     ))}
@@ -309,10 +245,8 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
             );
           })}
         </div>
-
         <div className="border-t border-zinc-800 p-2">
-          <button onClick={() => { onNew(); onClose(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 bg-red-700/30 hover:bg-red-700/50 text-red-300 text-xs font-bold rounded transition-all justify-center">
+          <button onClick={() => { onNew(); onClose(); }} className="w-full flex items-center gap-2 px-3 py-2 bg-red-700/30 hover:bg-red-700/50 text-red-300 text-xs font-bold rounded justify-center">
             <Plus className="w-3.5 h-3.5" /> New Project
           </button>
         </div>
@@ -331,14 +265,12 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
   const [projects, setProjects] = useState<HorrorProject[]>([]);
   const [newName, setNewName] = useState('');
   const [showInput, setShowInput] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
-  const [, forceUpdate] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => { setProjects(loadProjects()); }, []);
-  const refresh = () => { setProjects(loadProjects()); forceUpdate(n => n + 1); };
-  const handleNew = () => { const name = newName.trim() || `Project ${Date.now()}`; onNew(name); };
-  const handleDelete = (id: string, e: React.MouseEvent) => { e.stopPropagation(); deleteProject(id); refresh(); };
+  const refresh = () => setProjects(loadProjects());
+  const handleNew = () => { onNew(newName.trim() || `Project ${Date.now()}`); };
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col overflow-y-auto">
@@ -360,13 +292,11 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
             <span className="text-red-300 font-semibold text-xs">{username}</span>
           </div>
         </div>
-
         <div className="flex-1 px-4 md:px-8 py-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-6">
               {!showInput ? (
-                <button onClick={() => setShowInput(true)}
-                  className="flex items-center gap-2 px-5 py-3 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 transition-all w-full sm:w-auto justify-center">
+                <button onClick={() => setShowInput(true)} className="flex items-center gap-2 px-5 py-3 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 transition-all w-full sm:w-auto justify-center">
                   <Plus className="w-4 h-4" /> New Project
                 </button>
               ) : (
@@ -382,7 +312,6 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
                 </div>
               )}
             </div>
-
             {projects.length === 0 ? (
               <div className="text-center py-16">
                 <FolderOpen className="w-14 h-14 text-zinc-800 mx-auto mb-4" />
@@ -396,110 +325,50 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
                     const videos = getProjectVideos(p.id);
                     return (
                       <div key={p.id} className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all group relative">
-                        <div onClick={() => onOpen(p)} className="cursor-pointer p-4 active:scale-95">
+                        <div onClick={() => onOpen(p)} className="cursor-pointer p-4">
                           {p.thumbnail ? (
-                            <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800 rounded">
-                              <img src={p.thumbnail} alt="" className="w-full h-full object-cover" />
-                            </div>
+                            <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800 rounded"><img src={p.thumbnail} alt="" className="w-full h-full object-cover" /></div>
                           ) : (
-                            <div className="w-full h-28 bg-zinc-800/50 flex items-center justify-center mb-3 border border-zinc-700/30 rounded">
-                              <Skull className="w-10 h-10 text-zinc-700" />
-                            </div>
+                            <div className="w-full h-28 bg-zinc-800/50 flex items-center justify-center mb-3 border border-zinc-700/30 rounded"><Skull className="w-10 h-10 text-zinc-700" /></div>
                           )}
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-white font-bold text-sm truncate group-hover:text-red-300 transition-colors">{p.name}</h3>
+                              <h3 className="text-white font-bold text-sm truncate group-hover:text-red-300">{p.name}</h3>
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 {p.status === 'finished' ? (
-                                  <span className="flex items-center gap-1 text-[9px] text-green-400 border border-green-800/40 px-1.5 py-0.5 rounded">
-                                    <CheckCircle className="w-2.5 h-2.5" /> Finished
-                                  </span>
+                                  <span className="flex items-center gap-1 text-[9px] text-green-400 border border-green-800/40 px-1.5 py-0.5 rounded"><CheckCircle className="w-2.5 h-2.5" /> Finished</span>
                                 ) : (
-                                  <span className="flex items-center gap-1 text-[9px] text-yellow-500 border border-yellow-800/40 px-1.5 py-0.5 rounded">
-                                    <Clock className="w-2.5 h-2.5" /> Draft
-                                  </span>
+                                  <span className="flex items-center gap-1 text-[9px] text-yellow-500 border border-yellow-800/40 px-1.5 py-0.5 rounded"><Clock className="w-2.5 h-2.5" /> Draft</span>
                                 )}
                                 <span className="text-[9px] text-zinc-600">{new Date(p.updatedAt).toLocaleDateString()}</span>
                               </div>
-                              <p className="text-[10px] text-zinc-600 mt-1">{p.images.length} image{p.images.length !== 1 ? 's' : ''}</p>
                             </div>
-                            <button onClick={e => handleDelete(p.id, e)} className="text-zinc-700 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <button onClick={e => { e.stopPropagation(); deleteProject(p.id); refresh(); onDelete(p.id); }} className="text-zinc-700 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
-
-                        {p.images.length > 0 && (
-                          <div className="px-4 pb-2 flex gap-1 overflow-x-auto scrollbar-none">
-                            {p.images.slice(0, 5).map(img => {
-                              const imgUrl = imageBlobStore[img.id] || img.url;
-                              return imgUrl ? (
-                                <div key={img.id} className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800 border border-zinc-700/30">
-                                  <img src={imgUrl} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                </div>
-                              ) : null;
-                            })}
-                            {p.images.length > 5 && (
-                              <div className="w-8 h-8 rounded flex-shrink-0 bg-zinc-800 border border-zinc-700/30 flex items-center justify-center">
-                                <span className="text-[8px] text-zinc-500">+{p.images.length - 5}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
                         {videos.length > 0 && (
                           <div className="border-t border-zinc-800 px-4 py-2">
-                            <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === p.id ? null : p.id); }}
-                              className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-red-400 transition-colors w-full py-1">
-                              <Film className="w-3 h-3" />
-                              <span>{videos.length} video{videos.length !== 1 ? 's' : ''} recorded</span>
-                              <span className="ml-auto text-[8px]">{expandedId === p.id ? '▲ Hide' : '▼ Show'}</span>
+                            <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === p.id ? null : p.id); }} className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-red-400 w-full py-1">
+                              <Film className="w-3 h-3" /><span>{videos.length} video{videos.length !== 1 ? 's' : ''}</span><span className="ml-auto text-[8px]">{expandedId === p.id ? '▲' : '▼'}</span>
                             </button>
                             {expandedId === p.id && (
                               <div className="mt-2 space-y-2 pb-2">
                                 {videos.map(v => (
                                   <div key={v.id} className="bg-zinc-800/60 rounded-lg border border-zinc-700/30 overflow-hidden">
-                                    {v.thumbnail ? (
-                                      <div className="w-full h-20 bg-zinc-900 relative cursor-pointer" onClick={e => { e.stopPropagation(); setPlayingVideo(v); }}>
-                                        <img src={v.thumbnail} alt="" className="w-full h-full object-cover opacity-70" />
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <div className="w-10 h-10 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600 transition-all">
-                                            <Play className="w-5 h-5 text-white ml-0.5" />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="w-full h-16 bg-zinc-900 flex items-center justify-center cursor-pointer" onClick={e => { e.stopPropagation(); setPlayingVideo(v); }}>
-                                        <div className="w-10 h-10 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600 transition-all">
-                                          <Play className="w-5 h-5 text-white ml-0.5" />
-                                        </div>
-                                      </div>
-                                    )}
+                                    <div className="w-full h-20 bg-zinc-900 relative cursor-pointer" onClick={e => { e.stopPropagation(); setPlayingVideo(v); }}>
+                                      {v.thumbnail && <img src={v.thumbnail} alt="" className="w-full h-full object-cover opacity-70" />}
+                                      <div className="absolute inset-0 flex items-center justify-center"><div className="w-10 h-10 bg-red-700/90 rounded-full flex items-center justify-center"><Play className="w-5 h-5 text-white ml-0.5" /></div></div>
+                                    </div>
                                     <div className="flex items-center gap-2 p-2">
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-[10px] text-zinc-300 truncate font-medium">{v.name}</p>
-                                        <p className="text-[9px] text-zinc-600">{formatDur(v.duration)} · {formatSize(v.size)}</p>
-                                      </div>
-                                      <button onClick={e => { e.stopPropagation(); setPlayingVideo(v); }}
-                                        className="flex items-center gap-1 px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[9px] rounded transition-colors flex-shrink-0">
-                                        <Play className="w-2.5 h-2.5" /> Play
-                                      </button>
+                                      <div className="flex-1 min-w-0"><p className="text-[10px] text-zinc-300 truncate">{v.name}</p><p className="text-[9px] text-zinc-600">{formatDur(v.duration)} · {formatSize(v.size)}</p></div>
+                                      <button onClick={e => { e.stopPropagation(); setPlayingVideo(v); }} className="flex items-center gap-1 px-2 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[9px] rounded flex-shrink-0"><Play className="w-2.5 h-2.5" /> Play</button>
                                       <button onClick={e => {
                                         e.stopPropagation();
                                         const url = URL.createObjectURL(v.blob);
-                                        const link = document.createElement('a');
-                                        link.href = url;
-                                        link.download = v.name.replace(/\.(webm|mp4)$/, '') + '.webm';
-                                        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                                        const a = document.createElement('a'); a.href = url; a.download = v.name;
+                                        document.body.appendChild(a); a.click(); document.body.removeChild(a);
                                         setTimeout(() => URL.revokeObjectURL(url), 5000);
-                                      }}
-                                        className="flex items-center gap-1 px-2 py-1 bg-red-700 hover:bg-red-600 text-white text-[9px] rounded transition-colors flex-shrink-0 font-bold">
-                                        <Download className="w-2.5 h-2.5" /> DL
-                                      </button>
-                                      <button onClick={e => { e.stopPropagation(); removeProjectVideo(p.id, v.id); refresh(); }}
-                                        className="p-1 text-zinc-600 hover:text-red-500 transition-colors flex-shrink-0">
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
+                                      }} className="flex items-center gap-1 px-2 py-1 bg-red-700 hover:bg-red-600 text-white text-[9px] rounded flex-shrink-0 font-bold"><Download className="w-2.5 h-2.5" /> DL</button>
                                     </div>
                                   </div>
                                 ))}
@@ -520,6 +389,9 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
   );
 }
 
+// ─────────────────────────────────────────────
+// MAIN STUDIO
+// ─────────────────────────────────────────────
 export default function HorrorStudio() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [currentProject, setCurrentProject] = useState<HorrorProject | null>(null);
@@ -527,7 +399,6 @@ export default function HorrorStudio() {
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [showRecordingSizeModal, setShowRecordingSizeModal] = useState(false);
   const username = 'Creator';
 
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -550,26 +421,28 @@ export default function HorrorStudio() {
   const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
   const [, forceUpdate] = useState(0);
 
+  // The preview container div ref — we measure its exact pixel size for recording
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const chunks = useRef<Blob[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recordingStartTime = useRef<number>(0);
+  const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideshowIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const randomIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
   const projectDropdownRef = useRef<HTMLDivElement>(null);
-  const recordingResRef = useRef<{ width: number; height: number }>({ width: 1920, height: 1080 });
+  const rafHandleRef = useRef<number>(0);
 
-  // Keep live refs so the recording loop always has latest state
+  // Live refs for recording loop (always latest state, no stale closures)
   const imagesRef = useRef<UploadedImage[]>([]);
   const slideshowIdxRef = useRef(0);
   const randomVisibleRef = useRef<string[]>([]);
   const animModeRef = useRef<AnimationMode>('single');
   const selectedIdRef = useRef<string | null>(null);
   const greenScreenRef = useRef(false);
+  const frameCountRef = useRef(0);
 
   useEffect(() => { imagesRef.current = images; }, [images]);
   useEffect(() => { slideshowIdxRef.current = slideshowIdx; }, [slideshowIdx]);
@@ -585,9 +458,8 @@ export default function HorrorStudio() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node))
         setShowProjectDropdown(false);
-      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -620,36 +492,35 @@ export default function HorrorStudio() {
 
   useEffect(() => {
     if (!currentProject) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => doAutoSave(), 1500);
-    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => doAutoSave(), 1500);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [images, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume]);
 
   useEffect(() => {
-    if (slideshowInterval.current) clearInterval(slideshowInterval.current);
-    if (animMode === 'slideshow' && images.length > 1) {
-      slideshowInterval.current = setInterval(() => setSlideshowIdx(i => (i + 1) % images.length), 2500);
-    }
-    return () => { if (slideshowInterval.current) clearInterval(slideshowInterval.current); };
+    if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current);
+    if (animMode === 'slideshow' && images.length > 1)
+      slideshowIntervalRef.current = setInterval(() => setSlideshowIdx(i => (i + 1) % images.length), 2500);
+    return () => { if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current); };
   }, [animMode, images.length]);
 
   useEffect(() => {
-    if (randomInterval.current) clearInterval(randomInterval.current);
+    if (randomIntervalRef.current) clearInterval(randomIntervalRef.current);
     if (animMode === 'random-appear' && images.length > 0) {
-      randomInterval.current = setInterval(() => {
+      randomIntervalRef.current = setInterval(() => {
         const img = images[Math.floor(Math.random() * images.length)];
         setRandomVisible(v => v.includes(img.id) ? v.filter(x => x !== img.id) : [...v, img.id]);
       }, 800);
     }
-    return () => { if (randomInterval.current) clearInterval(randomInterval.current); };
+    return () => { if (randomIntervalRef.current) clearInterval(randomIntervalRef.current); };
   }, [animMode, images]);
 
   const getPreviewImages = useCallback((): UploadedImage[] => {
     if (images.length === 0) return [];
     switch (animMode) {
-      case 'single':        return selectedImage ? [selectedImage] : images.slice(0, 1);
-      case 'slideshow':     return [images[slideshowIdx % images.length]];
-      case 'all-visible':   return images;
+      case 'single': return selectedImage ? [selectedImage] : images.slice(0, 1);
+      case 'slideshow': return [images[slideshowIdx % images.length]];
+      case 'all-visible': return images;
       case 'random-appear': return images.filter(img => randomVisible.includes(img.id));
     }
   }, [images, animMode, selectedImage, slideshowIdx, randomVisible]);
@@ -664,7 +535,6 @@ export default function HorrorStudio() {
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
       imageBlobStore[id] = url;
-      // Pre-load into cache for recording
       loadImageElement(id, url).catch(() => {});
       newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
     });
@@ -715,23 +585,54 @@ export default function HorrorStudio() {
     });
   };
 
-  // ── FIXED RECORDING — Direct canvas 2D drawing (no html2canvas) ──
-  // This draws images directly onto canvas so it always captures real content.
-  const startRecording = useCallback(async (outWidth: number, outHeight: number) => {
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = outWidth;
-    recCanvas.height = outHeight;
-    const ctx = recCanvas.getContext('2d')!;
+  // ══════════════════════════════════════════════════
+  // CORE RECORDING ENGINE
+  // Strategy:
+  // 1. Measure the EXACT pixel rect of previewRef div on screen
+  // 2. Create output canvas at the SELECTED RESOLUTION (e.g. 1080x1920 for TikTok)
+  // 3. Draw images scaled/positioned to FILL that output canvas (cover mode)
+  // 4. Apply real-time animations in canvas math
+  // 5. Capture audio from Web Audio context if available
+  // ══════════════════════════════════════════════════
+  const startRecording = useCallback(async () => {
+    // Get target resolution from selected aspect ratio
+    const outWidth = ratio.width;
+    const outHeight = ratio.height;
 
-    // Pre-load all images into cache before starting
+    // Pre-load all images
     const allImgs = imagesRef.current;
     await Promise.allSettled(
       allImgs.map(img => loadImageElement(img.id, imageBlobStore[img.id] || img.url))
     );
 
-    const stream = recCanvas.captureStream(30);
+    // Create recording canvas at exact output resolution
+    const recCanvas = document.createElement('canvas');
+    recCanvas.width = outWidth;
+    recCanvas.height = outHeight;
+    const ctx = recCanvas.getContext('2d', { willReadFrequently: false })!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // ── Audio: Try to capture from Web Audio API ──
+    let audioStream: MediaStream | null = null;
+    try {
+      // Try to get system/mic audio
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch {
+      // No audio permission — record without audio (silent)
+      audioStream = null;
+    }
+
+    // ── Video stream from canvas ──
+    const videoStream = recCanvas.captureStream(30);
+    const combinedStream = new MediaStream([
+      ...videoStream.getVideoTracks(),
+      ...(audioStream ? audioStream.getAudioTracks() : []),
+    ]);
 
     const mimeTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
@@ -740,26 +641,29 @@ export default function HorrorStudio() {
 
     let recorder: MediaRecorder;
     try {
-      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+      recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 12_000_000 });
     } catch {
-      recorder = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 });
+      recorder = new MediaRecorder(combinedStream);
     }
 
-    chunks.current = [];
-    recordingStartTime.current = Date.now();
+    chunksRef.current = [];
+    recordingStartTimeRef.current = Date.now();
+    frameCountRef.current = 0;
 
     recorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) chunks.current.push(e.data);
+      if (e.data?.size > 0) chunksRef.current.push(e.data);
     };
 
     recorder.onstop = async () => {
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+      if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
+      cancelAnimationFrame(rafHandleRef.current);
+      if (audioStream) audioStream.getTracks().forEach(t => t.stop());
 
-      const blob = new Blob(chunks.current, { type: mimeType });
-      const durationSec = Math.round((Date.now() - recordingStartTime.current) / 1000);
+      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const durationSec = Math.round((Date.now() - recordingStartTimeRef.current) / 1000);
 
-      if (blob.size < 500) {
+      if (blob.size < 1000) {
         alert('Recording too short or failed. Please try again.');
         setRecording(false); setRecordingTime(0);
         return;
@@ -767,20 +671,21 @@ export default function HorrorStudio() {
 
       if (currentProject) {
         setSavingVideo(true);
-        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`;
 
         let thumbnail = '';
         try {
           const tempUrl = URL.createObjectURL(blob);
           const vid = document.createElement('video');
-          vid.src = tempUrl; vid.muted = true;
-          await new Promise<void>(res => { vid.onloadeddata = () => res(); vid.load(); });
-          vid.currentTime = 1;
-          await new Promise<void>(res => { vid.onseeked = () => res(); setTimeout(res, 1000); });
+          vid.src = tempUrl; vid.muted = true; vid.preload = 'metadata';
+          await new Promise<void>(res => { vid.onloadeddata = () => res(); vid.onerror = () => res(); vid.load(); });
+          vid.currentTime = Math.min(1, durationSec * 0.1);
+          await new Promise<void>(res => { vid.onseeked = () => res(); setTimeout(res, 1500); });
           const tc = document.createElement('canvas');
-          tc.width = 320; tc.height = 180;
-          tc.getContext('2d')!.drawImage(vid, 0, 0, 320, 180);
-          thumbnail = tc.toDataURL('image/jpeg', 0.7);
+          tc.width = 320; tc.height = Math.round(320 * outHeight / outWidth);
+          tc.getContext('2d')!.drawImage(vid, 0, 0, tc.width, tc.height);
+          thumbnail = tc.toDataURL('image/jpeg', 0.75);
           URL.revokeObjectURL(tempUrl);
         } catch {}
 
@@ -789,8 +694,8 @@ export default function HorrorStudio() {
           size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail,
         };
         addProjectVideo(currentProject.id, video);
-        setAutoSaveMsg(`✓ Video saved! (${formatSize(blob.size)})`);
-        setTimeout(() => setAutoSaveMsg(''), 6000);
+        setAutoSaveMsg(`✓ Video saved! ${outWidth}×${outHeight} · ${formatSize(blob.size)}`);
+        setTimeout(() => setAutoSaveMsg(''), 8000);
         setSavingVideo(false);
         forceUpdate(n => n + 1);
       }
@@ -798,169 +703,165 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    let rafHandle = 0;
-    let frameCount = 0;
-
-    // ── Core frame drawing function ──
+    // ── FRAME DRAWING LOOP ──
+    // This draws the scene at the OUTPUT resolution (e.g. 1080x1920),
+    // positioning images exactly as they appear in the preview,
+    // scaled proportionally to fill the output canvas.
     const drawFrame = () => {
-      frameCount++;
+      const fc = ++frameCountRef.current;
       const imgs = imagesRef.current;
       const mode = animModeRef.current;
       const selId = selectedIdRef.current;
       const ssIdx = slideshowIdxRef.current;
       const randVis = randomVisibleRef.current;
       const gs = greenScreenRef.current;
+      const t = fc / 30; // seconds elapsed at 30fps
 
       // Background
-      ctx.fillStyle = gs ? '#00ff00' : '#111111';
+      ctx.fillStyle = gs ? '#00ff00' : '#0a0a0a';
       ctx.fillRect(0, 0, outWidth, outHeight);
 
-      // Grid overlay (subtle)
+      // Subtle grid (matches preview CSS grid)
       if (!gs) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.025)';
         ctx.lineWidth = 0.5;
-        const gw = outWidth / 10;
-        const gh = outHeight / 10;
-        for (let gx = 0; gx <= outWidth; gx += gw) {
-          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, outHeight); ctx.stroke();
-        }
-        for (let gy = 0; gy <= outHeight; gy += gh) {
-          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(outWidth, gy); ctx.stroke();
-        }
+        for (let x = 0; x <= outWidth; x += outWidth / 10) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, outHeight); ctx.stroke(); }
+        for (let y = 0; y <= outHeight; y += outHeight / 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(outWidth, y); ctx.stroke(); }
         ctx.restore();
       }
 
-      // Determine which images to draw
+      // Which images to show this frame
       let drawList: UploadedImage[] = [];
       if (imgs.length > 0) {
         switch (mode) {
-          case 'single':
-            drawList = selId ? imgs.filter(i => i.id === selId) : imgs.slice(0, 1);
-            break;
-          case 'slideshow':
-            drawList = [imgs[ssIdx % imgs.length]];
-            break;
-          case 'all-visible':
-            drawList = imgs;
-            break;
-          case 'random-appear':
-            drawList = imgs.filter(i => randVis.includes(i.id));
-            break;
+          case 'single': drawList = selId ? imgs.filter(i => i.id === selId) : imgs.slice(0, 1); break;
+          case 'slideshow': drawList = [imgs[ssIdx % imgs.length]]; break;
+          case 'all-visible': drawList = imgs; break;
+          case 'random-appear': drawList = imgs.filter(i => randVis.includes(i.id)); break;
         }
       }
 
-      // Draw each image
+      // Draw each image with animations applied
       for (const img of drawList) {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
         ctx.save();
-        ctx.globalAlpha = img.opacity ?? 1;
 
-        // Position: percentage-based like the CSS preview
+        const anims = img.animations ?? (img.animation ? [img.animation] : []);
+
+        // Position: percentage → absolute pixels in output canvas
+        // img.position.x / 100 * outWidth = center X in output canvas
         const cx = (img.position.x / 100) * outWidth;
         const cy = (img.position.y / 100) * outHeight;
 
-        // Scale image to fit within ~40% of canvas dimension
-        const maxDim = Math.min(outWidth, outHeight) * 0.45;
-        const scale = img.scale ?? 1;
-        const scaleRatio = Math.min(maxDim / el.naturalWidth, maxDim / el.naturalHeight) * scale;
-        const dw = el.naturalWidth * scaleRatio;
-        const dh = el.naturalHeight * scaleRatio;
+        // Scale: fit image within canvas, respecting user scale slider
+        // Use "contain" logic relative to the output canvas
+        const userScale = img.scale ?? 1;
+        const naturalW = el.naturalWidth;
+        const naturalH = el.naturalHeight;
 
-        ctx.translate(cx, cy);
-        const rotRad = ((img.rotation ?? 0) * Math.PI) / 180;
-        ctx.rotate(rotRad);
+        // Base: fit within 50% of the shorter canvas dimension
+        const maxW = outWidth * 0.5;
+        const maxH = outHeight * 0.5;
+        const baseScale = Math.min(maxW / naturalW, maxH / naturalH);
+        let drawScale = baseScale * userScale;
 
-        // Simple animation effects based on CSS class names (approximated in canvas)
-        const anims = img.animations ?? (img.animation ? [img.animation] : []);
-        const t = frameCount / 30; // time in seconds at 30fps
-
-        let extraX = 0;
-        let extraY = 0;
-        let extraScale = 1;
-        let extraAlpha = 1;
+        // Animation modifiers
+        let offX = 0, offY = 0, animAlpha = 1, animRot = 0;
 
         for (const anim of anims) {
-          if (anim.includes('float') || anim.includes('bob')) {
-            extraY += Math.sin(t * 1.5) * (outHeight * 0.015);
+          const a = anim.toLowerCase();
+          if (a.includes('float') || a.includes('bob') || a.includes('hover')) {
+            offY += Math.sin(t * 1.8) * (outHeight * 0.012);
           }
-          if (anim.includes('shake') || anim.includes('tremor')) {
-            extraX += (Math.random() - 0.5) * (outWidth * 0.008);
-            extraY += (Math.random() - 0.5) * (outHeight * 0.008);
+          if (a.includes('shake') || a.includes('tremor') || a.includes('quake')) {
+            offX += (Math.random() - 0.5) * (outWidth * 0.01);
+            offY += (Math.random() - 0.5) * (outHeight * 0.008);
           }
-          if (anim.includes('pulse') || anim.includes('throb')) {
-            extraScale *= 1 + Math.sin(t * 3) * 0.05;
+          if (a.includes('pulse') || a.includes('throb') || a.includes('breathe')) {
+            drawScale *= 1 + Math.sin(t * Math.PI * 2) * 0.06;
           }
-          if (anim.includes('flicker') || anim.includes('glitch')) {
-            extraAlpha *= Math.random() > 0.1 ? 1 : 0.4;
+          if (a.includes('flicker') || a.includes('blink')) {
+            animAlpha *= (Math.random() > 0.08 ? 1 : 0.15);
           }
-          if (anim.includes('spin') || anim.includes('rotate')) {
-            ctx.rotate(t * 0.5);
+          if (a.includes('glitch')) {
+            offX += (Math.random() - 0.5) * (outWidth * 0.02);
+            if (Math.random() < 0.05) animAlpha *= 0;
           }
-          if (anim.includes('zoom')) {
-            extraScale *= 1 + Math.sin(t * 0.8) * 0.08;
+          if (a.includes('spin') || a.includes('rotate')) {
+            animRot += t * 0.8;
+          }
+          if (a.includes('sway') || a.includes('pendulum')) {
+            animRot += Math.sin(t * 1.2) * 0.15;
+          }
+          if (a.includes('zoom') || a.includes('breathe')) {
+            drawScale *= 1 + Math.sin(t * 0.7) * 0.08;
+          }
+          if (a.includes('drift')) {
+            offX += Math.sin(t * 0.5) * (outWidth * 0.02);
+          }
+          if (a.includes('jitter')) {
+            offX += (Math.random() - 0.5) * 6;
+            offY += (Math.random() - 0.5) * 6;
+          }
+          if (a.includes('rise') || a.includes('ascend')) {
+            offY -= (t * outHeight * 0.005) % outHeight;
           }
         }
 
-        ctx.globalAlpha *= extraAlpha;
-        ctx.scale(extraScale, extraScale);
-        ctx.drawImage(el, extraX - dw / 2, extraY - dh / 2, dw, dh);
+        const userRotRad = ((img.rotation ?? 0) * Math.PI) / 180;
+        const dw = naturalW * drawScale;
+        const dh = naturalH * drawScale;
+
+        ctx.translate(cx + offX, cy + offY);
+        ctx.rotate(userRotRad + animRot);
+        ctx.globalAlpha = (img.opacity ?? 1) * animAlpha;
+
+        ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
       }
 
-      // Vignette overlay
+      // Vignette
       if (!gs) {
-        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, outWidth * 0.25, outWidth / 2, outHeight / 2, outWidth * 0.75);
+        ctx.save();
+        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25, outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
         grad.addColorStop(1, 'rgba(0,0,0,0.65)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, outWidth, outHeight);
+        ctx.restore();
       }
 
-      rafHandle = requestAnimationFrame(drawFrame);
+      rafHandleRef.current = requestAnimationFrame(drawFrame);
     };
 
-    // Start drawing and recording
     drawFrame();
-    recorder.start(500); // collect data every 500ms
-    mediaRecorder.current = recorder;
+    recorder.start(250); // collect chunks every 250ms for smooth data
+    mediaRecorderRef.current = recorder;
     setRecording(true); setRecordingTime(0);
 
-    recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
-
-    // Auto stop after 5 minutes
-    autoStopTimer.current = setTimeout(() => {
+    recordingTimerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    autoStopTimerRef.current = setTimeout(() => {
       if (recorder.state === 'recording') recorder.stop();
-      cancelAnimationFrame(rafHandle);
+      cancelAnimationFrame(rafHandleRef.current);
     }, 5 * 60 * 1000);
 
-    // Store for cleanup
-    (recorder as any)._rafHandle = rafHandle;
-    (recorder as any)._cancelRaf = () => cancelAnimationFrame(rafHandle);
-
-  }, [currentProject]);
+  }, [currentProject, ratio]);
 
   const handleRecord = useCallback(() => {
     if (recording) {
-      if (mediaRecorder.current) {
-        (mediaRecorder.current as any)._cancelRaf?.();
-        if (mediaRecorder.current.state === 'recording') mediaRecorder.current.stop();
-      }
+      cancelAnimationFrame(rafHandleRef.current);
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-      if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+      if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
       setRecording(false); setRecordingTime(0);
       return;
     }
-    setShowRecordingSizeModal(true);
-  }, [recording]);
-
-  const handleRecordingSizeSelect = useCallback((width: number, height: number) => {
-    setShowRecordingSizeModal(false);
-    recordingResRef.current = { width, height };
-    startRecording(width, height);
-  }, [startRecording]);
+    // Start immediately — no size selector needed, we always use the selected aspect ratio resolution
+    startRecording();
+  }, [recording, startRecording]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -997,7 +898,6 @@ export default function HorrorStudio() {
     setMasterVolume(proj.masterVolume);
     const restored: UploadedImage[] = proj.images.map(img => {
       const url = imageBlobStore[img.id] || img.url;
-      // Pre-load for recording
       if (url) loadImageElement(img.id, url).catch(() => {});
       return { id: img.id, file: new File([], img.name), url, name: img.name, animation: img.animation, animations: img.animations ?? [], greenScreen: false, position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity };
     });
@@ -1012,23 +912,59 @@ export default function HorrorStudio() {
     tag === 'OBS' || tag === 'OBS 4K' ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' :
     'bg-zinc-700/50 border-zinc-700 text-zinc-500';
 
-  const PreviewCanvas = ({ isFullscreen = false }: { isFullscreen?: boolean }) => {
-    const size = isFullscreen
-      ? { width: isVertical ? '50vh' : '95vw', aspectRatio: `${ratio.width} / ${ratio.height}` }
-      : { width: '100%', aspectRatio: `${ratio.width} / ${ratio.height}`, maxWidth: isVertical ? '260px' : '100%' };
+  // ── Preview Canvas (CSS-rendered, matches recording layout) ──
+  const PreviewArea = ({ isFullscreen = false }: { isFullscreen?: boolean }) => {
+    const sizeStyle = isFullscreen
+      ? { width: isVertical ? '50vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }
+      : { width: '100%', aspectRatio: `${ratio.width} / ${ratio.height}`, maxWidth: isVertical ? '280px' : '100%' };
+
     return (
-      <div style={size} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
-        <div ref={isFullscreen ? undefined : previewRef}
-          className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}>
+      <div style={sizeStyle} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
+        {/* Recording indicator overlay */}
+        {recording && !isFullscreen && (
+          <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-full border border-red-500/50">
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <span className="text-red-300 text-[9px] font-bold">REC {formatTime(recordingTime)}</span>
+            <span className="text-zinc-500 text-[8px]">{ratio.width}×{ratio.height}</span>
+          </div>
+        )}
+        <div
+          ref={isFullscreen ? undefined : previewRef}
+          className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}
+        >
           {!greenScreen && (
-            <div className="absolute inset-0 pointer-events-none opacity-30"
-              style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
+            <div
+              className="absolute inset-0 pointer-events-none opacity-30"
+              style={{
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+                backgroundSize: '10% 10%',
+              }}
+            />
           )}
           {previewImages.map(img => (
-            <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-              style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
-              <img src={imageBlobStore[img.id] || img.url} alt={img.name} draggable={false} crossOrigin="anonymous"
-                style={{ maxWidth: isFullscreen ? '400px' : '180px', maxHeight: isFullscreen ? '400px' : '180px', objectFit: 'contain', display: 'block' }} />
+            <div
+              key={img.id}
+              className={`absolute ${getAnimClass(img)}`}
+              style={{
+                left: `${img.position.x}%`,
+                top: `${img.position.y}%`,
+                transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
+                opacity: img.opacity,
+                zIndex: 5,
+              }}
+            >
+              <img
+                src={imageBlobStore[img.id] || img.url}
+                alt={img.name}
+                draggable={false}
+                crossOrigin="anonymous"
+                style={{
+                  maxWidth: isFullscreen ? '450px' : '180px',
+                  maxHeight: isFullscreen ? '450px' : '180px',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+              />
             </div>
           ))}
           {previewImages.length === 0 && !isFullscreen && (
@@ -1039,8 +975,10 @@ export default function HorrorStudio() {
           )}
           <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
           {!greenScreen && (
-            <div className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }} />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)' }}
+            />
           )}
         </div>
       </div>
@@ -1061,15 +999,7 @@ export default function HorrorStudio() {
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
-      {/* FIX: Video player is now at root level with proper z-index and centering */}
       {playingVideo && <VideoPlayer video={playingVideo} onClose={() => setPlayingVideo(null)} />}
-      {showRecordingSizeModal && (
-        <RecordingSizeModal
-          ratioOptions={ASPECT_RATIOS}
-          onSelect={handleRecordingSizeSelect}
-          onCancel={() => setShowRecordingSizeModal(false)}
-        />
-      )}
       {showNewProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowNewProjectModal(false)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1079,15 +1009,14 @@ export default function HorrorStudio() {
               placeholder="Project name..."
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 text-white text-sm outline-none focus:border-red-500 rounded mb-3" />
             <div className="flex gap-2">
-              <button onClick={() => handleNewProject(newProjectName || `Project ${Date.now()}`)}
-                className="flex-1 px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm font-bold rounded border border-red-500 transition-all">Create</button>
-              <button onClick={() => setShowNewProjectModal(false)}
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700 transition-all">Cancel</button>
+              <button onClick={() => handleNewProject(newProjectName || `Project ${Date.now()}`)} className="flex-1 px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm font-bold rounded border border-red-500">Create</button>
+              <button onClick={() => setShowNewProjectModal(false)} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700">Cancel</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div ref={projectDropdownRef} className="relative">
@@ -1120,16 +1049,14 @@ export default function HorrorStudio() {
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-[10px] text-zinc-600 mr-2">
-            <span className="text-red-500/60">{images.length}</span> images ·
+            <span className="text-red-500/60">{images.length}</span> imgs ·
             <span className="text-red-500/60 ml-1">{activeSounds.length}</span> sounds ·
-            <span className="text-red-500/60 ml-1">{activeParticles.length}</span> particles
+            <span className="text-red-500/60 ml-1">{activeParticles.length}</span> fx
           </div>
-          <button onClick={() => doAutoSave('draft')}
-            className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] border border-zinc-700 transition-all">
+          <button onClick={() => doAutoSave('draft')} className="flex items-center gap-1 px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] border border-zinc-700 transition-all">
             <Save className="w-3 h-3" /> Save Draft
           </button>
-          <button onClick={() => doAutoSave('finished')}
-            className="flex items-center gap-1 px-2.5 py-1 bg-green-900/40 hover:bg-green-800/40 text-green-400 text-[10px] border border-green-800/40 transition-all">
+          <button onClick={() => doAutoSave('finished')} className="flex items-center gap-1 px-2.5 py-1 bg-green-900/40 hover:bg-green-800/40 text-green-400 text-[10px] border border-green-800/40 transition-all">
             <CheckCircle className="w-3 h-3" /> Finish
           </button>
           <div className="flex items-center gap-1 text-[10px] text-zinc-500 border border-zinc-800 px-2 py-1">
@@ -1140,14 +1067,18 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* Left panel */}
+        {/* LEFT PANEL */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
-          <div onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragover(true); }} onDragLeave={() => setDragover(false)}
+          <div
+            onDrop={handleDrop}
+            onDragOver={e => { e.preventDefault(); setDragover(true); }}
+            onDragLeave={() => setDragover(false)}
             onClick={() => fileInputRef.current?.click()}
-            className={`mx-3 mt-3 flex-shrink-0 rounded-lg border-2 border-dashed cursor-pointer transition-all p-3 flex flex-col items-center justify-center gap-1.5 ${dragover ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/20 hover:bg-zinc-800/40'}`}>
+            className={`mx-3 mt-3 flex-shrink-0 rounded-lg border-2 border-dashed cursor-pointer transition-all p-3 flex flex-col items-center justify-center gap-1.5 ${dragover ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/20 hover:bg-zinc-800/40'}`}
+          >
             <Upload className={`w-5 h-5 ${dragover ? 'text-red-400' : 'text-zinc-600'}`} />
-            <p className={`text-[10px] font-medium ${dragover ? 'text-red-300' : 'text-zinc-500'}`}>Drop images or click to upload</p>
-            <p className="text-[9px] text-zinc-700">PNG · JPG · WebP · bulk supported</p>
+            <p className={`text-[10px] font-medium ${dragover ? 'text-red-300' : 'text-zinc-500'}`}>Drop images or click</p>
+            <p className="text-[9px] text-zinc-700">PNG · JPG · WebP · bulk</p>
             <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={e => handleFiles(e.target.files)} className="hidden" />
           </div>
 
@@ -1155,18 +1086,17 @@ export default function HorrorStudio() {
             <div className="mx-3 my-2 space-y-1 overflow-y-auto flex-shrink-0" style={{ maxHeight: '130px' }}>
               {images.map(img => {
                 const activeAnims = img.animations ?? (img.animation ? [img.animation] : []);
-                const imgUrl = imageBlobStore[img.id] || img.url;
                 return (
                   <div key={img.id} onClick={() => setSelectedId(img.id)}
                     className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}>
                     <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800">
-                      <img src={imgUrl} alt={img.name} className="w-full h-full object-cover" />
+                      <img src={imageBlobStore[img.id] || img.url} alt={img.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-zinc-300 truncate">{img.name}</p>
                       {activeAnims.length > 0 && <p className="text-[9px] text-red-400">{activeAnims.length} anims</p>}
                     </div>
-                    <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 transition-colors flex-shrink-0">
+                    <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 flex-shrink-0">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -1197,36 +1127,43 @@ export default function HorrorStudio() {
           </div>
         </div>
 
-        {/* Center preview */}
+        {/* CENTER — Preview */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <span className="text-xs text-zinc-600">Preview</span>
               <span className="text-[10px] text-zinc-700 font-mono">{ratio.width}×{ratio.height}</span>
               <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${tagColor(ratio.tag)}`}>{ratio.tag}</span>
+              {recording && (
+                <span className="text-[9px] text-red-400 animate-pulse font-bold">● RECORDING → {ratio.width}×{ratio.height}</span>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={handleDownload}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] text-zinc-300 transition-colors border border-zinc-700">
+              <button onClick={handleDownload} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] text-zinc-300 border border-zinc-700">
                 <Download className="w-3 h-3" /> PNG
               </button>
               {currentProject && getProjectVideos(currentProject.id).length > 0 && (
-                <button onClick={() => setShowProjectDropdown(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-900/30 hover:bg-purple-900/50 text-[11px] text-purple-300 transition-colors border border-purple-800/40">
-                  <Film className="w-3 h-3" /> {getProjectVideos(currentProject.id).length} Video{getProjectVideos(currentProject.id).length > 1 ? 's' : ''}
+                <button onClick={() => setShowProjectDropdown(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-900/30 hover:bg-purple-900/50 text-[11px] text-purple-300 border border-purple-800/40">
+                  <Film className="w-3 h-3" /> {getProjectVideos(currentProject.id).length} Video{getProjectVideos(currentProject.id).length !== 1 ? 's' : ''}
                 </button>
               )}
-              <button onClick={handleRecord} disabled={savingVideo}
+              {/* RECORD BUTTON — shows current resolution */}
+              <button
+                onClick={handleRecord}
+                disabled={savingVideo}
+                title={recording ? 'Stop recording' : `Record at ${ratio.width}×${ratio.height} (${ratio.tag})`}
                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
-                  recording ? 'bg-red-500/20 border-red-500/40 text-red-300'
-                  : savingVideo ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait'
-                  : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'
-                }`}>
+                  recording
+                    ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                    : savingVideo
+                    ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait'
+                    : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'
+                }`}
+              >
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
-                {savingVideo ? 'Saving…' : recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
+                {savingVideo ? 'Saving…' : recording ? `Stop ${formatTime(recordingTime)}` : `Record ${ratio.width}×${ratio.height}`}
               </button>
-              <button onClick={() => setFullscreen(true)}
-                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700">
+              <button onClick={() => setFullscreen(true)} className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700">
                 <Maximize2 className="w-3 h-3" />
               </button>
             </div>
@@ -1234,7 +1171,7 @@ export default function HorrorStudio() {
 
           <div className="flex-1 flex flex-col items-center justify-center p-4 overflow-hidden">
             <div className="flex items-center justify-center w-full h-full">
-              <PreviewCanvas />
+              <PreviewArea />
             </div>
           </div>
 
@@ -1252,7 +1189,7 @@ export default function HorrorStudio() {
           )}
         </div>
 
-        {/* Right panel */}
+        {/* RIGHT PANEL */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel
@@ -1265,32 +1202,17 @@ export default function HorrorStudio() {
         </div>
       </div>
 
-      {/* Fullscreen preview */}
+      {/* Fullscreen */}
       {fullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center" onClick={() => setFullscreen(false)}>
           <button onClick={() => setFullscreen(false)} className="absolute top-4 right-4 z-50 text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-2 border border-zinc-700">
             <X className="w-5 h-5" />
           </button>
-          <div onClick={e => e.stopPropagation()} style={{ width: isVertical ? '40vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }}
-            className="relative overflow-hidden rounded-xl shadow-2xl border border-zinc-700">
-            <div className={`w-full h-full relative overflow-hidden ${greenScreen ? 'bg-[#00ff00]' : 'bg-zinc-950'}`}>
-              {previewImages.map(img => (
-                <div key={img.id} className={`absolute ${getAnimClass(img)}`}
-                  style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
-                  <img src={imageBlobStore[img.id] || img.url} alt="" draggable={false} crossOrigin="anonymous"
-                    style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
-                </div>
-              ))}
-              <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
-              {!greenScreen && (
-                <div className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.8) 100%)' }} />
-              )}
-            </div>
+          <div onClick={e => e.stopPropagation()} style={{ width: isVertical ? '40vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }}>
+            <PreviewArea isFullscreen />
           </div>
         </div>
       )}
     </div>
   );
 }
-
