@@ -18,7 +18,6 @@ import {
 
 let imageCounter = 0;
 
-// ── Types ──
 interface ProjectVideo {
   id: string;
   name: string;
@@ -28,7 +27,6 @@ interface ProjectVideo {
   createdAt: number;
 }
 
-// ── Helpers ──
 function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -37,12 +35,8 @@ function formatDur(s: number) {
   return `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 }
 
-// ── Video storage (sessionStorage — blob URLs) ──
 const videoStore: Record<string, ProjectVideo[]> = {};
-
-function getProjectVideos(projectId: string): ProjectVideo[] {
-  return videoStore[projectId] ?? [];
-}
+function getProjectVideos(projectId: string): ProjectVideo[] { return videoStore[projectId] ?? []; }
 function addProjectVideo(projectId: string, video: ProjectVideo) {
   if (!videoStore[projectId]) videoStore[projectId] = [];
   videoStore[projectId].unshift(video);
@@ -52,10 +46,7 @@ function removeProjectVideo(projectId: string, videoId: string) {
   videoStore[projectId] = videoStore[projectId].filter(v => v.id !== videoId);
 }
 
-// ── Project Dashboard ──
-function ProjectDashboard({
-  username, onNew, onOpen, onDelete,
-}: {
+function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
   username: string;
   onNew: (name: string) => void;
   onOpen: (p: HorrorProject) => void;
@@ -68,56 +59,34 @@ function ProjectDashboard({
   const [, forceUpdate] = useState(0);
 
   useEffect(() => { setProjects(loadProjects()); }, []);
-
   const refresh = () => { setProjects(loadProjects()); forceUpdate(n => n + 1); };
 
-  const handleNew = () => {
-    const name = newName.trim() || `Project ${Date.now()}`;
-    onNew(name);
-  };
+  const handleNew = () => { const name = newName.trim() || `Project ${Date.now()}`; onNew(name); };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    deleteProject(id);
-    refresh();
+    e.stopPropagation(); deleteProject(id); refresh();
   };
-
   const handleDownloadVideo = (v: ProjectVideo, e: React.MouseEvent) => {
     e.stopPropagation();
     const link = document.createElement('a');
-    link.href = v.url;
-    link.download = v.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.href = v.url; link.download = v.name;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
-
   const handleDeleteVideo = (projId: string, videoId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    removeProjectVideo(projId, videoId);
-    refresh();
+    e.stopPropagation(); removeProjectVideo(projId, videoId); refresh();
   };
-
-  const tagColor = (tag: string) =>
-    tag === 'TikTok' ? 'bg-pink-500/15 border-pink-500/30 text-pink-400' :
-    tag === 'Twitch' ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' :
-    tag === 'OBS' || tag === 'OBS 4K' ? 'bg-blue-500/15 border-blue-500/30 text-blue-400' :
-    'bg-zinc-700/50 border-zinc-700 text-zinc-500';
 
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col overflow-y-auto">
       <AppBackground />
       <div className="relative z-10 flex flex-col min-h-full">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-red-900/30 bg-zinc-900/80 sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-red-700 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/60">
               <Skull className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-sm font-bold tracking-wider text-white" style={{ fontFamily: 'Georgia, serif' }}>
-                Horror Animation Studio
-              </h1>
+              <h1 className="text-sm font-bold tracking-wider text-white" style={{ fontFamily: 'Georgia, serif' }}>Horror Animation Studio</h1>
               <p className="text-[9px] text-zinc-500 tracking-widest uppercase">Project Library</p>
             </div>
           </div>
@@ -129,7 +98,6 @@ function ProjectDashboard({
 
         <div className="flex-1 px-4 md:px-8 py-6">
           <div className="max-w-4xl mx-auto">
-            {/* New Project Button */}
             <div className="mb-6">
               {!showInput ? (
                 <button onClick={() => setShowInput(true)}
@@ -163,7 +131,6 @@ function ProjectDashboard({
                     const videos = getProjectVideos(p.id);
                     return (
                       <div key={p.id} className="border border-zinc-800 bg-zinc-900/50 hover:border-red-700/50 transition-all group relative">
-                        {/* Card — click to open */}
                         <div onClick={() => onOpen(p)} className="cursor-pointer p-4 active:scale-95">
                           {p.thumbnail ? (
                             <div className="w-full h-28 overflow-hidden mb-3 bg-zinc-800">
@@ -191,24 +158,20 @@ function ProjectDashboard({
                               </div>
                               <p className="text-[10px] text-zinc-600 mt-1">{p.images.length} image{p.images.length !== 1 ? 's' : ''}</p>
                             </div>
-                            <button onClick={e => handleDelete(p.id, e)}
-                              className="text-zinc-700 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100">
+                            <button onClick={e => handleDelete(p.id, e)} className="text-zinc-700 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
 
-                        {/* Videos Section */}
                         {videos.length > 0 && (
                           <div className="border-t border-zinc-800 px-4 py-2">
-                            <button
-                              onClick={e => { e.stopPropagation(); setExpandedId(expandedId === p.id ? null : p.id); }}
+                            <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === p.id ? null : p.id); }}
                               className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-red-400 transition-colors w-full py-1">
                               <Film className="w-3 h-3" />
                               <span>{videos.length} video{videos.length !== 1 ? 's' : ''} recorded</span>
                               <span className="ml-auto text-[8px]">{expandedId === p.id ? '▲ Hide' : '▼ Show'}</span>
                             </button>
-
                             {expandedId === p.id && (
                               <div className="mt-2 space-y-2 pb-2">
                                 {videos.map(v => (
@@ -220,8 +183,7 @@ function ProjectDashboard({
                                       <p className="text-[10px] text-zinc-300 truncate font-medium">{v.name}</p>
                                       <p className="text-[9px] text-zinc-600">{formatDur(v.duration)} · {formatSize(v.size)}</p>
                                     </div>
-                                    <button
-                                      onClick={e => handleDownloadVideo(v, e)}
+                                    <button onClick={e => handleDownloadVideo(v, e)}
                                       className="flex items-center gap-1 px-2 py-1 bg-red-700 hover:bg-red-600 text-white text-[9px] rounded transition-colors flex-shrink-0 font-bold">
                                       <Download className="w-2.5 h-2.5" /> Save
                                     </button>
@@ -248,7 +210,6 @@ function ProjectDashboard({
   );
 }
 
-// ── Main Studio ──
 export default function HorrorStudio() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [currentProject, setCurrentProject] = useState<HorrorProject | null>(null);
@@ -273,20 +234,19 @@ export default function HorrorStudio() {
   const [mobilePanel, setMobilePanel] = useState<'none' | 'tools' | 'settings'>('none');
   const [isMobile, setIsMobile] = useState(false);
   const [savingVideo, setSavingVideo] = useState(false);
+  const [recordingTip, setRecordingTip] = useState(false);
   const [, forceUpdate] = useState(0);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
-  const rafId = useRef<number>(0);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideshowInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const randomInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const recordingStartTime = useRef<number>(0);
-  const previewImagesRef = useRef<UploadedImage[]>([]);
   const loadedImgsRef = useRef<Map<string, HTMLImageElement>>(new Map());
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
@@ -297,25 +257,20 @@ export default function HorrorStudio() {
     check();
     window.addEventListener('resize', check);
     window.addEventListener('orientationchange', () => setTimeout(check, 100));
-    return () => {
-      window.removeEventListener('resize', check);
-      window.removeEventListener('orientationchange', check);
-    };
+    return () => { window.removeEventListener('resize', check); window.removeEventListener('orientationchange', check); };
   }, []);
 
   const doAutoSave = useCallback((status?: 'draft' | 'finished') => {
     if (!currentProject) return;
     const updated: HorrorProject = {
-      ...currentProject,
-      updatedAt: Date.now(),
+      ...currentProject, updatedAt: Date.now(),
       status: status ?? currentProject.status,
       aspectRatio, greenScreen, animMode,
       activeParticles, activeSounds, masterVolume,
       images: images.map(img => ({
         id: img.id, url: img.url, name: img.name,
         animation: img.animation, animations: img.animations ?? [],
-        position: img.position, scale: img.scale,
-        rotation: img.rotation, opacity: img.opacity,
+        position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity,
       })),
     };
     saveProject(updated);
@@ -362,12 +317,6 @@ export default function HorrorStudio() {
 
   const previewImages = getPreviewImages();
 
-  // Keep ref in sync for recording loop
-  useEffect(() => {
-    previewImagesRef.current = previewImages;
-  }, [previewImages]);
-
-  // Preload images into cache whenever previewImages changes
   useEffect(() => {
     previewImages.forEach(img => {
       if (!loadedImgsRef.current.has(img.id)) {
@@ -386,13 +335,7 @@ export default function HorrorStudio() {
       if (!file.type.startsWith('image/')) return;
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
-      newImages.push({
-        id, file, url, name: file.name,
-        animation: null, animations: [],
-        greenScreen: false,
-        position: { x: 50, y: 50 },
-        scale: 1, rotation: 0, opacity: 1,
-      });
+      newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
     });
     setImages(prev => {
       const next = [...prev, ...newImages];
@@ -424,221 +367,153 @@ export default function HorrorStudio() {
     updateImage(selectedId, { animations: updated });
   };
 
-  const clearAllAnimations = () => {
-    if (selectedId) updateImage(selectedId, { animations: [], animation: null });
-  };
-
-  const toggleSound = (id: string) =>
-    setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-
-  const toggleParticle = (id: string) =>
-    setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const clearAllAnimations = () => { if (selectedId) updateImage(selectedId, { animations: [], animation: null }); };
+  const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleParticle = (id: string) => setActiveParticles(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const handleDownload = () => {
     if (!previewRef.current) return;
-    // Screenshot using canvas — draw all images directly
-    const W = ratio.width;
-    const H = ratio.height;
+    const W = ratio.width; const H = ratio.height;
     const snap = document.createElement('canvas');
-    snap.width = W;
-    snap.height = H;
+    snap.width = W; snap.height = H;
     const ctx = snap.getContext('2d')!;
     const containerW = previewRef.current.offsetWidth || 640;
     const containerH = previewRef.current.offsetHeight || 360;
-
     ctx.fillStyle = greenScreen ? '#00ff00' : '#000000';
     ctx.fillRect(0, 0, W, H);
-
     previewImages.forEach(img => {
       const el = loadedImgsRef.current.get(img.id);
       if (!el) return;
-      const scaleRatio = Math.min(W / containerW, H / containerH);
+      const sr = Math.min(W / containerW, H / containerH);
       const cx = (img.position.x / 100) * W;
       const cy = (img.position.y / 100) * H;
-      const dW = el.naturalWidth * img.scale * scaleRatio;
-      const dH = el.naturalHeight * img.scale * scaleRatio;
-      ctx.save();
-      ctx.globalAlpha = img.opacity;
-      ctx.translate(cx, cy);
-      ctx.rotate((img.rotation * Math.PI) / 180);
-      ctx.drawImage(el, -dW / 2, -dH / 2, dW, dH);
-      ctx.restore();
+      const dW = el.naturalWidth * img.scale * sr;
+      const dH = el.naturalHeight * img.scale * sr;
+      ctx.save(); ctx.globalAlpha = img.opacity;
+      ctx.translate(cx, cy); ctx.rotate((img.rotation * Math.PI) / 180);
+      ctx.drawImage(el, -dW / 2, -dH / 2, dW, dH); ctx.restore();
     });
-
     if (!greenScreen) {
-      const grad = ctx.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.75);
-      grad.addColorStop(0, 'rgba(0,0,0,0)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.75)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, W, H);
+      const grad = ctx.createRadialGradient(W/2, H/2, W*0.25, W/2, H/2, W*0.75);
+      grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.75)');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
     }
-
     const link = document.createElement('a');
     link.download = `${currentProject?.name ?? 'horror-overlay'}.png`;
-    link.href = snap.toDataURL('image/png');
-    link.click();
+    link.href = snap.toDataURL('image/png'); link.click();
   };
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
-      mediaRecorder.current.stop();
-    }
-    cancelAnimationFrame(rafId.current);
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
-    setRecording(false);
-    setRecordingTime(0);
-  }, []);
-
-  const handleRecord = useCallback(() => {
+  // ── NATIVE SCREEN CAPTURE RECORDING ──
+  const handleRecord = useCallback(async () => {
     if (recording) {
-      stopRecording();
-      return;
-    }
-    if (!previewRef.current) return;
-
-    const W = ratio.width;
-    const H = ratio.height;
-
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = W;
-    recCanvas.height = H;
-    const ctx = recCanvas.getContext('2d')!;
-
-    const stream = recCanvas.captureStream(30);
-
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
-      ? 'video/webm;codecs=vp8'
-      : 'video/webm';
-
-    let recorder: MediaRecorder;
-    try {
-      recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
-    } catch {
-      try { recorder = new MediaRecorder(stream, { videoBitsPerSecond: 8_000_000 }); }
-      catch { recorder = new MediaRecorder(stream); }
-    }
-
-    chunks.current = [];
-    recordingStartTime.current = Date.now();
-
-    recorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) chunks.current.push(e.data);
-    };
-
-    recorder.onstop = async () => {
-      cancelAnimationFrame(rafId.current);
+      mediaRecorder.current?.stop();
+      setRecording(false);
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+      return;
+    }
 
-      const blob = new Blob(chunks.current, { type: mimeType });
-      const durationSec = Math.round((Date.now() - recordingStartTime.current) / 1000);
-
-      if (blob.size < 500) {
-        alert('Recording failed — no data captured. Please try again.');
-        setRecording(false);
-        setRecordingTime(0);
-        return;
-      }
-
-      // Save to project library
-      if (currentProject) {
-        setSavingVideo(true);
-        const videoUrl = URL.createObjectURL(blob);
-        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-        const video: ProjectVideo = {
-          id: generateId(),
-          name: videoName,
-          url: videoUrl,
-          size: blob.size,
-          duration: durationSec,
-          createdAt: Date.now(),
-        };
-        addProjectVideo(currentProject.id, video);
-        setAutoSaveMsg('✓ Video saved to project library!');
-        setTimeout(() => setAutoSaveMsg(''), 4000);
-        setSavingVideo(false);
-        forceUpdate(n => n + 1);
-      }
-
-      setRecording(false);
-      setRecordingTime(0);
-    };
-
-    // ── Draw loop — no html2canvas, pure canvas ──
-    const drawFrame = () => {
-      const containerW = previewRef.current?.offsetWidth || 640;
-      const containerH = previewRef.current?.offsetHeight || 360;
-
-      // Background
-      ctx.fillStyle = greenScreen ? '#00ff00' : '#000000';
-      ctx.fillRect(0, 0, W, H);
-
-      // Subtle grid
-      if (!greenScreen) {
-        ctx.save();
-        ctx.globalAlpha = 0.03;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 0.5;
-        for (let x = 0; x <= W; x += W / 10) {
-          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-        }
-        for (let y = 0; y <= H; y += H / 10) {
-          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      // Draw images from preloaded cache
-      previewImagesRef.current.forEach(img => {
-        const el = loadedImgsRef.current.get(img.id);
-        if (!el || !el.complete || el.naturalWidth === 0) return;
-
-        const scaleRatio = Math.min(W / containerW, H / containerH);
-        const cx = (img.position.x / 100) * W;
-        const cy = (img.position.y / 100) * H;
-        const dW = el.naturalWidth * img.scale * scaleRatio;
-        const dH = el.naturalHeight * img.scale * scaleRatio;
-
-        ctx.save();
-        ctx.globalAlpha = img.opacity;
-        ctx.translate(cx, cy);
-        ctx.rotate((img.rotation * Math.PI) / 180);
-        ctx.drawImage(el, -dW / 2, -dH / 2, dW, dH);
-        ctx.restore();
+    try {
+      // Native screen capture — perfect quality, all CSS animations, with audio
+      const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
+        video: {
+          frameRate: { ideal: 30 },
+          width: { ideal: ratio.width },
+          height: { ideal: ratio.height },
+        },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          sampleRate: 44100,
+        },
+        preferCurrentTab: true,
       });
 
-      // Vignette
-      if (!greenScreen) {
-        const grad = ctx.createRadialGradient(W / 2, H / 2, W * 0.25, W / 2, H / 2, W * 0.75);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.75)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
+      const mimeTypes = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp9',
+        'video/webm',
+      ];
+      const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
+
+      const recorder = new MediaRecorder(displayStream, {
+        mimeType,
+        videoBitsPerSecond: 12_000_000,
+      });
+
+      chunks.current = [];
+      recordingStartTime.current = Date.now();
+
+      recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.current.push(e.data); };
+
+      recorder.onstop = async () => {
+        displayStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+
+        const blob = new Blob(chunks.current, { type: mimeType });
+        const durationSec = Math.round((Date.now() - recordingStartTime.current) / 1000);
+
+        if (blob.size < 500) {
+          alert('Recording failed — no data. Please try again and select "This Tab".');
+          setRecording(false);
+          setRecordingTime(0);
+          return;
+        }
+
+        if (currentProject) {
+          setSavingVideo(true);
+          const videoUrl = URL.createObjectURL(blob);
+          const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
+          const videoName = `${currentProject.name}-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.${ext}`;
+          const video: ProjectVideo = {
+            id: generateId(), name: videoName, url: videoUrl,
+            size: blob.size, duration: durationSec, createdAt: Date.now(),
+          };
+          addProjectVideo(currentProject.id, video);
+          setAutoSaveMsg('✓ Video saved to project library!');
+          setTimeout(() => setAutoSaveMsg(''), 4000);
+          setSavingVideo(false);
+          forceUpdate(n => n + 1);
+        }
+
+        setRecording(false);
+        setRecordingTime(0);
+        setRecordingTip(false);
+      };
+
+      // If user stops from browser UI
+      displayStream.getVideoTracks()[0].onended = () => {
+        if (recorder.state === 'recording') recorder.stop();
+        setRecording(false);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        if (autoStopTimer.current) clearTimeout(autoStopTimer.current);
+        setRecordingTip(false);
+      };
+
+      recorder.start(500);
+      mediaRecorder.current = recorder;
+      setRecording(true);
+      setRecordingTime(0);
+      setRecordingTip(true);
+
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+
+      // 5 min auto stop
+      autoStopTimer.current = setTimeout(() => {
+        if (recorder.state === 'recording') recorder.stop();
+      }, 5 * 60 * 1000);
+
+    } catch (err: any) {
+      if (err.name !== 'NotAllowedError') {
+        console.error('Recording error:', err);
       }
-
-      rafId.current = requestAnimationFrame(drawFrame);
-    };
-
-    drawFrame();
-    recorder.start(200);
-    mediaRecorder.current = recorder;
-    setRecording(true);
-    setRecordingTime(0);
-
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingTime(t => t + 1);
-    }, 1000);
-
-    autoStopTimer.current = setTimeout(() => {
-      if (mediaRecorder.current?.state === 'recording') {
-        mediaRecorder.current.stop();
-      }
-    }, 5 * 60 * 1000);
-
-  }, [recording, stopRecording, ratio, greenScreen, currentProject]);
+      setRecording(false);
+      setRecordingTip(false);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    }
+  }, [recording, ratio, currentProject]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
@@ -661,22 +536,17 @@ export default function HorrorStudio() {
       aspectRatio: '16:9-1080', greenScreen: false, animMode: 'single',
       activeParticles: [], activeSounds: [], masterVolume: 0.35, images: [],
     };
-    saveProject(proj);
-    setCurrentProject(proj);
-    setImages([]); setSelectedId(null);
-    setAspectRatio('16:9-1080'); setGreenScreen(false);
-    setAnimMode('single'); setActiveParticles([]);
-    setActiveSounds([]); setMasterVolume(0.35);
+    saveProject(proj); setCurrentProject(proj);
+    setImages([]); setSelectedId(null); setAspectRatio('16:9-1080');
+    setGreenScreen(false); setAnimMode('single');
+    setActiveParticles([]); setActiveSounds([]); setMasterVolume(0.35);
     setShowDashboard(false);
   };
 
   const handleOpenProject = (proj: HorrorProject) => {
-    setCurrentProject(proj);
-    setAspectRatio(proj.aspectRatio);
-    setGreenScreen(proj.greenScreen);
-    setAnimMode(proj.animMode as AnimationMode);
-    setActiveParticles(proj.activeParticles);
-    setActiveSounds(proj.activeSounds);
+    setCurrentProject(proj); setAspectRatio(proj.aspectRatio);
+    setGreenScreen(proj.greenScreen); setAnimMode(proj.animMode as AnimationMode);
+    setActiveParticles(proj.activeParticles); setActiveSounds(proj.activeSounds);
     setMasterVolume(proj.masterVolume);
     const restored: UploadedImage[] = proj.images.map(img => ({
       id: img.id, file: new File([], img.name), url: img.url, name: img.name,
@@ -710,12 +580,8 @@ export default function HorrorStudio() {
           {previewImages.map(img => (
             <div key={img.id} className={`absolute ${getAnimClass(img)}`}
               style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%, -50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
-              <img
-                data-imgid={img.id}
-                src={img.url} alt={img.name} draggable={false}
-                crossOrigin="anonymous"
-                style={{ maxWidth: isFullscreen ? '400px' : '180px', maxHeight: isFullscreen ? '400px' : '180px', objectFit: 'contain', display: 'block' }}
-              />
+              <img src={img.url} alt={img.name} draggable={false} crossOrigin="anonymous"
+                style={{ maxWidth: isFullscreen ? '400px' : '180px', maxHeight: isFullscreen ? '400px' : '180px', objectFit: 'contain', display: 'block' }} />
             </div>
           ))}
           {previewImages.length === 0 && !isFullscreen && (
@@ -750,6 +616,7 @@ export default function HorrorStudio() {
     return (
       <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 overflow-hidden">
         <AppBackground />
+
         <header className="relative z-20 flex items-center justify-between px-3 py-2 bg-zinc-900/95 border-b border-red-900/30 flex-shrink-0">
           <button onClick={() => setShowDashboard(true)} className="flex items-center gap-2">
             <div className="w-7 h-7 bg-red-700 rounded-lg flex items-center justify-center">
@@ -824,9 +691,18 @@ export default function HorrorStudio() {
               </button>
             </div>
           </div>
+
+          {/* Recording tip */}
+          {recordingTip && (
+            <div className="w-full mb-2 bg-red-900/80 border border-red-500/40 text-white text-[9px] px-3 py-1.5 rounded-lg text-center">
+              🔴 Browser popup mein <strong>"This Tab"</strong> select karo → Share dabao
+            </div>
+          )}
+
           <div className="flex items-center justify-center w-full flex-1">
             <PreviewCanvas />
           </div>
+
           {images.length > 1 && animMode === 'single' && (
             <div className="flex items-center justify-center gap-2 mt-2">
               <button onClick={goLeft} disabled={selectedIdx === 0} className="p-1 rounded bg-zinc-800 text-zinc-400 disabled:opacity-30">
@@ -910,7 +786,7 @@ export default function HorrorStudio() {
                 {previewImages.map(img => (
                   <div key={img.id} className={`absolute ${getAnimClass(img)}`}
                     style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
-                    <img data-imgid={img.id} src={img.url} alt="" draggable={false} crossOrigin="anonymous"
+                    <img src={img.url} alt="" draggable={false} crossOrigin="anonymous"
                       style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} />
                   </div>
                 ))}
@@ -927,6 +803,7 @@ export default function HorrorStudio() {
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
+
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={() => setShowDashboard(true)}
@@ -965,7 +842,7 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
-        {/* Left Panel */}
+        {/* LEFT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
           <div onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragover(true); }} onDragLeave={() => setDragover(false)}
             onClick={() => fileInputRef.current?.click()}
@@ -1022,7 +899,7 @@ export default function HorrorStudio() {
           </div>
         </div>
 
-        {/* Center */}
+        {/* CENTER */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -1030,26 +907,33 @@ export default function HorrorStudio() {
               <span className="text-[10px] text-zinc-700 font-mono">{ratio.width}×{ratio.height}</span>
               <span className={`text-[9px] px-1.5 py-0.5 rounded border font-semibold ${tagColor(ratio.tag)}`}>{ratio.tag}</span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 relative">
               <button onClick={handleDownload}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-[11px] text-zinc-300 transition-colors border border-zinc-700">
                 <Download className="w-3 h-3" /> PNG
               </button>
               <button onClick={handleRecord} disabled={savingVideo}
                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
-                  recording
-                    ? 'bg-red-500/20 border-red-500/40 text-red-300'
-                    : savingVideo
-                    ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait'
-                    : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'
+                  recording ? 'bg-red-500/20 border-red-500/40 text-red-300'
+                  : savingVideo ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait'
+                  : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'
                 }`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
-                {savingVideo ? 'Saving to library…' : recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
+                {savingVideo ? 'Saving…' : recording ? `Stop ${formatTime(recordingTime)}` : 'Record'}
               </button>
               <button onClick={() => setFullscreen(true)}
                 className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700">
                 <Maximize2 className="w-3 h-3" />
               </button>
+
+              {/* Recording tip popup */}
+              {recordingTip && (
+                <div className="absolute top-10 right-0 z-50 bg-red-900/95 border border-red-500/50 text-white text-[10px] px-3 py-2 rounded-lg w-52 text-center shadow-xl">
+                  🔴 Browser popup mein <strong>"This Tab"</strong> select karo
+                  <br/>
+                  <span className="text-red-300 text-[9px]">Phir Share dabao — sab record hoga!</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1077,7 +961,7 @@ export default function HorrorStudio() {
           )}
         </div>
 
-        {/* Right Panel */}
+        {/* RIGHT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel
@@ -1102,7 +986,7 @@ export default function HorrorStudio() {
               {previewImages.map(img => (
                 <div key={img.id} className={`absolute ${getAnimClass(img)}`}
                   style={{ left: `${img.position.x}%`, top: `${img.position.y}%`, transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`, opacity: img.opacity, zIndex: 5 }}>
-                  <img data-imgid={img.id} src={img.url} alt="" draggable={false} crossOrigin="anonymous"
+                  <img src={img.url} alt="" draggable={false} crossOrigin="anonymous"
                     style={{ maxWidth: '500px', maxHeight: '500px', objectFit: 'contain' }} />
                 </div>
               ))}
@@ -1118,4 +1002,3 @@ export default function HorrorStudio() {
     </div>
   );
 }
-
