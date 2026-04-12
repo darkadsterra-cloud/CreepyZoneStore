@@ -30,8 +30,9 @@ interface ProjectVideo {
   thumbnail: string;
 }
 
+// ── CHANGE 1: 'desktop' option add ki audioSource mein ──
 interface RecordingSettings {
-  audioSource: 'microphone' | 'none';
+  audioSource: 'microphone' | 'desktop' | 'none';
   quality: 'high' | 'medium' | 'low';
 }
 
@@ -61,24 +62,21 @@ const imageElementCache: Record<string, HTMLImageElement> = {};
 
 function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
-    // If already loaded and valid, return immediately
     const cached = imageElementCache[id];
     if (cached && cached.complete && cached.naturalWidth > 0) {
       resolve(cached);
       return;
     }
     const img = new Image();
-    // Try without crossOrigin first (blob URLs don't need it)
     img.onload = () => {
       imageElementCache[id] = img;
       resolve(img);
     };
     img.onerror = () => {
-      // Try with crossOrigin as fallback
       const img2 = new Image();
       img2.crossOrigin = 'anonymous';
       img2.onload = () => { imageElementCache[id] = img2; resolve(img2); };
-      img2.onerror = () => resolve(img); // resolve anyway
+      img2.onerror = () => resolve(img);
       img2.src = url;
     };
     img.src = url;
@@ -90,7 +88,6 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   let offX = 0, offY = 0, sc = 1, rot = 0, alpha = 1;
   const id = animId.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
-  // MOVEMENT animations
   if (id.includes('float') || id.includes('ghostly')) {
     offY = Math.sin(t * 1.6) * H * 0.025;
     offX = Math.sin(t * 0.8) * W * 0.008;
@@ -149,10 +146,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
     offX = Math.sin(t * 0.7) * W * 0.015;
   } else if (id.includes('rise-fall') || id.includes('rise-and-fall')) {
     offY = Math.sin(t * 1.3) * H * 0.04;
-  }
-
-  // SCARE animations
-  else if (id.includes('jumpscare') || id.includes('jump-scare')) {
+  } else if (id.includes('jumpscare') || id.includes('jump-scare')) {
     const c = t % 3.0;
     if (c > 2.7) { sc = 1 + (c - 2.7) / 0.3 * 1.5; alpha = Math.min(1, (3.0 - c) * 10); }
   } else if (id.includes('flash') || id.includes('blink')) {
@@ -210,10 +204,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
     const c = (t * 0.5) % 1;
     offY = c < 0.3 ? -H * 0.3 + c / 0.3 * H * 0.3 : 0;
     sc = c < 0.3 ? 0.5 + c / 0.3 * 0.5 : 1;
-  }
-
-  // ATMOSPHERIC animations
-  else if (id.includes('haunting') || id.includes('haunting-fade')) {
+  } else if (id.includes('haunting') || id.includes('haunting-fade')) {
     alpha = 0.3 + Math.sin(t * 0.7) * 0.7;
     offY = Math.sin(t * 0.5) * H * 0.015;
   } else if (id.includes('pulse') || id.includes('glow')) {
@@ -255,10 +246,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('halo')) {
     rot = t * 0.5;
     offY = Math.sin(t * 1.0) * H * 0.01;
-  }
-
-  // VISUAL/GLITCH animations
-  else if (id.includes('glitch')) {
+  } else if (id.includes('glitch')) {
     if (Math.random() < 0.15) offX += (Math.random() - 0.5) * W * 0.03;
     if (Math.random() < 0.05) alpha = 0;
   } else if (id.includes('tv-static') || id.includes('static')) {
@@ -320,9 +308,11 @@ function RecordingSettingsModal({
         {/* Audio Source */}
         <div className="mb-4">
           <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Audio Source</p>
-          <div className="grid grid-cols-2 gap-2">
+          {/* ── CHANGE 2: grid-cols-3 aur Desktop Audio option add ki ── */}
+          <div className="grid grid-cols-3 gap-2">
             {[
               { val: 'microphone' as const, label: 'Microphone', sub: 'Permission popup aayega', icon: <Mic className="w-4 h-4" /> },
+              { val: 'desktop' as const, label: 'Desktop Audio', sub: 'Tab/system sound capture', icon: <Speaker className="w-4 h-4" /> },
               { val: 'none' as const, label: 'No Audio', sub: 'Sirf video, koi audio nahi', icon: <MicOff className="w-4 h-4" /> },
             ].map(opt => (
               <button key={opt.val}
@@ -357,7 +347,11 @@ function RecordingSettingsModal({
         <div className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 mb-4">
           <Monitor className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
           <p className="text-[9px] text-zinc-400 leading-relaxed">
-            Animations, particles aur visuals sab record honge. Microphone select karne pe browser permission popup aayega — <span className="text-white font-semibold">Allow</span> dabao.
+            {local.audioSource === 'desktop'
+              ? 'Browser ek popup dikhayega — tab ya window select karo aur "Share audio" checkbox zaroor tick karo.'
+              : local.audioSource === 'microphone'
+              ? 'Animations, particles aur visuals sab record honge. Browser permission popup aayega — Allow dabao.'
+              : 'Sirf video record hogi, koi audio nahi hogi.'}
           </p>
         </div>
 
@@ -778,7 +772,6 @@ export default function HorrorStudio() {
   const rafHandleRef = useRef<number>(0);
   const audioStreamRef = useRef<MediaStream | null>(null);
 
-  // Live refs for rAF loop — avoid stale closures
   const imagesRef = useRef<UploadedImage[]>([]);
   const slideshowIdxRef = useRef(0);
   const randomVisibleRef = useRef<string[]>([]);
@@ -914,25 +907,22 @@ export default function HorrorStudio() {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // RECORDING ENGINE — canvas-based, full animation capture
+  // RECORDING ENGINE
   // ═══════════════════════════════════════════════════════════
   const startRecording = useCallback(async (settings: RecordingSettings) => {
     const outWidth = ratio.width;
     const outHeight = ratio.height;
 
-    // ── Step 1: Preload ALL images before starting ──
     const currentImages = imagesRef.current;
     await Promise.all(
       currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url))
     );
 
-    // ── Step 2: Init animation timers ──
     const startWall = performance.now();
     currentImages.forEach(img => {
       animStartTimesRef.current[img.id] = startWall;
     });
 
-    // ── Step 3: Setup canvas ──
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outWidth;
     recCanvas.height = outHeight;
@@ -940,11 +930,11 @@ export default function HorrorStudio() {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // ── Step 4: Audio ──
+    // ── CHANGE 3: desktop audio capture logic add ki ──
     let audioStream: MediaStream | null = null;
+
     if (settings.audioSource === 'microphone') {
       try {
-        // Force a fresh permission request every time
         audioStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: false,
@@ -961,9 +951,33 @@ export default function HorrorStudio() {
         audioStream = null;
         audioStreamRef.current = null;
       }
+    } else if (settings.audioSource === 'desktop') {
+      try {
+        // getDisplayMedia se desktop/tab audio capture hogi
+        const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
+          video: true,   // video required hota hai getDisplayMedia ke liye
+          audio: true,   // "Share audio" checkbox browser popup mein dikhega
+        });
+        // Sirf audio tracks lenge, video track foran band kar denge
+        displayStream.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
+        const audioTracks: MediaStreamTrack[] = displayStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          audioStream = new MediaStream(audioTracks);
+          audioStreamRef.current = audioStream;
+        } else {
+          // User ne audio share nahi ki — gracefully continue without audio
+          console.warn('Desktop audio: no audio tracks found. User may not have checked "Share audio".');
+          audioStream = null;
+          audioStreamRef.current = null;
+        }
+      } catch (err) {
+        console.warn('Desktop audio capture failed or cancelled:', err);
+        audioStream = null;
+        audioStreamRef.current = null;
+      }
     }
+    // 'none' case mein audioStream null hi rahega
 
-    // ── Step 5: MediaRecorder ──
     const videoStream = recCanvas.captureStream(30);
     const allTracks = [
       ...videoStream.getVideoTracks(),
@@ -1031,7 +1045,6 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    // ── Step 6: rAF drawing loop ──
     const drawLoop = () => {
       const now = performance.now();
       const imgs = imagesRef.current;
@@ -1041,11 +1054,9 @@ export default function HorrorStudio() {
       const randVis = randomVisibleRef.current;
       const gs = greenScreenRef.current;
 
-      // Background
       ctx.fillStyle = gs ? '#00ff00' : '#090909';
       ctx.fillRect(0, 0, outWidth, outHeight);
 
-      // Subtle grid lines
       if (!gs) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.022)';
@@ -1055,7 +1066,6 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
-      // Determine which images to draw
       let drawList: UploadedImage[] = [];
       if (imgs.length > 0) {
         switch (mode) {
@@ -1070,13 +1080,11 @@ export default function HorrorStudio() {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
-        // Per-image independent animation time
         if (!animStartTimesRef.current[img.id]) animStartTimesRef.current[img.id] = now;
         const t = (now - animStartTimesRef.current[img.id]) / 1000;
 
         const anims = img.animations ?? (img.animation ? [img.animation] : []);
 
-        // Accumulate animation values
         let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
         for (const animId of anims) {
           const v = getAnimValues(animId, t, outWidth, outHeight);
@@ -1087,7 +1095,6 @@ export default function HorrorStudio() {
           totalAlpha *= v.alpha;
         }
 
-        // Image dimensions — scale to fit nicely in canvas
         const naturalW = el.naturalWidth;
         const naturalH = el.naturalHeight;
         const maxW = outWidth * 0.48;
@@ -1098,7 +1105,6 @@ export default function HorrorStudio() {
         const dw = naturalW * drawScale;
         const dh = naturalH * drawScale;
 
-        // Position
         const cx = (img.position.x / 100) * outWidth + totalOffX;
         const cy = (img.position.y / 100) * outHeight + totalOffY;
         const userRotRad = ((img.rotation ?? 0) * Math.PI) / 180;
@@ -1111,7 +1117,6 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
-      // Vignette overlay
       if (!gs) {
         const grad = ctx.createRadialGradient(
           outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25,
@@ -1126,7 +1131,6 @@ export default function HorrorStudio() {
       rafHandleRef.current = requestAnimationFrame(drawLoop);
     };
 
-    // Start everything
     drawLoop();
     recorder.start(250);
     mediaRecorderRef.current = recorder;
@@ -1148,7 +1152,6 @@ export default function HorrorStudio() {
       if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
       return;
     }
-    // Always show settings modal before recording
     setShowRecordingSettings(true);
   }, [recording]);
 
@@ -1238,7 +1241,6 @@ export default function HorrorStudio() {
       <AppBackground />
       {playingVideo && <VideoPlayer video={playingVideo} onClose={() => setPlayingVideo(null)} />}
 
-      {/* Recording Settings Modal */}
       {showRecordingSettings && (
         <RecordingSettingsModal
           settings={recordingSettings}
@@ -1248,7 +1250,6 @@ export default function HorrorStudio() {
         />
       )}
 
-      {/* New Project Modal */}
       {showNewProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowNewProjectModal(false)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1265,7 +1266,6 @@ export default function HorrorStudio() {
         </div>
       )}
 
-      {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div ref={projectDropdownRef} className="relative">
@@ -1373,7 +1373,6 @@ export default function HorrorStudio() {
                   <Film className="w-3 h-3" /> {getProjectVideos(currentProject.id).length} Video{getProjectVideos(currentProject.id).length !== 1 ? 's' : ''}
                 </button>
               )}
-              {/* Settings button */}
               <button onClick={() => setShowRecordingSettings(true)} disabled={recording}
                 className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700 disabled:opacity-40" title="Recording Settings">
                 <Settings2 className="w-3 h-3" />
@@ -1427,4 +1426,3 @@ export default function HorrorStudio() {
     </div>
   );
 }
-
