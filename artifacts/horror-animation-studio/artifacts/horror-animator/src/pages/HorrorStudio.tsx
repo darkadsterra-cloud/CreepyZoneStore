@@ -901,81 +901,75 @@ export default function HorrorStudio() {
   // RECORDING ENGINE — canvas rAF loop with live animation sync
   // ═══════════════════════════════════════════════════════════
   const startRecording = useCallback(async (settings: RecordingSettings) => {
-    const outWidth = ratio.width;
-    const outHeight = ratio.height;
-
-    // Preload all images
-    const currentImages = imagesRef.current;
-    await Promise.all(currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url)));
-
-    // Reset animation start times fresh for this recording session.
-    // Each image animation starts at t=0 when Record is pressed.
-    const sessionStart = performance.now();
-    animStartTimesRef.current = {};
-    currentImages.forEach(img => {
-      animStartTimesRef.current[img.id] = sessionStart;
+  try {
+    // getDisplayMedia — CSS animations, particles sab kuch capture hoga
+    const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
+      video: {
+        frameRate: { ideal: 30, max: 60 },
+        width: { ideal: ratio.width },
+        height: { ideal: ratio.height },
+      },
+      audio: settings.audioSource === 'desktop',
+      preferCurrentTab: true,
+      selfBrowserSurface: 'include',
     });
 
-    // Setup canvas
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = outWidth;
-    recCanvas.height = outHeight;
-    const ctx = recCanvas.getContext('2d', { alpha: false })!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-
-    // Audio
-    let audioStream: MediaStream | null = null;
+    // Microphone audio alag se lo agar selected ho
+    let micStream: MediaStream | null = null;
     if (settings.audioSource === 'microphone') {
       try {
-        audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000, channelCount: 2 },
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000 },
           video: false,
         });
-        audioStreamRef.current = audioStream;
-      } catch (err) {
-        console.warn('Microphone permission denied:', err);
-        audioStream = null; audioStreamRef.current = null;
-      }
-    } else if (settings.audioSource === 'desktop') {
-      try {
-        const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
-        displayStream.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
-        const audioTracks: MediaStreamTrack[] = displayStream.getAudioTracks();
-        if (audioTracks.length > 0) { audioStream = new MediaStream(audioTracks); audioStreamRef.current = audioStream; }
-        else { audioStream = null; audioStreamRef.current = null; }
-      } catch (err) {
-        console.warn('Desktop audio capture failed:', err);
-        audioStream = null; audioStreamRef.current = null;
-      }
+        audioStreamRef.current = micStream;
+      } catch { micStream = null; }
     }
 
-    // MediaRecorder
-    const videoStream = recCanvas.captureStream(30);
-    const allTracks = [...videoStream.getVideoTracks(), ...(audioStream ? audioStream.getAudioTracks() : [])];
-    const combinedStream = new MediaStream(allTracks);
     const bitrates: Record<string, number> = { high: 12_000_000, medium: 6_000_000, low: 3_000_000 };
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm'];
     const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
+
+    // Video + audio tracks combine karo
+    const allTracks = [
+      ...displayStream.getVideoTracks(),
+      ...displayStream.getAudioTracks(),
+      ...(micStream ? micStream.getAudioTracks() : []),
+    ];
+    const combinedStream = new MediaStream(allTracks);
+
     let recorder: MediaRecorder;
-    try { recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrates[settings.quality] }); }
-    catch { recorder = new MediaRecorder(combinedStream); }
+    try {
+      recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrates[settings.quality] });
+    } catch {
+      recorder = new MediaRecorder(combinedStream);
+    }
 
     chunksRef.current = [];
     recordingStartTimeRef.current = Date.now();
     recorder.ondataavailable = e => { if (e.data?.size > 0) chunksRef.current.push(e.data); };
 
-    recorder.onstop = async () => {
-      cancelAnimationFrame(rafHandleRef.current);
+    // User browser stop button se band kare tab bhi handle karo
+    displayStream.getVideoTracks()[0].onended = () => {
+      if (recorder.state === 'recording') recorder.stop();
+      setRecording(false);
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
       if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
+    };
+
+    recorder.onstop = async () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
+      displayStream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+      if (micStream) micStream.getTracks().forEach(t => t.stop());
       if (audioStreamRef.current) { audioStreamRef.current.getTracks().forEach(t => t.stop()); audioStreamRef.current = null; }
 
       const blob = new Blob(chunksRef.current, { type: mimeType });
       const durationSec = Math.round((Date.now() - recordingStartTimeRef.current) / 1000);
 
       if (blob.size < 1000) {
-        alert('Recording failed — no data captured. Try again.'); setRecording(false); setRecordingTime(0); return;
+        alert('Recording failed. Browser popup mein "This Tab" select karo aur Share dabao.');
+        setRecording(false); setRecordingTime(0); return;
       }
 
       if (currentProject) {
@@ -990,13 +984,16 @@ export default function HorrorStudio() {
           vid.currentTime = Math.min(1.5, durationSec * 0.1);
           await new Promise<void>(res => { vid.onseeked = () => res(); setTimeout(res, 1500); });
           const tc = document.createElement('canvas');
-          tc.width = 320; tc.height = Math.round(320 * outHeight / outWidth);
+          tc.width = 320; tc.height = Math.round(320 * ratio.height / ratio.width);
           tc.getContext('2d')!.drawImage(vid, 0, 0, tc.width, tc.height);
           thumbnail = tc.toDataURL('image/jpeg', 0.75);
           URL.revokeObjectURL(tempUrl);
         } catch {}
-        addProjectVideo(currentProject.id, { id: generateId(), name: videoName, blob, size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail });
-        setAutoSaveMsg(`✓ Video saved! ${outWidth}×${outHeight} · ${formatSize(blob.size)}`);
+        addProjectVideo(currentProject.id, {
+          id: generateId(), name: videoName, blob,
+          size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail,
+        });
+        setAutoSaveMsg(`✓ Video saved! ${ratio.width}×${ratio.height} · ${formatSize(blob.size)}`);
         setTimeout(() => setAutoSaveMsg(''), 8000);
         setSavingVideo(false);
         forceUpdate(n => n + 1);
@@ -1004,108 +1001,20 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    // ── rAF drawing loop ──
-    // Key fix: read animations from imagesRef.current every frame (live state),
-    // compute t from per-image start time, apply getAnimValues identically to preview.
-    const drawLoop = () => {
-      const now = performance.now();
-      const imgs = imagesRef.current;
-      const mode = animModeRef.current;
-      const selId = selectedIdRef.current;
-      const ssIdx = slideshowIdxRef.current;
-      const randVis = randomVisibleRef.current;
-      const gs = greenScreenRef.current;
-
-      ctx.fillStyle = gs ? '#00ff00' : '#090909';
-      ctx.fillRect(0, 0, outWidth, outHeight);
-
-      if (!gs) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255,255,255,0.022)';
-        ctx.lineWidth = 0.5;
-        for (let x = 0; x <= outWidth; x += outWidth / 10) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, outHeight); ctx.stroke(); }
-        for (let y = 0; y <= outHeight; y += outHeight / 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(outWidth, y); ctx.stroke(); }
-        ctx.restore();
-      }
-
-      let drawList: UploadedImage[] = [];
-      if (imgs.length > 0) {
-        switch (mode) {
-          case 'single': drawList = selId ? imgs.filter(i => i.id === selId) : imgs.slice(0, 1); break;
-          case 'slideshow': drawList = [imgs[ssIdx % imgs.length]]; break;
-          case 'all-visible': drawList = imgs; break;
-          case 'random-appear': drawList = imgs.filter(i => randVis.includes(i.id)); break;
-        }
-      }
-
-      for (const img of drawList) {
-        const el = imageElementCache[img.id];
-        if (!el || !el.complete || el.naturalWidth === 0) continue;
-
-        // Init start time for images that appear mid-recording (e.g. slideshow or random-appear)
-        if (!animStartTimesRef.current[img.id]) {
-          animStartTimesRef.current[img.id] = now;
-        }
-
-        // Elapsed time in seconds for this image's animation cycle
-        const t = (now - animStartTimesRef.current[img.id]) / 1000;
-
-        // Always read the latest animations from the live ref — never stale
-        const liveImg = imagesRef.current.find(i => i.id === img.id) ?? img;
-        const anims = liveImg.animations ?? (liveImg.animation ? [liveImg.animation] : []);
-
-        let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
-        for (const animId of anims) {
-          const v = getAnimValues(animId, t, outWidth, outHeight);
-          totalOffX += v.offX;
-          totalOffY += v.offY;
-          totalScale *= v.extraScale;
-          totalRot += v.extraRot;
-          totalAlpha *= v.alpha;
-        }
-
-        const naturalW = el.naturalWidth;
-        const naturalH = el.naturalHeight;
-        const maxW = outWidth * 0.48;
-        const maxH = outHeight * 0.48;
-        const baseScale = Math.min(maxW / naturalW, maxH / naturalH);
-        const userScale = liveImg.scale ?? 1;
-        const drawScale = baseScale * userScale * totalScale;
-        const dw = naturalW * drawScale;
-        const dh = naturalH * drawScale;
-
-        const cx = (liveImg.position.x / 100) * outWidth + totalOffX;
-        const cy = (liveImg.position.y / 100) * outHeight + totalOffY;
-        const userRotRad = ((liveImg.rotation ?? 0) * Math.PI) / 180;
-
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, (liveImg.opacity ?? 1) * totalAlpha));
-        ctx.translate(cx, cy);
-        ctx.rotate(userRotRad + totalRot);
-        ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
-        ctx.restore();
-      }
-
-      if (!gs) {
-        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25, outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(1, 'rgba(0,0,0,0.65)');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, outWidth, outHeight);
-      }
-
-      rafHandleRef.current = requestAnimationFrame(drawLoop);
-    };
-
-    drawLoop();
-    recorder.start(250);
+    recorder.start(500);
     mediaRecorderRef.current = recorder;
-    setRecording(true);
-    setRecordingTime(0);
+    setRecording(true); setRecordingTime(0);
     recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
-    autoStopTimerRef.current = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 5 * 60 * 1000);
+    autoStopTimerRef.current = setTimeout(() => {
+      if (recorder.state === 'recording') recorder.stop();
+    }, 5 * 60 * 1000);
 
-  }, [currentProject, ratio]);
+  } catch (err: any) {
+    if (err.name !== 'NotAllowedError') console.error('Recording error:', err);
+    setRecording(false); setRecordingTime(0);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+  }
+}, [currentProject, ratio]);
 
   const handleRecord = useCallback(() => {
     if (recording) {
