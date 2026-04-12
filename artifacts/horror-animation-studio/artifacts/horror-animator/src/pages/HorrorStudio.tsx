@@ -1,4 +1,4 @@
-                        import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { ANIMATION_PRESETS, ASPECT_RATIOS } from '@/lib/animations';
 import type { UploadedImage, AnimationMode } from '@/lib/animations';
 import { loadProjects, saveProject, deleteProject, generateId } from '@/lib/project-store';
