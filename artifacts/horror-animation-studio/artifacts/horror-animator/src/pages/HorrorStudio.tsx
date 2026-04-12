@@ -14,7 +14,8 @@ import {
   ChevronLeft, ChevronRight, Maximize2, Skull, X,
   FolderOpen, Plus, Save, CheckCircle, Clock, Trash2, User,
   Film, Video, Play, Pause, Volume2, VolumeX,
-  ChevronDown, Maximize, Minimize,
+  ChevronDown, Maximize, Minimize, Mic, MicOff, Settings2,
+  Monitor, Speaker,
 } from 'lucide-react';
 
 let imageCounter = 0;
@@ -27,6 +28,11 @@ interface ProjectVideo {
   duration: number;
   createdAt: number;
   thumbnail: string;
+}
+
+interface RecordingSettings {
+  audioSource: 'microphone' | 'none';
+  quality: 'high' | 'medium' | 'low';
 }
 
 function formatSize(bytes: number) {
@@ -49,260 +55,326 @@ function removeProjectVideo(pid: string, vid: string) {
 }
 
 const imageBlobStore: Record<string, string> = {};
+
+// ── Image element cache — preloaded for rAF loop ──
 const imageElementCache: Record<string, HTMLImageElement> = {};
 
-function loadImageElement(id: string, url: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    if (imageElementCache[id]?.complete && imageElementCache[id].naturalWidth > 0) {
-      resolve(imageElementCache[id]); return;
+function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve) => {
+    // If already loaded and valid, return immediately
+    const cached = imageElementCache[id];
+    if (cached && cached.complete && cached.naturalWidth > 0) {
+      resolve(cached);
+      return;
     }
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => { imageElementCache[id] = img; resolve(img); };
+    // Try without crossOrigin first (blob URLs don't need it)
+    img.onload = () => {
+      imageElementCache[id] = img;
+      resolve(img);
+    };
     img.onerror = () => {
+      // Try with crossOrigin as fallback
       const img2 = new Image();
+      img2.crossOrigin = 'anonymous';
       img2.onload = () => { imageElementCache[id] = img2; resolve(img2); };
-      img2.onerror = reject;
-      img2.src = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+      img2.onerror = () => resolve(img); // resolve anyway
+      img2.src = url;
     };
     img.src = url;
   });
 }
 
-// ── ANIMATION STATE PER IMAGE ──
-// Each image has its own animation time offset so they don't sync
-const animTimeOffsets: Record<string, number> = {};
+// ── Animation math — pure JS, no CSS needed ──
+function getAnimValues(animId: string, t: number, W: number, H: number) {
+  let offX = 0, offY = 0, sc = 1, rot = 0, alpha = 1;
+  const id = animId.toLowerCase().replace(/[^a-z0-9]/g, '-');
 
-// Get real animation values from CSS animation ID
-function getAnimValues(animId: string, t: number, outW: number, outH: number) {
-  let offX = 0, offY = 0, extraScale = 1, extraRot = 0, alpha = 1;
-  const id = animId.toLowerCase();
-
-  // MOVEMENT
-  if (id === 'float' || id === 'ghostly-float') {
-    offY = Math.sin(t * 1.6) * outH * 0.025;
-    offX = Math.sin(t * 0.8) * outW * 0.008;
-  } else if (id === 'shake' || id === 'demonic-shake' || id === 'earthquake' || id === 'earthquake-terror') {
-    const intensity = id.includes('earthquake') ? 0.025 : 0.012;
-    offX = (Math.random() - 0.5) * outW * intensity;
-    offY = (Math.random() - 0.5) * outH * (intensity * 0.8);
-  } else if (id === 'swing' || id === 'pendulum-swing') {
-    extraRot = Math.sin(t * 2.2) * 0.18;
-  } else if (id === 'sway' || id === 'corpse-sway') {
-    extraRot = Math.sin(t * 1.0) * 0.12;
-    offY = Math.abs(Math.sin(t * 1.0)) * outH * 0.01;
-  } else if (id === 'creep' || id === 'creeping-shadow') {
-    offX = (((t * 0.05) % 1.2) - 0.1) * outW;
-  } else if (id === 'drift-left') {
-    offX = -(((t * 0.08) % 1.2) * outW);
-  } else if (id === 'drift-right') {
-    offX = ((t * 0.08) % 1.2) * outW;
-  } else if (id === 'spiral' || id === 'death-spiral') {
-    extraRot = t * 1.2;
-    extraScale = 1 + Math.sin(t * 1.2) * 0.1;
-  } else if (id === 'bounce' || id === 'demon-bounce') {
-    offY = -Math.abs(Math.sin(t * 3.5)) * outH * 0.08;
-  } else if (id === 'teleport' || id === 'shadow-teleport') {
+  // MOVEMENT animations
+  if (id.includes('float') || id.includes('ghostly')) {
+    offY = Math.sin(t * 1.6) * H * 0.025;
+    offX = Math.sin(t * 0.8) * W * 0.008;
+  } else if (id.includes('shake') || id.includes('earthquake') || id.includes('demonic')) {
+    const i = id.includes('earthquake') ? 0.025 : 0.012;
+    offX = (Math.random() - 0.5) * W * i;
+    offY = (Math.random() - 0.5) * H * i * 0.8;
+  } else if (id.includes('swing') || id.includes('pendulum')) {
+    rot = Math.sin(t * 2.2) * 0.18;
+  } else if (id.includes('sway') || id.includes('corpse')) {
+    rot = Math.sin(t * 1.0) * 0.12;
+    offY = Math.abs(Math.sin(t * 1.0)) * H * 0.01;
+  } else if (id.includes('creep') || id.includes('crawl')) {
+    offX = ((t * 0.05) % 1.2 - 0.1) * W;
+  } else if (id.includes('spiral') || id.includes('death-spiral')) {
+    rot = t * 1.2;
+    sc = 1 + Math.sin(t * 1.2) * 0.1;
+  } else if (id.includes('bounce') || id.includes('demon-bounce')) {
+    offY = -Math.abs(Math.sin(t * 3.5)) * H * 0.08;
+  } else if (id.includes('teleport') || id.includes('shadow-teleport')) {
     alpha = Math.floor(t * 3) % 2 === 0 ? 1 : 0;
-    if (alpha === 1) { offX = (Math.random() - 0.5) * outW * 0.1; offY = (Math.random() - 0.5) * outH * 0.1; }
-  } else if (id === 'slide-down' || id === 'descend-from-void') {
-    offY = Math.sin(t * 0.7) * outH * 0.06;
-  } else if (id === 'slide-up' || id === 'rise-from-below') {
-    offY = -Math.sin(t * 0.7) * outH * 0.06;
-  } else if (id === 'zigzag' || id === 'possessed-zigzag') {
-    offX = Math.sin(t * 4) * outW * 0.04;
-    offY = Math.sin(t * 8) * outH * 0.02;
-  } else if (id === 'jerk' || id === 'possession-jerk') {
-    offX = Math.random() < 0.3 ? (Math.random() - 0.5) * outW * 0.03 : 0;
-    offY = Math.random() < 0.3 ? (Math.random() - 0.5) * outH * 0.03 : 0;
-  } else if (id === 'orbit' || id === 'dark-orbit') {
-    offX = Math.cos(t * 1.0) * outW * 0.06;
-    offY = Math.sin(t * 1.0) * outH * 0.06;
-  } else if (id === 'levitate-spin' || id === 'levitate-&-spin') {
-    offY = Math.sin(t * 1.5) * outH * 0.02;
-    extraRot = t * 0.4;
-  } else if (id === 'crawl' || id === 'crawl-across') {
-    offX = ((t * 0.04) % 1.5 - 0.25) * outW;
-    offY = Math.sin(t * 2) * outH * 0.01;
-  } else if (id === 'marionette' || id === 'marionette-drop') {
-    offY = Math.abs(Math.sin(t * 2.5)) * outH * 0.05;
-    extraRot = Math.sin(t * 2.5) * 0.08;
-  } else if (id === 'tidal' || id === 'tidal-wave') {
-    offX = Math.sin(t * 1.2) * outW * 0.08;
-    extraScale = 1 + Math.sin(t * 1.2) * 0.05;
-  } else if (id === 'chaotic' || id === 'chaotic-dance') {
-    offX = (Math.random() - 0.5) * outW * 0.04;
-    offY = (Math.random() - 0.5) * outH * 0.04;
-    extraRot = (Math.random() - 0.5) * 0.2;
-  } else if (id === 'rise-fall' || id === 'rise-and-fall') {
-    offY = Math.sin(t * 1.3) * outH * 0.04;
-  } else if (id === 'sidewind' || id === 'sidewinder') {
-    offX = Math.sin(t * 2) * outW * 0.05;
-    offY = Math.cos(t * 4) * outH * 0.015;
-  } else if (id === 'pulse-move') {
-    extraScale = 1 + Math.sin(t * 2) * 0.05;
-    offX = Math.sin(t * 0.7) * outW * 0.015;
-  } else if (id === 'warp-drift') {
-    offX = Math.sin(t * 0.9) * outW * 0.03;
-    offY = Math.cos(t * 1.1) * outH * 0.03;
-    extraScale = 1 + Math.sin(t * 1.3) * 0.04;
+    if (alpha === 1) { offX = (Math.random() - 0.5) * W * 0.1; offY = (Math.random() - 0.5) * H * 0.1; }
+  } else if (id.includes('orbit') || id.includes('dark-orbit')) {
+    offX = Math.cos(t * 1.0) * W * 0.06;
+    offY = Math.sin(t * 1.0) * H * 0.06;
+  } else if (id.includes('levitate')) {
+    offY = Math.sin(t * 1.5) * H * 0.02;
+    rot = t * 0.4;
+  } else if (id.includes('zigzag') || id.includes('possessed')) {
+    offX = Math.sin(t * 4) * W * 0.04;
+    offY = Math.sin(t * 8) * H * 0.02;
+  } else if (id.includes('jerk') || id.includes('possession-jerk')) {
+    offX = Math.random() < 0.3 ? (Math.random() - 0.5) * W * 0.03 : 0;
+    offY = Math.random() < 0.3 ? (Math.random() - 0.5) * H * 0.03 : 0;
+  } else if (id.includes('drift')) {
+    offX = id.includes('left') ? -(((t * 0.08) % 1.2) * W) : (((t * 0.08) % 1.2) * W);
+  } else if (id.includes('marionette')) {
+    offY = Math.abs(Math.sin(t * 2.5)) * H * 0.05;
+    rot = Math.sin(t * 2.5) * 0.08;
+  } else if (id.includes('tidal')) {
+    offX = Math.sin(t * 1.2) * W * 0.08;
+    sc = 1 + Math.sin(t * 1.2) * 0.05;
+  } else if (id.includes('chaotic')) {
+    offX = (Math.random() - 0.5) * W * 0.04;
+    offY = (Math.random() - 0.5) * H * 0.04;
+    rot = (Math.random() - 0.5) * 0.2;
+  } else if (id.includes('warp')) {
+    offX = Math.sin(t * 0.9) * W * 0.03;
+    offY = Math.cos(t * 1.1) * H * 0.03;
+    sc = 1 + Math.sin(t * 1.3) * 0.04;
+  } else if (id.includes('sidewind')) {
+    offX = Math.sin(t * 2) * W * 0.05;
+    offY = Math.cos(t * 4) * H * 0.015;
+  } else if (id.includes('pulse-move')) {
+    sc = 1 + Math.sin(t * 2) * 0.05;
+    offX = Math.sin(t * 0.7) * W * 0.015;
+  } else if (id.includes('rise-fall') || id.includes('rise-and-fall')) {
+    offY = Math.sin(t * 1.3) * H * 0.04;
   }
 
-  // SCARE
-  else if (id === 'jumpscare' || id === 'jump-scare') {
-    const cycle = t % 3.0;
-    if (cycle > 2.7) { extraScale = 1 + (cycle - 2.7) / 0.3 * 1.5; alpha = Math.min(1, (3.0 - cycle) * 10); }
-  } else if (id === 'flash-blink') {
+  // SCARE animations
+  else if (id.includes('jumpscare') || id.includes('jump-scare')) {
+    const c = t % 3.0;
+    if (c > 2.7) { sc = 1 + (c - 2.7) / 0.3 * 1.5; alpha = Math.min(1, (3.0 - c) * 10); }
+  } else if (id.includes('flash') || id.includes('blink')) {
     alpha = Math.floor(t * 4) % 2 === 0 ? 1 : 0;
-  } else if (id === 'sudden-loom') {
-    const cycle = (t * 0.5) % 1;
-    extraScale = cycle < 0.15 ? 1 + cycle / 0.15 * 0.6 : cycle < 0.25 ? 1.6 - (cycle - 0.15) / 0.1 * 0.6 : 1;
-  } else if (id === 'evil-zoom' || id === 'evil-zoom-in') {
-    extraScale = 1 + (t * 0.03) % 0.5;
-  } else if (id === 'strobe' || id === 'terror-strobe') {
+  } else if (id.includes('strobe') || id.includes('terror-strobe')) {
     alpha = Math.floor(t * 10) % 2 === 0 ? 1 : 0;
-  } else if (id === 'blackout-reveal') {
-    const cycle = (t * 0.3) % 1;
-    alpha = cycle < 0.4 ? 0 : Math.min(1, (cycle - 0.4) / 0.2);
-  } else if (id === 'rapid-approach') {
-    const cycle = (t * 0.5) % 1;
-    extraScale = 0.3 + cycle * 1.2;
-    alpha = cycle < 0.9 ? 1 : 1 - (cycle - 0.9) / 0.1;
-  } else if (id === 'crash-in') {
-    const cycle = (t * 0.5) % 1;
-    offX = cycle < 0.2 ? (0.2 - cycle) / 0.2 * -outW * 0.6 : 0;
-    extraScale = cycle < 0.2 ? 0.5 + cycle / 0.2 * 0.5 : 1;
-  } else if (id === 'slam-down') {
-    const cycle = (t * 0.5) % 1;
-    offY = cycle < 0.2 ? (0.2 - cycle) / 0.2 * -outH * 0.5 : 0;
-  } else if (id === 'nuclear-pulse') {
-    const cycle = (t * 0.7) % 1;
-    extraScale = 1 + Math.sin(cycle * Math.PI) * 0.4;
-    alpha = 1 - cycle * 0.3;
-  } else if (id === 'warp-jump') {
-    const cycle = (t * 0.4) % 1;
-    extraScale = 1 + Math.sin(cycle * Math.PI * 2) * 0.15;
-    offX = Math.sin(cycle * Math.PI * 4) * outW * 0.02;
-  } else if (id === 'horror-snap') {
-    offX = Math.random() < 0.2 ? (Math.random() - 0.5) * outW * 0.06 : 0;
-    offY = Math.random() < 0.2 ? (Math.random() - 0.5) * outH * 0.06 : 0;
-    extraRot = Math.random() < 0.1 ? (Math.random() - 0.5) * 0.4 : 0;
-  } else if (id === 'rage-flash') {
-    alpha = Math.floor(t * 5) % 3 === 0 ? 0.3 : 1;
-  } else if (id === 'dive-bomb') {
-    const cycle = (t * 0.5) % 1;
-    offY = cycle < 0.3 ? -outH * 0.3 + cycle / 0.3 * outH * 0.3 : 0;
-    extraScale = cycle < 0.3 ? 0.5 + cycle / 0.3 * 0.5 : 1;
-  } else if (id === 'possession' || id === 'possession-burst') {
-    offX = (Math.random() - 0.5) * outW * 0.03;
-    offY = (Math.random() - 0.5) * outH * 0.03;
-    extraScale = 1 + (Math.random() - 0.5) * 0.1;
-  } else if (id === 'rage-burst') {
-    const cycle = (t * 1.0) % 1;
-    extraScale = 1 + Math.sin(cycle * Math.PI) * 0.3;
-  } else if (id === 'terror-vibrate') {
-    offX = (Math.random() - 0.5) * outW * 0.008;
-    offY = (Math.random() - 0.5) * outH * 0.008;
-  } else if (id === 'appear-ghost' || id === 'ghost-appear') {
-    const cycle = (t * 0.4) % 1;
-    alpha = cycle < 0.5 ? cycle * 2 : 1 - (cycle - 0.5) * 2;
-  } else if (id === 'grab-reach' || id === 'grab-&-reach') {
-    offX = Math.sin(t * 1.5) * outW * 0.03;
-    extraScale = 1 + Math.sin(t * 1.5) * 0.05;
-  } else if (id === 'shatter' || id === 'reality-shatter') {
-    const cycle = (t * 0.5) % 1;
-    if (cycle > 0.8) { offX = (Math.random() - 0.5) * outW * 0.04; offY = (Math.random() - 0.5) * outH * 0.04; }
-  } else if (id === 'death-drop') {
-    const cycle = (t * 0.4) % 1;
-    offY = cycle * outH * 0.15;
-    alpha = 1 - cycle * 0.8;
+  } else if (id.includes('loom') || id.includes('sudden-loom')) {
+    const c = (t * 0.5) % 1;
+    sc = c < 0.15 ? 1 + c / 0.15 * 0.6 : c < 0.25 ? 1.6 - (c - 0.15) / 0.1 * 0.6 : 1;
+  } else if (id.includes('evil-zoom')) {
+    sc = 1 + (t * 0.03) % 0.5;
+  } else if (id.includes('rapid-approach')) {
+    const c = (t * 0.5) % 1;
+    sc = 0.3 + c * 1.2;
+    alpha = c < 0.9 ? 1 : 1 - (c - 0.9) / 0.1;
+  } else if (id.includes('crash-in')) {
+    const c = (t * 0.5) % 1;
+    offX = c < 0.2 ? (0.2 - c) / 0.2 * -W * 0.6 : 0;
+    sc = c < 0.2 ? 0.5 + c / 0.2 * 0.5 : 1;
+  } else if (id.includes('slam-down')) {
+    const c = (t * 0.5) % 1;
+    offY = c < 0.2 ? (0.2 - c) / 0.2 * -H * 0.5 : 0;
+  } else if (id.includes('nuclear')) {
+    const c = (t * 0.7) % 1;
+    sc = 1 + Math.sin(c * Math.PI) * 0.4;
+    alpha = 1 - c * 0.3;
+  } else if (id.includes('horror-snap')) {
+    offX = Math.random() < 0.2 ? (Math.random() - 0.5) * W * 0.06 : 0;
+    offY = Math.random() < 0.2 ? (Math.random() - 0.5) * H * 0.06 : 0;
+    rot = Math.random() < 0.1 ? (Math.random() - 0.5) * 0.4 : 0;
+  } else if (id.includes('rage')) {
+    const c = (t * 1.0) % 1;
+    sc = 1 + Math.sin(c * Math.PI) * 0.3;
+  } else if (id.includes('terror-vibrate') || id.includes('vibrate')) {
+    offX = (Math.random() - 0.5) * W * 0.008;
+    offY = (Math.random() - 0.5) * H * 0.008;
+  } else if (id.includes('appear') || id.includes('ghost-appear')) {
+    const c = (t * 0.4) % 1;
+    alpha = c < 0.5 ? c * 2 : 1 - (c - 0.5) * 2;
+  } else if (id.includes('grab') || id.includes('reach')) {
+    offX = Math.sin(t * 1.5) * W * 0.03;
+    sc = 1 + Math.sin(t * 1.5) * 0.05;
+  } else if (id.includes('shatter') || id.includes('reality')) {
+    const c = (t * 0.5) % 1;
+    if (c > 0.8) { offX = (Math.random() - 0.5) * W * 0.04; offY = (Math.random() - 0.5) * H * 0.04; }
+  } else if (id.includes('death-drop')) {
+    const c = (t * 0.4) % 1;
+    offY = c * H * 0.15;
+    alpha = 1 - c * 0.8;
+  } else if (id.includes('possession')) {
+    offX = (Math.random() - 0.5) * W * 0.03;
+    offY = (Math.random() - 0.5) * H * 0.03;
+    sc = 1 + (Math.random() - 0.5) * 0.1;
+  } else if (id.includes('dive-bomb')) {
+    const c = (t * 0.5) % 1;
+    offY = c < 0.3 ? -H * 0.3 + c / 0.3 * H * 0.3 : 0;
+    sc = c < 0.3 ? 0.5 + c / 0.3 * 0.5 : 1;
   }
 
-  // ATMOSPHERIC
-  else if (id === 'haunting' || id === 'haunting-fade') {
+  // ATMOSPHERIC animations
+  else if (id.includes('haunting') || id.includes('haunting-fade')) {
     alpha = 0.3 + Math.sin(t * 0.7) * 0.7;
-    offY = Math.sin(t * 0.5) * outH * 0.015;
-  } else if (id === 'pulse-glow' || id === 'blood-pulse-glow') {
-    extraScale = 1 + Math.sin(t * Math.PI * 1.5) * 0.06;
-  } else if (id === 'flicker' || id === 'light-flicker') {
+    offY = Math.sin(t * 0.5) * H * 0.015;
+  } else if (id.includes('pulse') || id.includes('glow')) {
+    sc = 1 + Math.sin(t * Math.PI * 1.5) * 0.06;
+  } else if (id.includes('flicker') || id.includes('light-flicker')) {
     alpha = 0.6 + Math.sin(t * 7) * 0.4 + (Math.random() > 0.9 ? -0.4 : 0);
-  } else if (id === 'shadow-breathe') {
-    extraScale = 1 + Math.sin(t * 0.8) * 0.07;
+  } else if (id.includes('shadow-breathe') || id.includes('breathe')) {
+    sc = 1 + Math.sin(t * 0.8) * 0.07;
     alpha = 0.8 + Math.sin(t * 0.8) * 0.2;
-  } else if (id === 'spectral-shift') {
-    alpha = 0.5 + Math.sin(t * 0.6) * 0.5;
-    offX = Math.sin(t * 0.4) * outW * 0.01;
-  } else if (id === 'nightmare-phase') {
+  } else if (id.includes('spectral') || id.includes('nightmare')) {
     alpha = 0.4 + Math.abs(Math.sin(t * 0.5)) * 0.6;
-  } else if (id === 'dark-ritual') {
-    extraScale = 1 + Math.sin(t * 2) * 0.04;
-    extraRot = Math.sin(t * 1.5) * 0.05;
-  } else if (id === 'spirit-manifest') {
+  } else if (id.includes('dark-ritual') || id.includes('ritual')) {
+    sc = 1 + Math.sin(t * 2) * 0.04;
+    rot = Math.sin(t * 1.5) * 0.05;
+  } else if (id.includes('spirit')) {
     alpha = Math.abs(Math.sin(t * 0.4));
-    offY = Math.sin(t * 0.8) * outH * 0.02;
-  } else if (id === 'aura-glow' || id === 'cursed-aura') {
-    extraScale = 1 + Math.sin(t * 1.5) * 0.08;
-  } else if (id === 'limbo-float') {
-    offY = Math.sin(t * 0.6) * outH * 0.03;
+    offY = Math.sin(t * 0.8) * H * 0.02;
+  } else if (id.includes('aura') || id.includes('cursed-aura')) {
+    sc = 1 + Math.sin(t * 1.5) * 0.08;
+  } else if (id.includes('limbo')) {
+    offY = Math.sin(t * 0.6) * H * 0.03;
     alpha = 0.7 + Math.sin(t * 0.4) * 0.3;
-  } else if (id === 'void-portal') {
-    extraScale = 1 + Math.sin(t * 0.8) * 0.12;
-    extraRot = t * 0.2;
-  } else if (id === 'soul-emerge') {
-    offY = Math.sin(t * 0.5) * outH * 0.02;
+  } else if (id.includes('void')) {
+    sc = 1 + Math.sin(t * 0.8) * 0.12;
+    rot = t * 0.2;
+  } else if (id.includes('soul')) {
+    offY = Math.sin(t * 0.5) * H * 0.02;
     alpha = 0.5 + Math.sin(t * 0.7) * 0.5;
-  } else if (id === 'ghost-drift' || id === 'ghost-drift-through') {
-    offX = Math.sin(t * 0.4) * outW * 0.06;
+  } else if (id.includes('ghost-drift')) {
+    offX = Math.sin(t * 0.4) * W * 0.06;
     alpha = 0.6 + Math.sin(t * 0.5) * 0.4;
-  } else if (id === 'grave-rise') {
-    offY = -Math.abs(Math.sin(t * 0.4)) * outH * 0.06;
-  } else if (id === 'purgatory' || id === 'purgatory-pulse') {
-    extraScale = 1 + Math.sin(t * 1.2) * 0.05;
+  } else if (id.includes('grave')) {
+    offY = -Math.abs(Math.sin(t * 0.4)) * H * 0.06;
+  } else if (id.includes('purgatory')) {
+    sc = 1 + Math.sin(t * 1.2) * 0.05;
     alpha = 0.7 + Math.sin(t * 0.9) * 0.3;
-  } else if (id === 'eternal-dark' || id === 'eternal-darkness') {
+  } else if (id.includes('eternal')) {
     alpha = Math.max(0.1, 1 - (t * 0.02) % 1);
-  } else if (id === 'cursed-halo') {
-    extraRot = t * 0.5;
-    offY = Math.sin(t * 1.0) * outH * 0.01;
+  } else if (id.includes('halo')) {
+    rot = t * 0.5;
+    offY = Math.sin(t * 1.0) * H * 0.01;
   }
 
-  // VISUAL
-  else if (id === 'glitch' || id === 'glitch-horror') {
-    if (Math.random() < 0.15) { offX += (Math.random() - 0.5) * outW * 0.03; }
-    if (Math.random() < 0.05) { alpha = 0; }
-  } else if (id === 'flicker' || id === 'light-flicker') {
-    alpha = 0.6 + Math.sin(t * 8) * 0.4;
-  } else if (id === 'tv-static' || id === 'tv-static-corrupt') {
-    offX = (Math.random() - 0.5) * outW * 0.015;
-    offY = (Math.random() - 0.5) * outH * 0.005;
+  // VISUAL/GLITCH animations
+  else if (id.includes('glitch')) {
+    if (Math.random() < 0.15) offX += (Math.random() - 0.5) * W * 0.03;
+    if (Math.random() < 0.05) alpha = 0;
+  } else if (id.includes('tv-static') || id.includes('static')) {
+    offX = (Math.random() - 0.5) * W * 0.015;
+    offY = (Math.random() - 0.5) * H * 0.005;
     alpha = 0.7 + Math.random() * 0.3;
-  } else if (id === 'corruption' || id === 'digital-corruption' || id === 'pixel-corrupt') {
-    if (Math.random() < 0.2) { offX = (Math.random() - 0.5) * outW * 0.02; }
-  } else if (id === 'chromatic' || id === 'chromatic-aberration') {
-    offX = Math.sin(t * 3) * outW * 0.005;
-  } else if (id === 'possession-pulse') {
-    extraScale = 1 + Math.sin(t * 3) * 0.06;
-  } else if (id === 'shadow-clone') {
-    offX = Math.sin(t * 1.5) * outW * 0.02;
-  } else if (id === 'blood-moon' || id === 'blood-moon-filter') {
+  } else if (id.includes('corrupt') || id.includes('corruption')) {
+    if (Math.random() < 0.2) offX = (Math.random() - 0.5) * W * 0.02;
+  } else if (id.includes('chromatic')) {
+    offX = Math.sin(t * 3) * W * 0.005;
+  } else if (id.includes('blood-moon')) {
     alpha = 0.85 + Math.sin(t * 0.5) * 0.15;
-  } else if (id === 'laser-eyes' || id === 'laser-eyes-glow') {
-    extraScale = 1 + Math.sin(t * 4) * 0.03;
-  } else if (id === 'mirror-world' || id === 'mirror-world-flip') {
-    extraRot = Math.floor(t * 0.33) % 2 === 0 ? 0 : Math.PI;
-  } else if (id === 'hell-warp') {
-    offX = Math.sin(t * 2) * outW * 0.015;
-    offY = Math.cos(t * 1.7) * outH * 0.01;
-    extraScale = 1 + Math.sin(t * 1.2) * 0.04;
-  } else if (id === 'film-grain' || id === 'horror-film-grain') {
+  } else if (id.includes('hell-warp')) {
+    offX = Math.sin(t * 2) * W * 0.015;
+    offY = Math.cos(t * 1.7) * H * 0.01;
+    sc = 1 + Math.sin(t * 1.2) * 0.04;
+  } else if (id.includes('film-grain') || id.includes('grain')) {
     offX = (Math.random() - 0.5) * 2;
     offY = (Math.random() - 0.5) * 2;
-  } else if (id === 'celestial-horror') {
-    offY = Math.sin(t * 0.5) * outH * 0.03;
-    extraScale = 1 + Math.sin(t * 0.7) * 0.06;
+  } else if (id.includes('celestial')) {
+    offY = Math.sin(t * 0.5) * H * 0.03;
+    sc = 1 + Math.sin(t * 0.7) * 0.06;
+  } else if (id.includes('mirror')) {
+    rot = Math.floor(t * 0.33) % 2 === 0 ? 0 : Math.PI;
+  } else if (id.includes('shadow-clone')) {
+    offX = Math.sin(t * 1.5) * W * 0.02;
+  } else if (id.includes('blackout')) {
+    const c = (t * 0.3) % 1;
+    alpha = c < 0.4 ? 0 : Math.min(1, (c - 0.4) / 0.2);
   }
 
-  return { offX, offY, extraScale: Math.max(0.01, extraScale), extraRot, alpha: Math.max(0, Math.min(1, alpha)) };
+  return {
+    offX, offY,
+    extraScale: Math.max(0.01, sc),
+    extraRot: rot,
+    alpha: Math.max(0, Math.min(1, alpha)),
+  };
+}
+
+// ── Recording Settings Modal ──
+function RecordingSettingsModal({
+  settings, onSave, onStart, onCancel,
+}: {
+  settings: RecordingSettings;
+  onSave: (s: RecordingSettings) => void;
+  onStart: (s: RecordingSettings) => void;
+  onCancel: () => void;
+}) {
+  const [local, setLocal] = useState<RecordingSettings>({ ...settings });
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-96 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 mb-4">
+          <Settings2 className="w-5 h-5 text-red-400" />
+          <h3 className="text-white font-bold text-sm">Recording Settings</h3>
+        </div>
+
+        {/* Audio Source */}
+        <div className="mb-4">
+          <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Audio Source</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { val: 'microphone' as const, label: 'Microphone', sub: 'Permission popup aayega', icon: <Mic className="w-4 h-4" /> },
+              { val: 'none' as const, label: 'No Audio', sub: 'Sirf video, koi audio nahi', icon: <MicOff className="w-4 h-4" /> },
+            ].map(opt => (
+              <button key={opt.val}
+                onClick={() => setLocal(p => ({ ...p, audioSource: opt.val }))}
+                className={`flex flex-col items-start gap-1 p-3 rounded-lg border transition-all text-left ${local.audioSource === opt.val ? 'border-red-500 bg-red-900/20 text-white' : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500'}`}>
+                <div className="flex items-center gap-1.5">{opt.icon}<span className="text-xs font-bold">{opt.label}</span></div>
+                <span className="text-[9px] text-zinc-500">{opt.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Quality */}
+        <div className="mb-5">
+          <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Video Quality</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { val: 'high' as const, label: 'High', sub: '12 Mbps' },
+              { val: 'medium' as const, label: 'Medium', sub: '6 Mbps' },
+              { val: 'low' as const, label: 'Low', sub: '3 Mbps' },
+            ].map(opt => (
+              <button key={opt.val}
+                onClick={() => setLocal(p => ({ ...p, quality: opt.val }))}
+                className={`flex flex-col items-center gap-0.5 p-2.5 rounded-lg border transition-all ${local.quality === opt.val ? 'border-red-500 bg-red-900/20 text-white' : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500'}`}>
+                <span className="text-xs font-bold">{opt.label}</span>
+                <span className="text-[9px] text-zinc-500">{opt.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 mb-4">
+          <Monitor className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+          <p className="text-[9px] text-zinc-400 leading-relaxed">
+            Animations, particles aur visuals sab record honge. Microphone select karne pe browser permission popup aayega — <span className="text-white font-semibold">Allow</span> dabao.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => { onSave(local); onStart(local); }}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white text-sm font-bold rounded border border-red-500 transition-all">
+            <CircleDot className="w-4 h-4" /> Start Recording
+          </button>
+          <button onClick={onCancel}
+            className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700 transition-all">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Full-Featured Video Player ──
@@ -317,25 +389,25 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
   const [muted, setMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [url] = useState(() => URL.createObjectURL(video.blob));
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const resetHideTimer = () => {
     setShowControls(true);
-    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
-    hideControlsTimer.current = setTimeout(() => { if (playing) setShowControls(false); }, 3000);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => { if (playing) setShowControls(false); }, 3000);
   };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!videoRef.current) return;
       if (e.key === ' ') { e.preventDefault(); togglePlay(); }
-      if (e.key === 'ArrowRight') { videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 5); }
-      if (e.key === 'ArrowLeft') { videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5); }
+      if (e.key === 'ArrowRight') videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 5);
+      if (e.key === 'ArrowLeft') videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
       if (e.key === 'ArrowUp') { videoRef.current.volume = Math.min(1, videoRef.current.volume + 0.1); setVolume(videoRef.current.volume); }
       if (e.key === 'ArrowDown') { videoRef.current.volume = Math.max(0, videoRef.current.volume - 0.1); setVolume(videoRef.current.volume); }
-      if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
+      if (e.key === 'f' || e.key === 'F') toggleFullscreen();
       if (e.key === 'Escape') { if (isFullscreen) toggleFullscreen(); else onClose(); }
     };
     window.addEventListener('keydown', handler);
@@ -350,19 +422,14 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
 
   const toggleFullscreen = async () => {
     if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      await containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
-    }
+    if (!document.fullscreenElement) { await containerRef.current.requestFullscreen(); setIsFullscreen(true); }
+    else { await document.exitFullscreen(); setIsFullscreen(false); }
   };
 
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
+    const h = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', h);
+    return () => document.removeEventListener('fullscreenchange', h);
   }, []);
 
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -379,36 +446,24 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black/96 flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        ref={containerRef}
-        onClick={e => e.stopPropagation()}
-        onMouseMove={resetHideTimer}
-        className="bg-zinc-950 rounded-xl overflow-hidden shadow-2xl border border-zinc-700 relative"
-        style={{ width: '100%', maxWidth: '860px', margin: 'auto' }}
-      >
-        {/* Top bar */}
-        <div className={`flex items-center justify-between px-4 py-3 border-b border-zinc-800 transition-opacity ${isFullscreen && !showControls ? 'opacity-0' : 'opacity-100'}`}
-          style={{ background: '#09090b' }}>
+      <div ref={containerRef} onClick={e => e.stopPropagation()} onMouseMove={resetHideTimer}
+        className="bg-zinc-950 rounded-xl overflow-hidden shadow-2xl border border-zinc-700 relative w-full" style={{ maxWidth: '860px' }}>
+        <div className={`flex items-center justify-between px-4 py-3 border-b border-zinc-800 transition-opacity ${isFullscreen && !showControls ? 'opacity-0' : 'opacity-100'}`} style={{ background: '#09090b' }}>
           <div className="flex items-center gap-2 min-w-0">
             <Video className="w-4 h-4 text-red-400 flex-shrink-0" />
             <span className="text-white text-sm font-bold truncate">{video.name}</span>
             <span className="text-zinc-500 text-xs flex-shrink-0">{formatDur(duration)} · {formatSize(video.size)}</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500">
+            <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500">
               <Download className="w-3.5 h-3.5" /> Download
             </button>
-            <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800">
-              <X className="w-5 h-5" />
-            </button>
+            <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
-        {/* Video */}
         <div className="relative bg-black" style={{ lineHeight: 0 }}>
-          <video
-            ref={videoRef} src={url} onClick={togglePlay}
+          <video ref={videoRef} src={url} onClick={togglePlay}
             onEnded={() => setPlaying(false)}
             onLoadedMetadata={() => { if (videoRef.current) setDuration(videoRef.current.duration); }}
             onTimeUpdate={() => {
@@ -419,8 +474,6 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             }}
             style={{ width: '100%', maxHeight: isFullscreen ? '100vh' : '58vh', display: 'block', cursor: 'pointer', background: '#000' }}
           />
-
-          {/* Center play button overlay */}
           {!playing && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-16 h-16 bg-red-700/80 rounded-full flex items-center justify-center shadow-2xl">
@@ -428,32 +481,18 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
               </div>
             </div>
           )}
-
-          {/* Controls overlay */}
-          <div
-            className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${!showControls && playing && isFullscreen ? 'opacity-0' : 'opacity-100'}`}
-            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%)', padding: '12px 12px 8px' }}
-          >
-            {/* Progress bar */}
+          <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${!showControls && playing && isFullscreen ? 'opacity-0' : 'opacity-100'}`}
+            style={{ background: 'linear-gradient(to top,rgba(0,0,0,0.9),transparent)', padding: '12px 12px 8px' }}>
             <div className="relative w-full h-2 bg-zinc-700 rounded-full mb-2 cursor-pointer group" onClick={seek}>
-              <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
-              <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-red-400 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity -ml-1.5"
-                style={{ left: `${progress}%` }} />
+              <div className="h-full bg-red-500 rounded-full" style={{ width: `${progress}%` }} />
+              <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-red-400 rounded-full shadow opacity-0 group-hover:opacity-100 -ml-1.5" style={{ left: `${progress}%` }} />
             </div>
-
             <div className="flex items-center gap-2">
-              {/* Play/Pause */}
-              <button onClick={togglePlay}
-                className="w-8 h-8 bg-red-700 hover:bg-red-600 rounded-full flex items-center justify-center text-white flex-shrink-0">
+              <button onClick={togglePlay} className="w-8 h-8 bg-red-700 hover:bg-red-600 rounded-full flex items-center justify-center text-white flex-shrink-0">
                 {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
               </button>
-
-              {/* Time */}
               <span className="text-white text-xs font-mono">{formatDur(currentTime)} / {formatDur(duration)}</span>
-
               <div className="flex-1" />
-
-              {/* Volume */}
               <button onClick={() => { if (videoRef.current) { const m = !muted; videoRef.current.muted = m; setMuted(m); } }}
                 className="text-zinc-400 hover:text-white p-1">
                 {muted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -461,30 +500,18 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
               <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume}
                 onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0; } setMuted(v === 0); }}
                 className="w-20 h-1 accent-red-500 cursor-pointer" />
-
-              {/* Skip backward */}
               <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10); }}
                 className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">-10s</button>
-
-              {/* Skip forward */}
               <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10); }}
                 className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">+10s</button>
-
-              {/* Fullscreen */}
               <button onClick={toggleFullscreen} className="text-zinc-400 hover:text-white p-1">
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               </button>
             </div>
           </div>
         </div>
-
-        {/* Keyboard shortcuts hint */}
         <div className="px-4 py-1.5 bg-zinc-900/80 border-t border-zinc-800 flex items-center gap-3 text-[8px] text-zinc-600">
-          <span>Space: Play/Pause</span>
-          <span>←→: ±5s</span>
-          <span>↑↓: Volume</span>
-          <span>F: Fullscreen</span>
-          <span>Esc: Close</span>
+          <span>Space: Play/Pause</span><span>←→: ±5s</span><span>↑↓: Volume</span><span>F: Fullscreen</span><span>Esc: Close</span>
         </div>
       </div>
     </div>
@@ -547,9 +574,7 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
                         <div className="w-full h-14 bg-zinc-900 relative cursor-pointer" onClick={() => setPlayingVideo(v)}>
                           {v.thumbnail && <img src={v.thumbnail} alt="" className="w-full h-full object-cover opacity-60" />}
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-8 h-8 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600">
-                              <Play className="w-4 h-4 text-white ml-0.5" />
-                            </div>
+                            <div className="w-8 h-8 bg-red-700/90 rounded-full flex items-center justify-center hover:bg-red-600"><Play className="w-4 h-4 text-white ml-0.5" /></div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 p-2">
@@ -586,10 +611,7 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
 
 // ── Project Dashboard ──
 function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
-  username: string;
-  onNew: (name: string) => void;
-  onOpen: (p: HorrorProject) => void;
-  onDelete: (id: string) => void;
+  username: string; onNew: (name: string) => void; onOpen: (p: HorrorProject) => void; onDelete: (id: string) => void;
 }) {
   const [projects, setProjects] = useState<HorrorProject[]>([]);
   const [newName, setNewName] = useState('');
@@ -614,10 +636,7 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
               <p className="text-[9px] text-zinc-500 tracking-widest uppercase">Project Library</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-red-400" />
-            <span className="text-red-300 font-semibold text-xs">{username}</span>
-          </div>
+          <div className="flex items-center gap-2"><User className="w-4 h-4 text-red-400" /><span className="text-red-300 font-semibold text-xs">{username}</span></div>
         </div>
         <div className="flex-1 px-4 md:px-8 py-6">
           <div className="max-w-4xl mx-auto">
@@ -630,8 +649,7 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleNew(); if (e.key === 'Escape') setShowInput(false); }}
-                    placeholder="Project name..."
-                    className="px-4 py-2.5 bg-zinc-800 border border-red-700/50 text-white text-sm outline-none focus:border-red-500 flex-1" />
+                    placeholder="Project name..." className="px-4 py-2.5 bg-zinc-800 border border-red-700/50 text-white text-sm outline-none focus:border-red-500 flex-1" />
                   <div className="flex gap-2">
                     <button onClick={handleNew} className="flex-1 sm:flex-none px-5 py-2.5 bg-red-700 hover:bg-red-600 text-white text-sm font-bold border border-red-500">Create</button>
                     <button onClick={() => setShowInput(false)} className="flex-1 sm:flex-none px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm border border-zinc-700">Cancel</button>
@@ -640,10 +658,7 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
               )}
             </div>
             {projects.length === 0 ? (
-              <div className="text-center py-16">
-                <FolderOpen className="w-14 h-14 text-zinc-800 mx-auto mb-4" />
-                <p className="text-zinc-600 text-sm">No projects yet. Create your first horror project!</p>
-              </div>
+              <div className="text-center py-16"><FolderOpen className="w-14 h-14 text-zinc-800 mx-auto mb-4" /><p className="text-zinc-600 text-sm">No projects yet. Create your first horror project!</p></div>
             ) : (
               <div>
                 <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">Your Projects ({projects.length})</p>
@@ -675,7 +690,8 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
                           <div className="border-t border-zinc-800 px-4 py-2">
                             <button onClick={e => { e.stopPropagation(); setExpandedId(expandedId === p.id ? null : p.id); }}
                               className="flex items-center gap-1.5 text-[10px] text-zinc-500 hover:text-red-400 w-full py-1">
-                              <Film className="w-3 h-3" /><span>{videos.length} video{videos.length !== 1 ? 's' : ''}</span><span className="ml-auto text-[8px]">{expandedId === p.id ? '▲' : '▼'}</span>
+                              <Film className="w-3 h-3" /><span>{videos.length} video{videos.length !== 1 ? 's' : ''}</span>
+                              <span className="ml-auto text-[8px]">{expandedId === p.id ? '▲' : '▼'}</span>
                             </button>
                             {expandedId === p.id && (
                               <div className="mt-2 space-y-2 pb-2">
@@ -724,6 +740,8 @@ export default function HorrorStudio() {
   const [showProjectDropdown, setShowProjectDropdown] = useState(false);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [showRecordingSettings, setShowRecordingSettings] = useState(false);
+  const [recordingSettings, setRecordingSettings] = useState<RecordingSettings>({ audioSource: 'microphone', quality: 'high' });
   const username = 'Creator';
 
   const [images, setImages] = useState<UploadedImage[]>([]);
@@ -760,14 +778,13 @@ export default function HorrorStudio() {
   const rafHandleRef = useRef<number>(0);
   const audioStreamRef = useRef<MediaStream | null>(null);
 
-  // Live refs — no stale closures in rAF loop
+  // Live refs for rAF loop — avoid stale closures
   const imagesRef = useRef<UploadedImage[]>([]);
   const slideshowIdxRef = useRef(0);
   const randomVisibleRef = useRef<string[]>([]);
   const animModeRef = useRef<AnimationMode>('single');
   const selectedIdRef = useRef<string | null>(null);
   const greenScreenRef = useRef(false);
-  const frameCountRef = useRef(0);
   const animStartTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => { imagesRef.current = images; }, [images]);
@@ -795,25 +812,20 @@ export default function HorrorStudio() {
     if (!currentProject) return;
     let thumbnail = currentProject.thumbnail;
     if (images.length > 0) {
-      const firstImg = images[0];
-      thumbnail = imageBlobStore[firstImg.id] || firstImg.url || thumbnail;
+      const f = images[0];
+      thumbnail = imageBlobStore[f.id] || f.url || thumbnail;
     }
     const updated: HorrorProject = {
-      ...currentProject, updatedAt: Date.now(),
-      status: status ?? currentProject.status,
-      aspectRatio, greenScreen, animMode,
-      activeParticles, activeSounds, masterVolume, thumbnail,
+      ...currentProject, updatedAt: Date.now(), status: status ?? currentProject.status,
+      aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, thumbnail,
       images: images.map(img => ({
         id: img.id, url: imageBlobStore[img.id] || img.url, name: img.name,
         animation: img.animation, animations: img.animations ?? [],
         position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity,
       })),
     };
-    saveProject(updated);
-    setCurrentProject(updated);
-    setAllProjects(loadProjects());
-    setAutoSaveMsg('Saved ✓');
-    setTimeout(() => setAutoSaveMsg(''), 2000);
+    saveProject(updated); setCurrentProject(updated); setAllProjects(loadProjects());
+    setAutoSaveMsg('Saved ✓'); setTimeout(() => setAutoSaveMsg(''), 2000);
   }, [currentProject, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, images]);
 
   useEffect(() => {
@@ -861,14 +873,10 @@ export default function HorrorStudio() {
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
       imageBlobStore[id] = url;
-      loadImageElement(id, url).catch(() => {});
+      preloadImage(id, url);
       newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
     });
-    setImages(prev => {
-      const next = [...prev, ...newImages];
-      if (!selectedId && next.length > 0) setSelectedId(next[0].id);
-      return next;
-    });
+    setImages(prev => { const next = [...prev, ...newImages]; if (!selectedId && next.length > 0) setSelectedId(next[0].id); return next; });
     if (newImages.length > 0 && !selectedId) setSelectedId(newImages[0].id);
   }, [selectedId]);
 
@@ -881,18 +889,13 @@ export default function HorrorStudio() {
 
   const removeImage = (id: string) => {
     delete imageBlobStore[id]; delete imageElementCache[id];
-    setImages(prev => {
-      const next = prev.filter(img => img.id !== id);
-      if (selectedId === id) setSelectedId(next.length > 0 ? next[0].id : null);
-      return next;
-    });
+    setImages(prev => { const next = prev.filter(img => img.id !== id); if (selectedId === id) setSelectedId(next.length > 0 ? next[0].id : null); return next; });
   };
 
   const toggleAnimation = (animId: string) => {
     if (!selectedId || !selectedImage) return;
     const current = selectedImage.animations ?? [];
-    const updated = current.includes(animId) ? current.filter(a => a !== animId) : [...current, animId];
-    updateImage(selectedId, { animations: updated });
+    updateImage(selectedId, { animations: current.includes(animId) ? current.filter(a => a !== animId) : [...current, animId] });
   };
 
   const clearAllAnimations = () => { if (selectedId) updateImage(selectedId, { animations: [], animation: null }); };
@@ -911,61 +914,76 @@ export default function HorrorStudio() {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // RECORDING ENGINE
+  // RECORDING ENGINE — canvas-based, full animation capture
   // ═══════════════════════════════════════════════════════════
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (settings: RecordingSettings) => {
     const outWidth = ratio.width;
     const outHeight = ratio.height;
-    const recordingStartWallTime = performance.now();
 
-    // Preload all images
-    await Promise.allSettled(
-      imagesRef.current.map(img => loadImageElement(img.id, imageBlobStore[img.id] || img.url))
+    // ── Step 1: Preload ALL images before starting ──
+    const currentImages = imagesRef.current;
+    await Promise.all(
+      currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url))
     );
 
-    // Init per-image animation start times
-    imagesRef.current.forEach(img => {
-      if (!animStartTimesRef.current[img.id]) animStartTimesRef.current[img.id] = recordingStartWallTime;
+    // ── Step 2: Init animation timers ──
+    const startWall = performance.now();
+    currentImages.forEach(img => {
+      animStartTimesRef.current[img.id] = startWall;
     });
 
+    // ── Step 3: Setup canvas ──
     const recCanvas = document.createElement('canvas');
-    recCanvas.width = outWidth; recCanvas.height = outHeight;
-    const ctx = recCanvas.getContext('2d', { willReadFrequently: false })!;
+    recCanvas.width = outWidth;
+    recCanvas.height = outHeight;
+    const ctx = recCanvas.getContext('2d', { alpha: false })!;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Try to get microphone audio for recording sounds playing in the browser
+    // ── Step 4: Audio ──
     let audioStream: MediaStream | null = null;
-    try {
-      audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 48000,
-        },
-        video: false,
-      });
-      audioStreamRef.current = audioStream;
-    } catch {
-      audioStream = null;
-      audioStreamRef.current = null;
+    if (settings.audioSource === 'microphone') {
+      try {
+        // Force a fresh permission request every time
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            sampleRate: 48000,
+            channelCount: 2,
+          },
+          video: false,
+        });
+        audioStreamRef.current = audioStream;
+      } catch (err) {
+        console.warn('Microphone permission denied or error:', err);
+        audioStream = null;
+        audioStreamRef.current = null;
+      }
     }
 
+    // ── Step 5: MediaRecorder ──
     const videoStream = recCanvas.captureStream(30);
-    const tracks = [...videoStream.getVideoTracks(), ...(audioStream ? audioStream.getAudioTracks() : [])];
-    const combinedStream = new MediaStream(tracks);
+    const allTracks = [
+      ...videoStream.getVideoTracks(),
+      ...(audioStream ? audioStream.getAudioTracks() : []),
+    ];
+    const combinedStream = new MediaStream(allTracks);
 
+    const bitrates: Record<string, number> = { high: 12_000_000, medium: 6_000_000, low: 3_000_000 };
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm'];
     const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
 
     let recorder: MediaRecorder;
-    try { recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 12_000_000 }); }
-    catch { recorder = new MediaRecorder(combinedStream); }
+    try {
+      recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrates[settings.quality] });
+    } catch {
+      recorder = new MediaRecorder(combinedStream);
+    }
 
     chunksRef.current = [];
     recordingStartTimeRef.current = Date.now();
-    frameCountRef.current = 0;
 
     recorder.ondataavailable = e => { if (e.data?.size > 0) chunksRef.current.push(e.data); };
 
@@ -979,13 +997,12 @@ export default function HorrorStudio() {
       const durationSec = Math.round((Date.now() - recordingStartTimeRef.current) / 1000);
 
       if (blob.size < 1000) {
-        alert('Recording failed. Try again.'); setRecording(false); setRecordingTime(0); return;
+        alert('Recording failed — no data captured. Try again.'); setRecording(false); setRecordingTime(0); return;
       }
 
       if (currentProject) {
         setSavingVideo(true);
-        const ext = 'webm';
-        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.${ext}`;
+        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
 
         let thumbnail = '';
         try {
@@ -1014,10 +1031,9 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    // ── rAF drawing loop ──
-    const drawFrame = () => {
+    // ── Step 6: rAF drawing loop ──
+    const drawLoop = () => {
       const now = performance.now();
-      frameCountRef.current++;
       const imgs = imagesRef.current;
       const mode = animModeRef.current;
       const selId = selectedIdRef.current;
@@ -1029,16 +1045,17 @@ export default function HorrorStudio() {
       ctx.fillStyle = gs ? '#00ff00' : '#090909';
       ctx.fillRect(0, 0, outWidth, outHeight);
 
-      // Grid
+      // Subtle grid lines
       if (!gs) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(255,255,255,0.022)'; ctx.lineWidth = 0.5;
+        ctx.strokeStyle = 'rgba(255,255,255,0.022)';
+        ctx.lineWidth = 0.5;
         for (let x = 0; x <= outWidth; x += outWidth / 10) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, outHeight); ctx.stroke(); }
         for (let y = 0; y <= outHeight; y += outHeight / 10) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(outWidth, y); ctx.stroke(); }
         ctx.restore();
       }
 
-      // Which images
+      // Determine which images to draw
       let drawList: UploadedImage[] = [];
       if (imgs.length > 0) {
         switch (mode) {
@@ -1053,13 +1070,14 @@ export default function HorrorStudio() {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
-        // Per-image elapsed time for independent animation
-        const startTime = animStartTimesRef.current[img.id] ?? now;
-        const t = (now - startTime) / 1000;
+        // Per-image independent animation time
+        if (!animStartTimesRef.current[img.id]) animStartTimesRef.current[img.id] = now;
+        const t = (now - animStartTimesRef.current[img.id]) / 1000;
 
         const anims = img.animations ?? (img.animation ? [img.animation] : []);
-        let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
 
+        // Accumulate animation values
+        let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
         for (const animId of anims) {
           const v = getAnimValues(animId, t, outWidth, outHeight);
           totalOffX += v.offX;
@@ -1069,45 +1087,56 @@ export default function HorrorStudio() {
           totalAlpha *= v.alpha;
         }
 
-        const cx = (img.position.x / 100) * outWidth;
-        const cy = (img.position.y / 100) * outHeight;
-        const userScale = img.scale ?? 1;
+        // Image dimensions — scale to fit nicely in canvas
         const naturalW = el.naturalWidth;
         const naturalH = el.naturalHeight;
         const maxW = outWidth * 0.48;
         const maxH = outHeight * 0.48;
         const baseScale = Math.min(maxW / naturalW, maxH / naturalH);
+        const userScale = img.scale ?? 1;
         const drawScale = baseScale * userScale * totalScale;
         const dw = naturalW * drawScale;
         const dh = naturalH * drawScale;
+
+        // Position
+        const cx = (img.position.x / 100) * outWidth + totalOffX;
+        const cy = (img.position.y / 100) * outHeight + totalOffY;
         const userRotRad = ((img.rotation ?? 0) * Math.PI) / 180;
 
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, (img.opacity ?? 1) * totalAlpha));
-        ctx.translate(cx + totalOffX, cy + totalOffY);
+        ctx.translate(cx, cy);
         ctx.rotate(userRotRad + totalRot);
         ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
       }
 
-      // Vignette
+      // Vignette overlay
       if (!gs) {
-        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25, outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75);
-        grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(1, 'rgba(0,0,0,0.65)');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, outWidth, outHeight);
+        const grad = ctx.createRadialGradient(
+          outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25,
+          outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75,
+        );
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.65)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, outWidth, outHeight);
       }
 
-      rafHandleRef.current = requestAnimationFrame(drawFrame);
+      rafHandleRef.current = requestAnimationFrame(drawLoop);
     };
 
-    drawFrame();
+    // Start everything
+    drawLoop();
     recorder.start(250);
     mediaRecorderRef.current = recorder;
-    setRecording(true); setRecordingTime(0);
+    setRecording(true);
+    setRecordingTime(0);
     recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
     autoStopTimerRef.current = setTimeout(() => {
       if (recorder.state === 'recording') recorder.stop();
     }, 5 * 60 * 1000);
+
   }, [currentProject, ratio]);
 
   const handleRecord = useCallback(() => {
@@ -1119,17 +1148,13 @@ export default function HorrorStudio() {
       if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current);
       return;
     }
-    startRecording();
-  }, [recording, startRecording]);
+    // Always show settings modal before recording
+    setShowRecordingSettings(true);
+  }, [recording]);
 
   const formatTime = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
   const isVertical = ratio.height > ratio.width;
-
-  const getAnimClass = (img: UploadedImage) => {
-    const anims = img.animations ?? (img.animation ? [img.animation] : []);
-    return anims.map(a => `ha-${a}`).join(' ');
-  };
-
+  const getAnimClass = (img: UploadedImage) => { const anims = img.animations ?? (img.animation ? [img.animation] : []); return anims.map(a => `ha-${a}`).join(' '); };
   const selectedIdx = images.findIndex(img => img.id === selectedId);
   const goLeft = () => selectedIdx > 0 && setSelectedId(images[selectedIdx - 1].id);
   const goRight = () => selectedIdx < images.length - 1 && setSelectedId(images[selectedIdx + 1].id);
@@ -1152,7 +1177,7 @@ export default function HorrorStudio() {
     setActiveSounds(proj.activeSounds); setMasterVolume(proj.masterVolume);
     const restored: UploadedImage[] = proj.images.map(img => {
       const url = imageBlobStore[img.id] || img.url;
-      if (url) loadImageElement(img.id, url).catch(() => {});
+      if (url) preloadImage(img.id, url);
       return { id: img.id, file: new File([], img.name), url, name: img.name, animation: img.animation, animations: img.animations ?? [], greenScreen: false, position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity };
     });
     setImages(restored); setSelectedId(restored.length > 0 ? restored[0].id : null); setShowDashboard(false);
@@ -1212,6 +1237,18 @@ export default function HorrorStudio() {
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-200 relative overflow-hidden">
       <AppBackground />
       {playingVideo && <VideoPlayer video={playingVideo} onClose={() => setPlayingVideo(null)} />}
+
+      {/* Recording Settings Modal */}
+      {showRecordingSettings && (
+        <RecordingSettingsModal
+          settings={recordingSettings}
+          onSave={s => setRecordingSettings(s)}
+          onStart={s => { setRecordingSettings(s); setShowRecordingSettings(false); startRecording(s); }}
+          onCancel={() => setShowRecordingSettings(false)}
+        />
+      )}
+
+      {/* New Project Modal */}
       {showNewProjectModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowNewProjectModal(false)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-5 w-80 shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1228,6 +1265,7 @@ export default function HorrorStudio() {
         </div>
       )}
 
+      {/* Header */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div ref={projectDropdownRef} className="relative">
@@ -1267,6 +1305,7 @@ export default function HorrorStudio() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
+        {/* LEFT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-r border-zinc-800 overflow-hidden">
           <div onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragover(true); }} onDragLeave={() => setDragover(false)}
             onClick={() => fileInputRef.current?.click()}
@@ -1316,6 +1355,7 @@ export default function HorrorStudio() {
           </div>
         </div>
 
+        {/* CENTER */}
         <div className="flex-1 flex flex-col bg-zinc-950 min-w-0">
           <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 flex-shrink-0 bg-zinc-900/50 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -1333,6 +1373,11 @@ export default function HorrorStudio() {
                   <Film className="w-3 h-3" /> {getProjectVideos(currentProject.id).length} Video{getProjectVideos(currentProject.id).length !== 1 ? 's' : ''}
                 </button>
               )}
+              {/* Settings button */}
+              <button onClick={() => setShowRecordingSettings(true)} disabled={recording}
+                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700 disabled:opacity-40" title="Recording Settings">
+                <Settings2 className="w-3 h-3" />
+              </button>
               <button onClick={handleRecord} disabled={savingVideo}
                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${recording ? 'bg-red-500/20 border-red-500/40 text-red-300' : savingVideo ? 'bg-zinc-700 text-zinc-500 border-zinc-600 cursor-wait' : 'bg-zinc-800 hover:bg-red-900/20 text-zinc-300 border-zinc-700 hover:border-red-800'}`}>
                 <CircleDot className={`w-3 h-3 ${recording ? 'fill-red-500 text-red-500 animate-pulse' : ''}`} />
@@ -1360,6 +1405,7 @@ export default function HorrorStudio() {
           )}
         </div>
 
+        {/* RIGHT */}
         <div className="w-[220px] flex-shrink-0 flex flex-col bg-zinc-900/80 border-l border-zinc-800 overflow-y-auto">
           <div className="p-3 space-y-4">
             <ControlPanel selectedImage={selectedImage} aspectRatio={aspectRatio} greenScreenEnabled={greenScreen}
@@ -1381,3 +1427,4 @@ export default function HorrorStudio() {
     </div>
   );
 }
+
