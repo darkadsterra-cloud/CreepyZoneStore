@@ -30,7 +30,6 @@ interface ProjectVideo {
   thumbnail: string;
 }
 
-// ── CHANGE 1: 'desktop' option add ki audioSource mein ──
 interface RecordingSettings {
   audioSource: 'microphone' | 'desktop' | 'none';
   quality: 'high' | 'medium' | 'low';
@@ -56,8 +55,6 @@ function removeProjectVideo(pid: string, vid: string) {
 }
 
 const imageBlobStore: Record<string, string> = {};
-
-// ── Image element cache — preloaded for rAF loop ──
 const imageElementCache: Record<string, HTMLImageElement> = {};
 
 function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
@@ -83,7 +80,6 @@ function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
   });
 }
 
-// ── Animation math — pure JS, no CSS needed ──
 function getAnimValues(animId: string, t: number, W: number, H: number) {
   let offX = 0, offY = 0, sc = 1, rot = 0, alpha = 1;
   const id = animId.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -286,7 +282,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   };
 }
 
-// ── Recording Settings Modal ──
+// ── Recording Settings Modal — all English ──
 function RecordingSettingsModal({
   settings, onSave, onStart, onCancel,
 }: {
@@ -305,15 +301,13 @@ function RecordingSettingsModal({
           <h3 className="text-white font-bold text-sm">Recording Settings</h3>
         </div>
 
-        {/* Audio Source */}
         <div className="mb-4">
           <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Audio Source</p>
-          {/* ── CHANGE 2: grid-cols-3 aur Desktop Audio option add ki ── */}
           <div className="grid grid-cols-3 gap-2">
             {[
-              { val: 'microphone' as const, label: 'Microphone', sub: 'Permission popup aayega', icon: <Mic className="w-4 h-4" /> },
-              { val: 'desktop' as const, label: 'Desktop Audio', sub: 'Tab/system sound capture', icon: <Speaker className="w-4 h-4" /> },
-              { val: 'none' as const, label: 'No Audio', sub: 'Sirf video, koi audio nahi', icon: <MicOff className="w-4 h-4" /> },
+              { val: 'microphone' as const, label: 'Microphone', sub: 'Browser permission required', icon: <Mic className="w-4 h-4" /> },
+              { val: 'desktop' as const, label: 'Desktop Audio', sub: 'Captures tab/system sound', icon: <Speaker className="w-4 h-4" /> },
+              { val: 'none' as const, label: 'No Audio', sub: 'Video only, no sound', icon: <MicOff className="w-4 h-4" /> },
             ].map(opt => (
               <button key={opt.val}
                 onClick={() => setLocal(p => ({ ...p, audioSource: opt.val }))}
@@ -325,7 +319,6 @@ function RecordingSettingsModal({
           </div>
         </div>
 
-        {/* Quality */}
         <div className="mb-5">
           <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Video Quality</p>
           <div className="grid grid-cols-3 gap-2">
@@ -348,10 +341,10 @@ function RecordingSettingsModal({
           <Monitor className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
           <p className="text-[9px] text-zinc-400 leading-relaxed">
             {local.audioSource === 'desktop'
-              ? 'Browser ek popup dikhayega — tab ya window select karo aur "Share audio" checkbox zaroor tick karo.'
+              ? 'A browser popup will appear — select a tab or window and check the "Share audio" checkbox.'
               : local.audioSource === 'microphone'
-              ? 'Animations, particles aur visuals sab record honge. Browser permission popup aayega — Allow dabao.'
-              : 'Sirf video record hogi, koi audio nahi hogi.'}
+              ? 'All animations, particles and visuals will be recorded. Click Allow when the permission popup appears.'
+              : 'Video only will be recorded with no audio track.'}
           </p>
         </div>
 
@@ -455,7 +448,6 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800"><X className="w-5 h-5" /></button>
           </div>
         </div>
-
         <div className="relative bg-black" style={{ lineHeight: 0 }}>
           <video ref={videoRef} src={url} onClick={togglePlay}
             onEnded={() => setPlaying(false)}
@@ -487,17 +479,14 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
               </button>
               <span className="text-white text-xs font-mono">{formatDur(currentTime)} / {formatDur(duration)}</span>
               <div className="flex-1" />
-              <button onClick={() => { if (videoRef.current) { const m = !muted; videoRef.current.muted = m; setMuted(m); } }}
-                className="text-zinc-400 hover:text-white p-1">
+              <button onClick={() => { if (videoRef.current) { const m = !muted; videoRef.current.muted = m; setMuted(m); } }} className="text-zinc-400 hover:text-white p-1">
                 {muted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
               <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume}
                 onChange={e => { const v = parseFloat(e.target.value); setVolume(v); if (videoRef.current) { videoRef.current.volume = v; videoRef.current.muted = v === 0; } setMuted(v === 0); }}
                 className="w-20 h-1 accent-red-500 cursor-pointer" />
-              <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10); }}
-                className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">-10s</button>
-              <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10); }}
-                className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">+10s</button>
+              <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 10); }} className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">-10s</button>
+              <button onClick={() => { if (videoRef.current) videoRef.current.currentTime = Math.min(videoRef.current.duration, videoRef.current.currentTime + 10); }} className="text-zinc-400 hover:text-white text-[10px] px-1.5 py-1 rounded border border-zinc-700 hover:border-zinc-500">+10s</button>
               <button onClick={toggleFullscreen} className="text-zinc-400 hover:text-white p-1">
                 {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               </button>
@@ -778,6 +767,8 @@ export default function HorrorStudio() {
   const animModeRef = useRef<AnimationMode>('single');
   const selectedIdRef = useRef<string | null>(null);
   const greenScreenRef = useRef(false);
+
+  // Per-image animation start times — reset fresh every recording session
   const animStartTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => { imagesRef.current = images; }, [images]);
@@ -907,22 +898,25 @@ export default function HorrorStudio() {
   };
 
   // ═══════════════════════════════════════════════════════════
-  // RECORDING ENGINE
+  // RECORDING ENGINE — canvas rAF loop with live animation sync
   // ═══════════════════════════════════════════════════════════
   const startRecording = useCallback(async (settings: RecordingSettings) => {
     const outWidth = ratio.width;
     const outHeight = ratio.height;
 
+    // Preload all images
     const currentImages = imagesRef.current;
-    await Promise.all(
-      currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url))
-    );
+    await Promise.all(currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url)));
 
-    const startWall = performance.now();
+    // Reset animation start times fresh for this recording session.
+    // Each image animation starts at t=0 when Record is pressed.
+    const sessionStart = performance.now();
+    animStartTimesRef.current = {};
     currentImages.forEach(img => {
-      animStartTimesRef.current[img.id] = startWall;
+      animStartTimesRef.current[img.id] = sessionStart;
     });
 
+    // Setup canvas
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outWidth;
     recCanvas.height = outHeight;
@@ -930,75 +924,45 @@ export default function HorrorStudio() {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // ── CHANGE 3: desktop audio capture logic add ki ──
+    // Audio
     let audioStream: MediaStream | null = null;
-
     if (settings.audioSource === 'microphone') {
       try {
         audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-            sampleRate: 48000,
-            channelCount: 2,
-          },
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 48000, channelCount: 2 },
           video: false,
         });
         audioStreamRef.current = audioStream;
       } catch (err) {
-        console.warn('Microphone permission denied or error:', err);
-        audioStream = null;
-        audioStreamRef.current = null;
+        console.warn('Microphone permission denied:', err);
+        audioStream = null; audioStreamRef.current = null;
       }
     } else if (settings.audioSource === 'desktop') {
       try {
-        // getDisplayMedia se desktop/tab audio capture hogi
-        const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({
-          video: true,   // video required hota hai getDisplayMedia ke liye
-          audio: true,   // "Share audio" checkbox browser popup mein dikhega
-        });
-        // Sirf audio tracks lenge, video track foran band kar denge
+        const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
         displayStream.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
         const audioTracks: MediaStreamTrack[] = displayStream.getAudioTracks();
-        if (audioTracks.length > 0) {
-          audioStream = new MediaStream(audioTracks);
-          audioStreamRef.current = audioStream;
-        } else {
-          // User ne audio share nahi ki — gracefully continue without audio
-          console.warn('Desktop audio: no audio tracks found. User may not have checked "Share audio".');
-          audioStream = null;
-          audioStreamRef.current = null;
-        }
+        if (audioTracks.length > 0) { audioStream = new MediaStream(audioTracks); audioStreamRef.current = audioStream; }
+        else { audioStream = null; audioStreamRef.current = null; }
       } catch (err) {
-        console.warn('Desktop audio capture failed or cancelled:', err);
-        audioStream = null;
-        audioStreamRef.current = null;
+        console.warn('Desktop audio capture failed:', err);
+        audioStream = null; audioStreamRef.current = null;
       }
     }
-    // 'none' case mein audioStream null hi rahega
 
+    // MediaRecorder
     const videoStream = recCanvas.captureStream(30);
-    const allTracks = [
-      ...videoStream.getVideoTracks(),
-      ...(audioStream ? audioStream.getAudioTracks() : []),
-    ];
+    const allTracks = [...videoStream.getVideoTracks(), ...(audioStream ? audioStream.getAudioTracks() : [])];
     const combinedStream = new MediaStream(allTracks);
-
     const bitrates: Record<string, number> = { high: 12_000_000, medium: 6_000_000, low: 3_000_000 };
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm'];
     const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
-
     let recorder: MediaRecorder;
-    try {
-      recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrates[settings.quality] });
-    } catch {
-      recorder = new MediaRecorder(combinedStream);
-    }
+    try { recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: bitrates[settings.quality] }); }
+    catch { recorder = new MediaRecorder(combinedStream); }
 
     chunksRef.current = [];
     recordingStartTimeRef.current = Date.now();
-
     recorder.ondataavailable = e => { if (e.data?.size > 0) chunksRef.current.push(e.data); };
 
     recorder.onstop = async () => {
@@ -1017,7 +981,6 @@ export default function HorrorStudio() {
       if (currentProject) {
         setSavingVideo(true);
         const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
-
         let thumbnail = '';
         try {
           const tempUrl = URL.createObjectURL(blob);
@@ -1032,11 +995,7 @@ export default function HorrorStudio() {
           thumbnail = tc.toDataURL('image/jpeg', 0.75);
           URL.revokeObjectURL(tempUrl);
         } catch {}
-
-        addProjectVideo(currentProject.id, {
-          id: generateId(), name: videoName, blob,
-          size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail,
-        });
+        addProjectVideo(currentProject.id, { id: generateId(), name: videoName, blob, size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail });
         setAutoSaveMsg(`✓ Video saved! ${outWidth}×${outHeight} · ${formatSize(blob.size)}`);
         setTimeout(() => setAutoSaveMsg(''), 8000);
         setSavingVideo(false);
@@ -1045,6 +1004,9 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
+    // ── rAF drawing loop ──
+    // Key fix: read animations from imagesRef.current every frame (live state),
+    // compute t from per-image start time, apply getAnimValues identically to preview.
     const drawLoop = () => {
       const now = performance.now();
       const imgs = imagesRef.current;
@@ -1080,10 +1042,17 @@ export default function HorrorStudio() {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
-        if (!animStartTimesRef.current[img.id]) animStartTimesRef.current[img.id] = now;
+        // Init start time for images that appear mid-recording (e.g. slideshow or random-appear)
+        if (!animStartTimesRef.current[img.id]) {
+          animStartTimesRef.current[img.id] = now;
+        }
+
+        // Elapsed time in seconds for this image's animation cycle
         const t = (now - animStartTimesRef.current[img.id]) / 1000;
 
-        const anims = img.animations ?? (img.animation ? [img.animation] : []);
+        // Always read the latest animations from the live ref — never stale
+        const liveImg = imagesRef.current.find(i => i.id === img.id) ?? img;
+        const anims = liveImg.animations ?? (liveImg.animation ? [liveImg.animation] : []);
 
         let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
         for (const animId of anims) {
@@ -1100,17 +1069,17 @@ export default function HorrorStudio() {
         const maxW = outWidth * 0.48;
         const maxH = outHeight * 0.48;
         const baseScale = Math.min(maxW / naturalW, maxH / naturalH);
-        const userScale = img.scale ?? 1;
+        const userScale = liveImg.scale ?? 1;
         const drawScale = baseScale * userScale * totalScale;
         const dw = naturalW * drawScale;
         const dh = naturalH * drawScale;
 
-        const cx = (img.position.x / 100) * outWidth + totalOffX;
-        const cy = (img.position.y / 100) * outHeight + totalOffY;
-        const userRotRad = ((img.rotation ?? 0) * Math.PI) / 180;
+        const cx = (liveImg.position.x / 100) * outWidth + totalOffX;
+        const cy = (liveImg.position.y / 100) * outHeight + totalOffY;
+        const userRotRad = ((liveImg.rotation ?? 0) * Math.PI) / 180;
 
         ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, (img.opacity ?? 1) * totalAlpha));
+        ctx.globalAlpha = Math.max(0, Math.min(1, (liveImg.opacity ?? 1) * totalAlpha));
         ctx.translate(cx, cy);
         ctx.rotate(userRotRad + totalRot);
         ctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
@@ -1118,10 +1087,7 @@ export default function HorrorStudio() {
       }
 
       if (!gs) {
-        const grad = ctx.createRadialGradient(
-          outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25,
-          outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75,
-        );
+        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25, outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75);
         grad.addColorStop(0, 'rgba(0,0,0,0)');
         grad.addColorStop(1, 'rgba(0,0,0,0.65)');
         ctx.fillStyle = grad;
@@ -1137,9 +1103,7 @@ export default function HorrorStudio() {
     setRecording(true);
     setRecordingTime(0);
     recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
-    autoStopTimerRef.current = setTimeout(() => {
-      if (recorder.state === 'recording') recorder.stop();
-    }, 5 * 60 * 1000);
+    autoStopTimerRef.current = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 5 * 60 * 1000);
 
   }, [currentProject, ratio]);
 
