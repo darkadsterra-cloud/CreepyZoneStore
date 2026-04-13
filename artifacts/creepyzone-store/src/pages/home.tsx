@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useGetFeaturedProducts } from "@workspace/api-client-react";
 import { ALL_IMAGES, CATEGORY_IMAGES, CATEGORY_META, getImageForProduct } from "@/lib/store-images";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Zap, Music, Video, Download, Lock, Star, Play } from "lucide-react";
 import { useAuthModal } from "@/App";
 
 const ALL_CATS = ["animated","neon","horror","anime","vertical","interactive","minimal","grunge","overlay","alert","bundle","pack"];
@@ -278,6 +278,276 @@ export default function Home() {
         onImageClick={(imgs, idx) => openLightbox(imgs, idx)}
       />
 
+      {/* ── Horror Animation Studio Tool Section ── */}
+      <section className="py-24 px-4 border-t border-red-900/20 bg-gradient-to-b from-black via-red-950/10 to-black relative overflow-hidden">
+        {/* Background glow effects */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-900/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-red-800/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <div className="inline-flex items-center gap-2 bg-red-900/20 border border-red-800/40 px-4 py-2 mb-6">
+              <Zap className="w-4 h-4 text-red-500" />
+              <span className="text-red-400 uppercase tracking-[0.4em] text-xs font-bold">Featured Tool</span>
+            </div>
+            <h2 className="font-creepster text-5xl md:text-7xl text-white neon-text mb-4">
+              Horror Animation Studio
+            </h2>
+            <p className="text-gray-400 text-lg md:text-xl max-w-3xl mx-auto leading-relaxed">
+              Create spine-chilling animated stream overlays directly in your browser. Upload your horror images, add haunting sound effects, voice overs, and export ready-to-stream videos — no software needed.
+            </p>
+          </motion.div>
+
+          {/* Main content: Demo images + Features */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-20">
+
+            {/* Left: Image showcase grid */}
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="relative"
+            >
+              {/* Main large image */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2 row-span-2 relative overflow-hidden border border-red-900/40 group">
+                  <img
+                    src={CATEGORY_IMAGES.horror[0]}
+                    alt="Horror Animation Studio"
+                    draggable={false}
+                    onContextMenu={e => e.preventDefault()}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    style={{ minHeight: "320px" }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                  {/* Play button overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-red-700/80 border-2 border-red-500 flex items-center justify-center group-hover:bg-red-600 transition-all">
+                      <Play className="w-7 h-7 text-white ml-1" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-3 left-3">
+                    <span className="text-xs text-red-400 uppercase tracking-widest bg-black/70 px-2 py-1 border border-red-900/30">
+                      🎬 Live Preview
+                    </span>
+                  </div>
+                </div>
+                {[CATEGORY_IMAGES.horror[1], CATEGORY_IMAGES.horror[2], CATEGORY_IMAGES.animated[0], CATEGORY_IMAGES.horror[3]].map((img, i) => (
+                  <div key={i} className="overflow-hidden border border-red-900/30 group relative">
+                    <img
+                      src={img}
+                      alt=""
+                      draggable={false}
+                      onContextMenu={e => e.preventDefault()}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      style={{ minHeight: "100px" }}
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-all" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Floating badge */}
+              <div className="absolute -top-4 -right-4 bg-red-700 border border-red-500 px-4 py-2 z-10">
+                <p className="text-white text-xs font-bold uppercase tracking-widest">In-Browser Tool</p>
+              </div>
+            </motion.div>
+
+            {/* Right: Features list */}
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <div className="space-y-6 mb-10">
+                {[
+                  {
+                    icon: <Video className="w-5 h-5 text-red-500" />,
+                    title: "Animated Horror Overlays",
+                    desc: "Upload your images and apply spine-chilling animations — fire, blood drip, floating ash, lightning and more particle effects."
+                  },
+                  {
+                    icon: <Music className="w-5 h-5 text-red-500" />,
+                    title: "Sound Library & TTS",
+                    desc: "Add ambient horror sounds, screams, effects, or text-to-speech voices directly to your animation. 100+ sounds included."
+                  },
+                  {
+                    icon: <Zap className="w-5 h-5 text-red-500" />,
+                    title: "Slideshow & Single Mode",
+                    desc: "Create animated slideshows or single-image animations. Perfect for Starting Soon, BRB, and Ending screens."
+                  },
+                  {
+                    icon: <Download className="w-5 h-5 text-red-500" />,
+                    title: "Export in Multiple Formats",
+                    desc: "Record and download your animation in 1080p, 4K, TikTok vertical, YouTube Shorts, OBS Canvas and more resolutions."
+                  },
+                ].map((feat, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: i * 0.1 }}
+                    className="flex gap-4 items-start group"
+                  >
+                    <div className="w-10 h-10 bg-red-900/20 border border-red-900/40 flex items-center justify-center flex-shrink-0 group-hover:bg-red-900/40 transition-all">
+                      {feat.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold mb-1 group-hover:text-red-400 transition-colors">{feat.title}</h4>
+                      <p className="text-gray-500 text-sm leading-relaxed">{feat.desc}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link href="/tools/horror-animation-studio">
+                  <button className="px-8 py-4 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-[0.3em] text-sm lava-pulse border border-red-500 transition-all duration-300 w-full sm:w-auto">
+                    🎬 Open Studio
+                  </button>
+                </Link>
+                <a href="#studio-plans">
+                  <button className="px-8 py-4 bg-transparent hover:bg-red-950/30 text-red-400 font-bold uppercase tracking-[0.2em] text-sm border border-red-900/50 transition-all duration-300 w-full sm:w-auto">
+                    View Plans
+                  </button>
+                </a>
+              </div>
+
+              <p className="text-gray-600 text-xs mt-4 flex items-center gap-2">
+                <Lock className="w-3 h-3" />
+                Login with your CreepyZone account to access the studio
+              </p>
+            </motion.div>
+          </div>
+
+          {/* ── Studio Pricing Plans ── */}
+          <div id="studio-plans">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <p className="text-red-500 uppercase tracking-[0.5em] text-xs mb-3">Studio Access</p>
+              <h3 className="font-creepster text-4xl text-white">Choose Your Plan</h3>
+              <p className="text-gray-500 mt-2">Create freely — unlock recording & downloads with a plan</p>
+            </motion.div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+
+              {/* Free Plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="border border-red-900/30 bg-black/60 p-8 relative"
+              >
+                <div className="mb-6">
+                  <h4 className="font-creepster text-2xl text-white mb-1">Free Access</h4>
+                  <div className="flex items-end gap-1 mb-3">
+                    <span className="font-creepster text-5xl text-white">$0</span>
+                    <span className="text-gray-500 mb-2">/forever</span>
+                  </div>
+                  <p className="text-gray-500 text-sm">Perfect to explore the studio and preview your creations</p>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {[
+                    { text: "Full studio access", ok: true },
+                    { text: "All animations & effects", ok: true },
+                    { text: "Sound library & TTS", ok: true },
+                    { text: "Live preview in browser", ok: true },
+                    { text: "Record & Download videos", ok: false },
+                    { text: "4K / TikTok export", ok: false },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm">
+                      <span className={item.ok ? "text-red-500" : "text-gray-700"}>
+                        {item.ok ? "✓" : "✗"}
+                      </span>
+                      <span className={item.ok ? "text-gray-300" : "text-gray-600 line-through"}>{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => openAuthModal("register")}
+                  className="w-full py-3 border border-red-900/50 text-red-500 uppercase tracking-widest text-sm hover:bg-red-950/20 transition-all font-bold"
+                >
+                  Get Started Free
+                </button>
+              </motion.div>
+
+              {/* Pro Plan */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="border border-red-600/60 bg-gradient-to-b from-red-950/30 to-black/80 p-8 relative"
+              >
+                {/* Popular badge */}
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-red-700 border border-red-500 px-4 py-1">
+                  <span className="text-white text-xs font-bold uppercase tracking-widest flex items-center gap-1">
+                    <Star className="w-3 h-3" /> Most Popular
+                  </span>
+                </div>
+
+                <div className="mb-6">
+                  <h4 className="font-creepster text-2xl text-white mb-1">Studio Pro</h4>
+                  <div className="flex items-end gap-1 mb-3">
+                    <span className="font-creepster text-5xl neon-text">$30</span>
+                    <span className="text-gray-400 mb-2">/month</span>
+                  </div>
+                  <p className="text-gray-400 text-sm">Full power to record, download and publish your horror animations</p>
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {[
+                    { text: "Everything in Free", ok: true },
+                    { text: "Record & Download videos", ok: true },
+                    { text: "1080p & 4K export", ok: true },
+                    { text: "TikTok, YouTube Shorts, OBS formats", ok: true },
+                    { text: "Unlimited projects", ok: true },
+                    { text: "Priority support", ok: true },
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm">
+                      <span className="text-red-500">✓</span>
+                      <span className="text-gray-300">{item.text}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => openAuthModal("register")}
+                  className="w-full py-3 bg-red-700 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-sm border border-red-500 lava-pulse transition-all"
+                >
+                  Unlock Pro — $30/mo
+                </button>
+              </motion.div>
+
+            </div>
+
+            {/* Bottom note */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="text-center text-gray-600 text-xs mt-6 flex items-center justify-center gap-2"
+            >
+              <Lock className="w-3 h-3" />
+              Use your CreepyZone Store login to access the studio — no separate account needed
+            </motion.p>
+          </div>
+        </div>
+      </section>
+
       {/* ── Anime / VTuber Spotlight ── */}
       <section className="py-20 px-4 border-t border-red-900/20 bg-gradient-to-b from-black to-red-950/10">
         <div className="max-w-7xl mx-auto">
@@ -442,3 +712,4 @@ function ProductCard({ product, index }: { product: any; index: number }) {
     </motion.div>
   );
 }
+
