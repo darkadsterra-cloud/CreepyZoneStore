@@ -22,6 +22,9 @@ import AdminDashboard from "@/pages/admin/index";
 import AdminProducts from "@/pages/admin/products";
 import NotFound from "@/pages/not-found";
 
+// Lazy import HorrorStudio from the horror-animation-studio artifact
+// It lives at a separate Vercel deployment but we embed it via iframe redirect
+// OR we can import directly if it's in the same workspace
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30000 },
@@ -34,6 +37,20 @@ interface AuthModalContextType {
 }
 export const AuthModalContext = createContext<AuthModalContextType>({ openAuthModal: () => {} });
 export const useAuthModal = () => useContext(AuthModalContext);
+
+// HorrorStudio wrapper page — embeds the studio via iframe
+function HorrorStudioPage() {
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950">
+      <iframe
+        src="https://horror-animation-studio-oqivaz8mx-darkadsterra-1219s-projects.vercel.app"
+        className="w-full h-full border-0"
+        allow="microphone; display-capture; autoplay"
+        title="Horror Animation Studio"
+      />
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -49,6 +66,7 @@ function Router() {
       <Route path="/orders/:id" component={OrderDetail} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
+      <Route path="/tools/horror-animation-studio" component={HorrorStudioPage} />
       <Route component={NotFound} />
     </Switch>
   );
