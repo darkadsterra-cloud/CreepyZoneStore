@@ -57,29 +57,27 @@ function removeProjectVideo(pid: string, vid: string) {
 const imageBlobStore: Record<string, string> = {};
 const imageElementCache: Record<string, HTMLImageElement> = {};
 
+// ── FIXED: crossOrigin set karo taake canvas drawImage kaam kare ──
 function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
     const cached = imageElementCache[id];
     if (cached && cached.complete && cached.naturalWidth > 0) {
-      resolve(cached);
-      return;
+      resolve(cached); return;
     }
     const img = new Image();
-    img.onload = () => {
-      imageElementCache[id] = img;
-      resolve(img);
-    };
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { imageElementCache[id] = img; resolve(img); };
     img.onerror = () => {
       const img2 = new Image();
-      img2.crossOrigin = 'anonymous';
       img2.onload = () => { imageElementCache[id] = img2; resolve(img2); };
       img2.onerror = () => resolve(img);
-      img2.src = url;
+      img2.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
     };
     img.src = url;
   });
 }
 
+// ── ANIMATION VALUES — canvas math for every animation ──
 function getAnimValues(animId: string, t: number, W: number, H: number) {
   let offX = 0, offY = 0, sc = 1, rot = 0, alpha = 1;
   const id = animId.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -87,10 +85,10 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   if (id.includes('float') || id.includes('ghostly')) {
     offY = Math.sin(t * 1.6) * H * 0.025;
     offX = Math.sin(t * 0.8) * W * 0.008;
-  } else if (id.includes('shake') || id.includes('earthquake') || id.includes('demonic')) {
-    const i = id.includes('earthquake') ? 0.025 : 0.012;
-    offX = (Math.random() - 0.5) * W * i;
-    offY = (Math.random() - 0.5) * H * i * 0.8;
+  } else if (id.includes('shake') || id.includes('earthquake')) {
+    const intensity = id.includes('earthquake') ? 0.025 : 0.012;
+    offX = (Math.random() - 0.5) * W * intensity;
+    offY = (Math.random() - 0.5) * H * intensity * 0.8;
   } else if (id.includes('swing') || id.includes('pendulum')) {
     rot = Math.sin(t * 2.2) * 0.18;
   } else if (id.includes('sway') || id.includes('corpse')) {
@@ -101,12 +99,12 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('spiral') || id.includes('death-spiral')) {
     rot = t * 1.2;
     sc = 1 + Math.sin(t * 1.2) * 0.1;
-  } else if (id.includes('bounce') || id.includes('demon-bounce')) {
+  } else if (id.includes('bounce')) {
     offY = -Math.abs(Math.sin(t * 3.5)) * H * 0.08;
-  } else if (id.includes('teleport') || id.includes('shadow-teleport')) {
+  } else if (id.includes('teleport')) {
     alpha = Math.floor(t * 3) % 2 === 0 ? 1 : 0;
     if (alpha === 1) { offX = (Math.random() - 0.5) * W * 0.1; offY = (Math.random() - 0.5) * H * 0.1; }
-  } else if (id.includes('orbit') || id.includes('dark-orbit')) {
+  } else if (id.includes('orbit')) {
     offX = Math.cos(t * 1.0) * W * 0.06;
     offY = Math.sin(t * 1.0) * H * 0.06;
   } else if (id.includes('levitate')) {
@@ -115,11 +113,15 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('zigzag') || id.includes('possessed')) {
     offX = Math.sin(t * 4) * W * 0.04;
     offY = Math.sin(t * 8) * H * 0.02;
-  } else if (id.includes('jerk') || id.includes('possession-jerk')) {
+  } else if (id.includes('jerk')) {
     offX = Math.random() < 0.3 ? (Math.random() - 0.5) * W * 0.03 : 0;
     offY = Math.random() < 0.3 ? (Math.random() - 0.5) * H * 0.03 : 0;
+  } else if (id.includes('drift-left')) {
+    offX = -(((t * 0.08) % 1.2) * W);
+  } else if (id.includes('drift-right')) {
+    offX = (((t * 0.08) % 1.2) * W);
   } else if (id.includes('drift')) {
-    offX = id.includes('left') ? -(((t * 0.08) % 1.2) * W) : (((t * 0.08) % 1.2) * W);
+    offX = Math.sin(t * 0.5) * W * 0.05;
   } else if (id.includes('marionette')) {
     offY = Math.abs(Math.sin(t * 2.5)) * H * 0.05;
     rot = Math.sin(t * 2.5) * 0.08;
@@ -142,14 +144,18 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
     offX = Math.sin(t * 0.7) * W * 0.015;
   } else if (id.includes('rise-fall') || id.includes('rise-and-fall')) {
     offY = Math.sin(t * 1.3) * H * 0.04;
+  } else if (id.includes('slide-down') || id.includes('descend')) {
+    offY = Math.sin(t * 0.7) * H * 0.06;
+  } else if (id.includes('slide-up') || id.includes('rise-from')) {
+    offY = -Math.sin(t * 0.7) * H * 0.06;
   } else if (id.includes('jumpscare') || id.includes('jump-scare')) {
     const c = t % 3.0;
     if (c > 2.7) { sc = 1 + (c - 2.7) / 0.3 * 1.5; alpha = Math.min(1, (3.0 - c) * 10); }
   } else if (id.includes('flash') || id.includes('blink')) {
     alpha = Math.floor(t * 4) % 2 === 0 ? 1 : 0;
-  } else if (id.includes('strobe') || id.includes('terror-strobe')) {
+  } else if (id.includes('strobe')) {
     alpha = Math.floor(t * 10) % 2 === 0 ? 1 : 0;
-  } else if (id.includes('loom') || id.includes('sudden-loom')) {
+  } else if (id.includes('loom')) {
     const c = (t * 0.5) % 1;
     sc = c < 0.15 ? 1 + c / 0.15 * 0.6 : c < 0.25 ? 1.6 - (c - 0.15) / 0.1 * 0.6 : 1;
   } else if (id.includes('evil-zoom')) {
@@ -185,7 +191,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('grab') || id.includes('reach')) {
     offX = Math.sin(t * 1.5) * W * 0.03;
     sc = 1 + Math.sin(t * 1.5) * 0.05;
-  } else if (id.includes('shatter') || id.includes('reality')) {
+  } else if (id.includes('shatter')) {
     const c = (t * 0.5) % 1;
     if (c > 0.8) { offX = (Math.random() - 0.5) * W * 0.04; offY = (Math.random() - 0.5) * H * 0.04; }
   } else if (id.includes('death-drop')) {
@@ -200,25 +206,25 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
     const c = (t * 0.5) % 1;
     offY = c < 0.3 ? -H * 0.3 + c / 0.3 * H * 0.3 : 0;
     sc = c < 0.3 ? 0.5 + c / 0.3 * 0.5 : 1;
-  } else if (id.includes('haunting') || id.includes('haunting-fade')) {
+  } else if (id.includes('haunting')) {
     alpha = 0.3 + Math.sin(t * 0.7) * 0.7;
     offY = Math.sin(t * 0.5) * H * 0.015;
   } else if (id.includes('pulse') || id.includes('glow')) {
     sc = 1 + Math.sin(t * Math.PI * 1.5) * 0.06;
-  } else if (id.includes('flicker') || id.includes('light-flicker')) {
+  } else if (id.includes('flicker')) {
     alpha = 0.6 + Math.sin(t * 7) * 0.4 + (Math.random() > 0.9 ? -0.4 : 0);
-  } else if (id.includes('shadow-breathe') || id.includes('breathe')) {
+  } else if (id.includes('breathe') || id.includes('shadow-breathe')) {
     sc = 1 + Math.sin(t * 0.8) * 0.07;
     alpha = 0.8 + Math.sin(t * 0.8) * 0.2;
   } else if (id.includes('spectral') || id.includes('nightmare')) {
     alpha = 0.4 + Math.abs(Math.sin(t * 0.5)) * 0.6;
-  } else if (id.includes('dark-ritual') || id.includes('ritual')) {
+  } else if (id.includes('ritual')) {
     sc = 1 + Math.sin(t * 2) * 0.04;
     rot = Math.sin(t * 1.5) * 0.05;
   } else if (id.includes('spirit')) {
     alpha = Math.abs(Math.sin(t * 0.4));
     offY = Math.sin(t * 0.8) * H * 0.02;
-  } else if (id.includes('aura') || id.includes('cursed-aura')) {
+  } else if (id.includes('aura')) {
     sc = 1 + Math.sin(t * 1.5) * 0.08;
   } else if (id.includes('limbo')) {
     offY = Math.sin(t * 0.6) * H * 0.03;
@@ -245,11 +251,11 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('glitch')) {
     if (Math.random() < 0.15) offX += (Math.random() - 0.5) * W * 0.03;
     if (Math.random() < 0.05) alpha = 0;
-  } else if (id.includes('tv-static') || id.includes('static')) {
+  } else if (id.includes('static')) {
     offX = (Math.random() - 0.5) * W * 0.015;
     offY = (Math.random() - 0.5) * H * 0.005;
     alpha = 0.7 + Math.random() * 0.3;
-  } else if (id.includes('corrupt') || id.includes('corruption')) {
+  } else if (id.includes('corrupt')) {
     if (Math.random() < 0.2) offX = (Math.random() - 0.5) * W * 0.02;
   } else if (id.includes('chromatic')) {
     offX = Math.sin(t * 3) * W * 0.005;
@@ -259,7 +265,7 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
     offX = Math.sin(t * 2) * W * 0.015;
     offY = Math.cos(t * 1.7) * H * 0.01;
     sc = 1 + Math.sin(t * 1.2) * 0.04;
-  } else if (id.includes('film-grain') || id.includes('grain')) {
+  } else if (id.includes('grain') || id.includes('film')) {
     offX = (Math.random() - 0.5) * 2;
     offY = (Math.random() - 0.5) * 2;
   } else if (id.includes('celestial')) {
@@ -272,6 +278,36 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   } else if (id.includes('blackout')) {
     const c = (t * 0.3) % 1;
     alpha = c < 0.4 ? 0 : Math.min(1, (c - 0.4) / 0.2);
+  } else if (id.includes('underworld')) {
+    sc = 1 + Math.sin(t * 1.0) * 0.06;
+    alpha = 0.8 + Math.sin(t * 0.8) * 0.2;
+  } else if (id.includes('moonlit')) {
+    offY = Math.sin(t * 0.6) * H * 0.02;
+    rot = Math.sin(t * 0.4) * 0.05;
+  } else if (id.includes('astral')) {
+    alpha = 0.6 + Math.sin(t * 0.9) * 0.4;
+    sc = 1 + Math.sin(t * 0.7) * 0.04;
+  } else if (id.includes('sigil')) {
+    rot = Math.sin(t * 2) * 0.1;
+    sc = 1 + Math.sin(t * 1.5) * 0.05;
+  } else if (id.includes('fog-roll') || id.includes('fog')) {
+    offX = Math.sin(t * 0.3) * W * 0.04;
+    alpha = 0.6 + Math.sin(t * 0.5) * 0.4;
+  } else if (id.includes('death-breath')) {
+    sc = 1 + Math.sin(t * 0.6) * 0.04;
+    alpha = 0.7 + Math.sin(t * 0.8) * 0.3;
+  } else if (id.includes('infernal')) {
+    sc = 1 + Math.sin(t * 2.5) * 0.07;
+    alpha = 0.85 + Math.sin(t * 2) * 0.15;
+  } else if (id.includes('laser')) {
+    sc = 1 + Math.sin(t * 4) * 0.03;
+  } else if (id.includes('demon-vision') || id.includes('demon')) {
+    sc = 1 + Math.sin(t * 1.8) * 0.04;
+    alpha = 0.9 + Math.sin(t * 2) * 0.1;
+  } else if (id.includes('blood-splat') || id.includes('splat')) {
+    const c = (t * 0.5) % 1;
+    sc = 1 + Math.sin(c * Math.PI) * 0.15;
+    alpha = c < 0.8 ? 1 : 1 - (c - 0.8) / 0.2;
   }
 
   return {
@@ -282,10 +318,8 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   };
 }
 
-// ── Recording Settings Modal — all English ──
-function RecordingSettingsModal({
-  settings, onSave, onStart, onCancel,
-}: {
+// ── Recording Settings Modal ──
+function RecordingSettingsModal({ settings, onSave, onStart, onCancel }: {
   settings: RecordingSettings;
   onSave: (s: RecordingSettings) => void;
   onStart: (s: RecordingSettings) => void;
@@ -300,7 +334,6 @@ function RecordingSettingsModal({
           <Settings2 className="w-5 h-5 text-red-400" />
           <h3 className="text-white font-bold text-sm">Recording Settings</h3>
         </div>
-
         <div className="mb-4">
           <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Audio Source</p>
           <div className="grid grid-cols-3 gap-2">
@@ -309,8 +342,7 @@ function RecordingSettingsModal({
               { val: 'desktop' as const, label: 'Desktop Audio', sub: 'Captures tab/system sound', icon: <Speaker className="w-4 h-4" /> },
               { val: 'none' as const, label: 'No Audio', sub: 'Video only, no sound', icon: <MicOff className="w-4 h-4" /> },
             ].map(opt => (
-              <button key={opt.val}
-                onClick={() => setLocal(p => ({ ...p, audioSource: opt.val }))}
+              <button key={opt.val} onClick={() => setLocal(p => ({ ...p, audioSource: opt.val }))}
                 className={`flex flex-col items-start gap-1 p-3 rounded-lg border transition-all text-left ${local.audioSource === opt.val ? 'border-red-500 bg-red-900/20 text-white' : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500'}`}>
                 <div className="flex items-center gap-1.5">{opt.icon}<span className="text-xs font-bold">{opt.label}</span></div>
                 <span className="text-[9px] text-zinc-500">{opt.sub}</span>
@@ -318,7 +350,6 @@ function RecordingSettingsModal({
             ))}
           </div>
         </div>
-
         <div className="mb-5">
           <p className="text-zinc-400 text-[10px] uppercase tracking-widest mb-2">Video Quality</p>
           <div className="grid grid-cols-3 gap-2">
@@ -327,8 +358,7 @@ function RecordingSettingsModal({
               { val: 'medium' as const, label: 'Medium', sub: '6 Mbps' },
               { val: 'low' as const, label: 'Low', sub: '3 Mbps' },
             ].map(opt => (
-              <button key={opt.val}
-                onClick={() => setLocal(p => ({ ...p, quality: opt.val }))}
+              <button key={opt.val} onClick={() => setLocal(p => ({ ...p, quality: opt.val }))}
                 className={`flex flex-col items-center gap-0.5 p-2.5 rounded-lg border transition-all ${local.quality === opt.val ? 'border-red-500 bg-red-900/20 text-white' : 'border-zinc-700 bg-zinc-800/50 text-zinc-400 hover:border-zinc-500'}`}>
                 <span className="text-xs font-bold">{opt.label}</span>
                 <span className="text-[9px] text-zinc-500">{opt.sub}</span>
@@ -336,7 +366,6 @@ function RecordingSettingsModal({
             ))}
           </div>
         </div>
-
         <div className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2 mb-4">
           <Monitor className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
           <p className="text-[9px] text-zinc-400 leading-relaxed">
@@ -347,17 +376,12 @@ function RecordingSettingsModal({
               : 'Video only will be recorded with no audio track.'}
           </p>
         </div>
-
         <div className="flex gap-2">
-          <button
-            onClick={() => { onSave(local); onStart(local); }}
+          <button onClick={() => { onSave(local); onStart(local); }}
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white text-sm font-bold rounded border border-red-500 transition-all">
             <CircleDot className="w-4 h-4" /> Start Recording
           </button>
-          <button onClick={onCancel}
-            className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700 transition-all">
-            Cancel
-          </button>
+          <button onClick={onCancel} className="px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-sm rounded border border-zinc-700 transition-all">Cancel</button>
         </div>
       </div>
     </div>
@@ -425,12 +449,6 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
     videoRef.current.currentTime = ((e.clientX - r.left) / r.width) * videoRef.current.duration;
   };
 
-  const handleDownload = () => {
-    const a = document.createElement('a');
-    a.href = url; a.download = video.name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  };
-
   return (
     <div className="fixed inset-0 z-[9999] bg-black/96 flex items-center justify-center p-4" onClick={onClose}>
       <div ref={containerRef} onClick={e => e.stopPropagation()} onMouseMove={resetHideTimer}
@@ -442,7 +460,10 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
             <span className="text-zinc-500 text-xs flex-shrink-0">{formatDur(duration)} · {formatSize(video.size)}</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={handleDownload} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500">
+            <button onClick={() => {
+              const a = document.createElement('a'); a.href = url; a.download = video.name;
+              document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            }} className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded border border-red-500">
               <Download className="w-3.5 h-3.5" /> Download
             </button>
             <button onClick={onClose} className="text-zinc-400 hover:text-white p-1 rounded hover:bg-zinc-800"><X className="w-5 h-5" /></button>
@@ -713,9 +734,9 @@ function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // MAIN STUDIO
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 export default function HorrorStudio() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [currentProject, setCurrentProject] = useState<HorrorProject | null>(null);
@@ -760,16 +781,15 @@ export default function HorrorStudio() {
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const rafHandleRef = useRef<number>(0);
   const audioStreamRef = useRef<MediaStream | null>(null);
+  const animStartTimesRef = useRef<Record<string, number>>({});
 
+  // Live refs for rAF loop
   const imagesRef = useRef<UploadedImage[]>([]);
   const slideshowIdxRef = useRef(0);
   const randomVisibleRef = useRef<string[]>([]);
   const animModeRef = useRef<AnimationMode>('single');
   const selectedIdRef = useRef<string | null>(null);
   const greenScreenRef = useRef(false);
-
-  // Per-image animation start times — reset fresh every recording session
-  const animStartTimesRef = useRef<Record<string, number>>({});
 
   useEffect(() => { imagesRef.current = images; }, [images]);
   useEffect(() => { slideshowIdxRef.current = slideshowIdx; }, [slideshowIdx]);
@@ -857,6 +877,7 @@ export default function HorrorStudio() {
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
       imageBlobStore[id] = url;
+      // Force reload with crossOrigin for canvas compatibility
       preloadImage(id, url);
       newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
     });
@@ -897,26 +918,31 @@ export default function HorrorStudio() {
     });
   };
 
-  // ═══════════════════════════════════════════════════════════
-  // RECORDING ENGINE — canvas rAF loop with live animation sync
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
+  // RECORDING ENGINE
+  // KEY FIX: Images freshly loaded with crossOrigin=anonymous
+  // so drawImage never throws SecurityError on canvas.
+  // Animation t = (now - animStartTime[id]) / 1000 — independent per image.
+  // ═══════════════════════════════════════════════════
   const startRecording = useCallback(async (settings: RecordingSettings) => {
     const outWidth = ratio.width;
     const outHeight = ratio.height;
 
-    // Preload all images
+    // CRITICAL: Re-load all images with crossOrigin=anonymous fresh
+    // so the canvas can drawImage without taint errors
     const currentImages = imagesRef.current;
-    await Promise.all(currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url)));
+    // Clear cache to force fresh load with crossOrigin
+    currentImages.forEach(img => { delete imageElementCache[img.id]; });
+    await Promise.all(
+      currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url))
+    );
 
-    // Reset animation start times fresh for this recording session.
-    // Each image animation starts at t=0 when Record is pressed.
+    // Reset per-image animation clocks
     const sessionStart = performance.now();
     animStartTimesRef.current = {};
-    currentImages.forEach(img => {
-      animStartTimesRef.current[img.id] = sessionStart;
-    });
+    currentImages.forEach(img => { animStartTimesRef.current[img.id] = sessionStart; });
 
-    // Setup canvas
+    // Canvas setup
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outWidth;
     recCanvas.height = outHeight;
@@ -924,7 +950,7 @@ export default function HorrorStudio() {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Audio
+    // Audio setup
     let audioStream: MediaStream | null = null;
     if (settings.audioSource === 'microphone') {
       try {
@@ -934,18 +960,18 @@ export default function HorrorStudio() {
         });
         audioStreamRef.current = audioStream;
       } catch (err) {
-        console.warn('Microphone permission denied:', err);
+        console.warn('Mic permission denied:', err);
         audioStream = null; audioStreamRef.current = null;
       }
     } else if (settings.audioSource === 'desktop') {
       try {
-        const displayStream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
-        displayStream.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
-        const audioTracks: MediaStreamTrack[] = displayStream.getAudioTracks();
-        if (audioTracks.length > 0) { audioStream = new MediaStream(audioTracks); audioStreamRef.current = audioStream; }
-        else { audioStream = null; audioStreamRef.current = null; }
+        const ds = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
+        ds.getVideoTracks().forEach((t: MediaStreamTrack) => t.stop());
+        const ats: MediaStreamTrack[] = ds.getAudioTracks();
+        audioStream = ats.length > 0 ? new MediaStream(ats) : null;
+        audioStreamRef.current = audioStream;
       } catch (err) {
-        console.warn('Desktop audio capture failed:', err);
+        console.warn('Desktop audio failed:', err);
         audioStream = null; audioStreamRef.current = null;
       }
     }
@@ -975,7 +1001,7 @@ export default function HorrorStudio() {
       const durationSec = Math.round((Date.now() - recordingStartTimeRef.current) / 1000);
 
       if (blob.size < 1000) {
-        alert('Recording failed — no data captured. Try again.'); setRecording(false); setRecordingTime(0); return;
+        alert('Recording failed — no data. Please try again.'); setRecording(false); setRecordingTime(0); return;
       }
 
       if (currentProject) {
@@ -995,7 +1021,10 @@ export default function HorrorStudio() {
           thumbnail = tc.toDataURL('image/jpeg', 0.75);
           URL.revokeObjectURL(tempUrl);
         } catch {}
-        addProjectVideo(currentProject.id, { id: generateId(), name: videoName, blob, size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail });
+        addProjectVideo(currentProject.id, {
+          id: generateId(), name: videoName, blob,
+          size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail,
+        });
         setAutoSaveMsg(`✓ Video saved! ${outWidth}×${outHeight} · ${formatSize(blob.size)}`);
         setTimeout(() => setAutoSaveMsg(''), 8000);
         setSavingVideo(false);
@@ -1004,9 +1033,10 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    // ── rAF drawing loop ──
-    // Key fix: read animations from imagesRef.current every frame (live state),
-    // compute t from per-image start time, apply getAnimValues identically to preview.
+    // ── rAF DRAW LOOP ──
+    // Reads live state from refs every frame.
+    // Each image gets t = (now - animStart[id]) / 1000 so animations
+    // run independently and in sync with what user sees in preview.
     const drawLoop = () => {
       const now = performance.now();
       const imgs = imagesRef.current;
@@ -1016,9 +1046,11 @@ export default function HorrorStudio() {
       const randVis = randomVisibleRef.current;
       const gs = greenScreenRef.current;
 
+      // Background
       ctx.fillStyle = gs ? '#00ff00' : '#090909';
       ctx.fillRect(0, 0, outWidth, outHeight);
 
+      // Subtle grid
       if (!gs) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.022)';
@@ -1028,6 +1060,7 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
+      // Determine which images to draw
       let drawList: UploadedImage[] = [];
       if (imgs.length > 0) {
         switch (mode) {
@@ -1042,19 +1075,20 @@ export default function HorrorStudio() {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
-        // Init start time for images that appear mid-recording (e.g. slideshow or random-appear)
+        // Init start time for images that become visible mid-recording
         if (!animStartTimesRef.current[img.id]) {
           animStartTimesRef.current[img.id] = now;
         }
 
-        // Elapsed time in seconds for this image's animation cycle
+        // t in seconds — independent per image
         const t = (now - animStartTimesRef.current[img.id]) / 1000;
 
-        // Always read the latest animations from the live ref — never stale
+        // Always read latest live state
         const liveImg = imagesRef.current.find(i => i.id === img.id) ?? img;
         const anims = liveImg.animations ?? (liveImg.animation ? [liveImg.animation] : []);
 
         let totalOffX = 0, totalOffY = 0, totalScale = 1, totalRot = 0, totalAlpha = 1;
+
         for (const animId of anims) {
           const v = getAnimValues(animId, t, outWidth, outHeight);
           totalOffX += v.offX;
@@ -1064,6 +1098,7 @@ export default function HorrorStudio() {
           totalAlpha *= v.alpha;
         }
 
+        // Sizing: fit within 48% of canvas, then apply user scale
         const naturalW = el.naturalWidth;
         const naturalH = el.naturalHeight;
         const maxW = outWidth * 0.48;
@@ -1074,6 +1109,7 @@ export default function HorrorStudio() {
         const dw = naturalW * drawScale;
         const dh = naturalH * drawScale;
 
+        // Position: percentage coords → absolute pixels
         const cx = (liveImg.position.x / 100) * outWidth + totalOffX;
         const cy = (liveImg.position.y / 100) * outHeight + totalOffY;
         const userRotRad = ((liveImg.rotation ?? 0) * Math.PI) / 180;
@@ -1086,8 +1122,12 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
+      // Vignette
       if (!gs) {
-        const grad = ctx.createRadialGradient(outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25, outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75);
+        const grad = ctx.createRadialGradient(
+          outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25,
+          outWidth / 2, outHeight / 2, Math.max(outWidth, outHeight) * 0.75
+        );
         grad.addColorStop(0, 'rgba(0,0,0,0)');
         grad.addColorStop(1, 'rgba(0,0,0,0.65)');
         ctx.fillStyle = grad;
@@ -1103,7 +1143,9 @@ export default function HorrorStudio() {
     setRecording(true);
     setRecordingTime(0);
     recordingTimerRef.current = setInterval(() => setRecordingTime(p => p + 1), 1000);
-    autoStopTimerRef.current = setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 5 * 60 * 1000);
+    autoStopTimerRef.current = setTimeout(() => {
+      if (recorder.state === 'recording') recorder.stop();
+    }, 5 * 60 * 1000);
 
   }, [currentProject, ratio]);
 
@@ -1230,6 +1272,7 @@ export default function HorrorStudio() {
         </div>
       )}
 
+      {/* HEADER */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2 bg-zinc-900/90 border-b border-red-900/30 backdrop-blur-sm flex-shrink-0">
         <div className="flex items-center gap-3">
           <div ref={projectDropdownRef} className="relative">
@@ -1337,8 +1380,8 @@ export default function HorrorStudio() {
                   <Film className="w-3 h-3" /> {getProjectVideos(currentProject.id).length} Video{getProjectVideos(currentProject.id).length !== 1 ? 's' : ''}
                 </button>
               )}
-              <button onClick={() => setShowRecordingSettings(true)} disabled={recording}
-                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors border border-zinc-700 disabled:opacity-40" title="Recording Settings">
+              <button onClick={() => !recording && setShowRecordingSettings(true)} disabled={recording}
+                className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700 disabled:opacity-40" title="Recording Settings">
                 <Settings2 className="w-3 h-3" />
               </button>
               <button onClick={handleRecord} disabled={savingVideo}
