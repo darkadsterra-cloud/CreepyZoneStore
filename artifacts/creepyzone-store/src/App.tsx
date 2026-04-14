@@ -22,9 +22,6 @@ import AdminDashboard from "@/pages/admin/index";
 import AdminProducts from "@/pages/admin/products";
 import NotFound from "@/pages/not-found";
 
-// Lazy import HorrorStudio from the horror-animation-studio artifact
-// It lives at a separate Vercel deployment but we embed it via iframe redirect
-// OR we can import directly if it's in the same workspace
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30000 },
