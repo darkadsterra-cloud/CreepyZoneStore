@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ANIMATION_PRESETS, ASPECT_RATIOS } from '@/lib/animations';
 import type { UploadedImage, AnimationMode } from '@/lib/animations';
-import { loadProjects, saveProject, deleteProject, generateId } from '@/lib/project-store';
+import { loadProjects, saveProject, deleteProject, generateId, urlToBase64 } from '@/lib/project-store';
 import type { HorrorProject } from '@/lib/project-store';
 import AppBackground from '@/components/AppBackground';
 import AnimationPanel from '@/components/AnimationPanel';
