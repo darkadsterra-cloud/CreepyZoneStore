@@ -27,7 +27,7 @@ const TOOLS = [
     label: "Horror Animation Studio",
     icon: "🎭",
     desc: "Livestream overlay generator",
-    url: "https://horror-animation-studio-e4uu9mg8p-darkadsterra-1219s-projects.vercel.app",
+    url: "https://horror-animation-studio-ch2eau0cz-darkadsterra-1219s-projects.vercel.app",
   },
 ];
 
