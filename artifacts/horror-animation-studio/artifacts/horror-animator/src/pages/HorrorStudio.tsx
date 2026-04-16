@@ -812,25 +812,59 @@ export default function HorrorStudio() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const doAutoSave = useCallback((status?: 'draft' | 'finished') => {
-    if (!currentProject) return;
-    let thumbnail = currentProject.thumbnail;
-    if (images.length > 0) {
-      const f = images[0];
-      thumbnail = imageBlobStore[f.id] || f.url || thumbnail;
+  const doAutoSave = useCallback(async (status?: 'draft' | 'finished') => {
+  if (!currentProject) return;
+  
+  let thumbnail = currentProject.thumbnail;
+  
+  // Images ko base64 mein convert karo taake reload pe bhi rahen
+  const savedImages = await Promise.all(images.map(async (img) => {
+    const currentUrl = imageBlobStore[img.id] || img.url;
+    
+    // Base64 already save hai?
+    const existingBase64 = img.url?.startsWith('data:') ? img.url : null;
+    
+    // Blob URL ko base64 mein convert karo
+    let base64Url = existingBase64;
+    if (!base64Url && currentUrl) {
+      try {
+        base64Url = await urlToBase64(currentUrl);
+        // imageBlobStore update karo taake session mein bhi kaam kare
+        imageBlobStore[img.id] = base64Url;
+      } catch {
+        base64Url = currentUrl;
+      }
     }
-    const updated: HorrorProject = {
-      ...currentProject, updatedAt: Date.now(), status: status ?? currentProject.status,
-      aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, thumbnail,
-      images: images.map(img => ({
-        id: img.id, url: imageBlobStore[img.id] || img.url, name: img.name,
-        animation: img.animation, animations: img.animations ?? [],
-        position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity,
-      })),
+    
+    return {
+      id: img.id,
+      url: base64Url || currentUrl,
+      name: img.name,
+      animation: img.animation,
+      animations: img.animations ?? [],
+      position: img.position,
+      scale: img.scale,
+      rotation: img.rotation,
+      opacity: img.opacity,
     };
-    saveProject(updated); setCurrentProject(updated); setAllProjects(loadProjects());
-    setAutoSaveMsg('Saved ✓'); setTimeout(() => setAutoSaveMsg(''), 2000);
-  }, [currentProject, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, images]);
+  }));
+  
+  if (savedImages.length > 0 && savedImages[0].url?.startsWith('data:')) {
+    thumbnail = savedImages[0].url;
+  }
+  
+  const updated: HorrorProject = {
+    ...currentProject, updatedAt: Date.now(), status: status ?? currentProject.status,
+    aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, thumbnail,
+    images: savedImages,
+  };
+  
+  saveProject(updated);
+  setCurrentProject(updated);
+  setAllProjects(loadProjects());
+  setAutoSaveMsg('Saved ✓');
+  setTimeout(() => setAutoSaveMsg(''), 2000);
+}, [currentProject, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, images]);
 
   useEffect(() => {
     if (!currentProject) return;
