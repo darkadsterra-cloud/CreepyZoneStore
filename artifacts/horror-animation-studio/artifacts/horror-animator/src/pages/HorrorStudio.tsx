@@ -57,7 +57,6 @@ function removeProjectVideo(pid: string, vid: string) {
 const imageBlobStore: Record<string, string> = {};
 const imageElementCache: Record<string, HTMLImageElement> = {};
 
-// ── FIXED: crossOrigin set karo taake canvas drawImage kaam kare ──
 function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
   return new Promise((resolve) => {
     const cached = imageElementCache[id];
@@ -77,7 +76,6 @@ function preloadImage(id: string, url: string): Promise<HTMLImageElement> {
   });
 }
 
-// ── ANIMATION VALUES — canvas math for every animation ──
 function getAnimValues(animId: string, t: number, W: number, H: number) {
   let offX = 0, offY = 0, sc = 1, rot = 0, alpha = 1;
   const id = animId.toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -318,7 +316,6 @@ function getAnimValues(animId: string, t: number, W: number, H: number) {
   };
 }
 
-// ── Recording Settings Modal ──
 function RecordingSettingsModal({ settings, onSave, onStart, onCancel }: {
   settings: RecordingSettings;
   onSave: (s: RecordingSettings) => void;
@@ -388,7 +385,6 @@ function RecordingSettingsModal({ settings, onSave, onStart, onCancel }: {
   );
 }
 
-// ── Full-Featured Video Player ──
 function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -522,7 +518,6 @@ function VideoPlayer({ video, onClose }: { video: ProjectVideo; onClose: () => v
   );
 }
 
-// ── Project Folder Popup ──
 function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, onGoLibrary }: {
   currentProject: HorrorProject | null;
   projects: HorrorProject[];
@@ -613,7 +608,6 @@ function ProjectFolderPopup({ currentProject, projects, onOpen, onNew, onClose, 
   );
 }
 
-// ── Project Dashboard ──
 function ProjectDashboard({ username, onNew, onOpen, onDelete }: {
   username: string; onNew: (name: string) => void; onOpen: (p: HorrorProject) => void; onDelete: (id: string) => void;
 }) {
@@ -783,13 +777,14 @@ export default function HorrorStudio() {
   const audioStreamRef = useRef<MediaStream | null>(null);
   const animStartTimesRef = useRef<Record<string, number>>({});
 
-  // Live refs for rAF loop
   const imagesRef = useRef<UploadedImage[]>([]);
   const slideshowIdxRef = useRef(0);
   const randomVisibleRef = useRef<string[]>([]);
   const animModeRef = useRef<AnimationMode>('single');
   const selectedIdRef = useRef<string | null>(null);
   const greenScreenRef = useRef(false);
+  // ── NEW: ref to always hold latest currentProject for doAutoSave ──
+  const currentProjectRef = useRef<HorrorProject | null>(null);
 
   useEffect(() => { imagesRef.current = images; }, [images]);
   useEffect(() => { slideshowIdxRef.current = slideshowIdx; }, [slideshowIdx]);
@@ -797,6 +792,7 @@ export default function HorrorStudio() {
   useEffect(() => { animModeRef.current = animMode; }, [animMode]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
   useEffect(() => { greenScreenRef.current = greenScreen; }, [greenScreen]);
+  useEffect(() => { currentProjectRef.current = currentProject; }, [currentProject]);
 
   const ratio = ASPECT_RATIOS.find(r => r.id === aspectRatio) || ASPECT_RATIOS[0];
   const selectedImage = images.find(img => img.id === selectedId) || null;
@@ -812,59 +808,71 @@ export default function HorrorStudio() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // ════════════════════════════════════════════════
+  // FIX: imagesRef.current use karo — stale closure problem khatam
+  // currentProject bhi ref se lo taake latest rahe
+  // ════════════════════════════════════════════════
   const doAutoSave = useCallback(async (status?: 'draft' | 'finished') => {
-  if (!currentProject) return;
-  
-  let thumbnail = currentProject.thumbnail;
-  
-  // Images ko base64 mein convert karo taake reload pe bhi rahen
-  const savedImages = await Promise.all(images.map(async (img) => {
-    const currentUrl = imageBlobStore[img.id] || img.url;
-    
-    // Base64 already save hai?
-    const existingBase64 = img.url?.startsWith('data:') ? img.url : null;
-    
-    // Blob URL ko base64 mein convert karo
-    let base64Url = existingBase64;
-    if (!base64Url && currentUrl) {
-      try {
-        base64Url = await urlToBase64(currentUrl);
-        // imageBlobStore update karo taake session mein bhi kaam kare
-        imageBlobStore[img.id] = base64Url;
-      } catch {
-        base64Url = currentUrl;
+    const proj = currentProjectRef.current;
+    if (!proj) return;
+
+    let thumbnail = proj.thumbnail;
+
+    // imagesRef.current — hamesha latest images milti hain
+    const savedImages = await Promise.all(imagesRef.current.map(async (img) => {
+      const currentUrl = imageBlobStore[img.id] || img.url;
+
+      const existingBase64 = img.url?.startsWith('data:') ? img.url : null;
+
+      let base64Url = existingBase64;
+      if (!base64Url && currentUrl) {
+        try {
+          base64Url = await urlToBase64(currentUrl);
+          imageBlobStore[img.id] = base64Url;
+        } catch {
+          base64Url = currentUrl;
+        }
       }
+
+      return {
+        id: img.id,
+        url: base64Url || currentUrl,
+        name: img.name,
+        animation: img.animation,
+        animations: img.animations ?? [],
+        position: img.position,
+        scale: img.scale,
+        rotation: img.rotation,
+        opacity: img.opacity,
+      };
+    }));
+
+    if (savedImages.length > 0 && savedImages[0].url?.startsWith('data:')) {
+      thumbnail = savedImages[0].url;
     }
-    
-    return {
-      id: img.id,
-      url: base64Url || currentUrl,
-      name: img.name,
-      animation: img.animation,
-      animations: img.animations ?? [],
-      position: img.position,
-      scale: img.scale,
-      rotation: img.rotation,
-      opacity: img.opacity,
+
+    const updated: HorrorProject = {
+      ...proj,
+      updatedAt: Date.now(),
+      status: status ?? proj.status,
+      aspectRatio,
+      greenScreen,
+      animMode,
+      activeParticles,
+      activeSounds,
+      masterVolume,
+      thumbnail,
+      images: savedImages,
     };
-  }));
-  
-  if (savedImages.length > 0 && savedImages[0].url?.startsWith('data:')) {
-    thumbnail = savedImages[0].url;
-  }
-  
-  const updated: HorrorProject = {
-    ...currentProject, updatedAt: Date.now(), status: status ?? currentProject.status,
-    aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, thumbnail,
-    images: savedImages,
-  };
-  
-  saveProject(updated);
-  setCurrentProject(updated);
-  setAllProjects(loadProjects());
-  setAutoSaveMsg('Saved ✓');
-  setTimeout(() => setAutoSaveMsg(''), 2000);
-}, [currentProject, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume, images]);
+
+    saveProject(updated);
+    setCurrentProject(updated);
+    currentProjectRef.current = updated;
+    setAllProjects(loadProjects());
+    setAutoSaveMsg('Saved ✓');
+    setTimeout(() => setAutoSaveMsg(''), 2000);
+  }, [aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume]);
+  // ↑ images dependency hataya — imagesRef.current se directly read hoti hai
 
   useEffect(() => {
     if (!currentProject) return;
@@ -911,7 +919,6 @@ export default function HorrorStudio() {
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
       imageBlobStore[id] = url;
-      // Force reload with crossOrigin for canvas compatibility
       preloadImage(id, url);
       newImages.push({ id, file, url, name: file.name, animation: null, animations: [], greenScreen: false, position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1 });
     });
@@ -952,31 +959,20 @@ export default function HorrorStudio() {
     });
   };
 
-  // ═══════════════════════════════════════════════════
-  // RECORDING ENGINE
-  // KEY FIX: Images freshly loaded with crossOrigin=anonymous
-  // so drawImage never throws SecurityError on canvas.
-  // Animation t = (now - animStartTime[id]) / 1000 — independent per image.
-  // ═══════════════════════════════════════════════════
   const startRecording = useCallback(async (settings: RecordingSettings) => {
     const outWidth = ratio.width;
     const outHeight = ratio.height;
 
-    // CRITICAL: Re-load all images with crossOrigin=anonymous fresh
-    // so the canvas can drawImage without taint errors
     const currentImages = imagesRef.current;
-    // Clear cache to force fresh load with crossOrigin
     currentImages.forEach(img => { delete imageElementCache[img.id]; });
     await Promise.all(
       currentImages.map(img => preloadImage(img.id, imageBlobStore[img.id] || img.url))
     );
 
-    // Reset per-image animation clocks
     const sessionStart = performance.now();
     animStartTimesRef.current = {};
     currentImages.forEach(img => { animStartTimesRef.current[img.id] = sessionStart; });
 
-    // Canvas setup
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outWidth;
     recCanvas.height = outHeight;
@@ -984,7 +980,6 @@ export default function HorrorStudio() {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Audio setup
     let audioStream: MediaStream | null = null;
     if (settings.audioSource === 'microphone') {
       try {
@@ -1010,7 +1005,6 @@ export default function HorrorStudio() {
       }
     }
 
-    // MediaRecorder
     const videoStream = recCanvas.captureStream(30);
     const allTracks = [...videoStream.getVideoTracks(), ...(audioStream ? audioStream.getAudioTracks() : [])];
     const combinedStream = new MediaStream(allTracks);
@@ -1038,9 +1032,9 @@ export default function HorrorStudio() {
         alert('Recording failed — no data. Please try again.'); setRecording(false); setRecordingTime(0); return;
       }
 
-      if (currentProject) {
+      if (currentProjectRef.current) {
         setSavingVideo(true);
-        const videoName = `${currentProject.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
+        const videoName = `${currentProjectRef.current.name}-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
         let thumbnail = '';
         try {
           const tempUrl = URL.createObjectURL(blob);
@@ -1055,7 +1049,7 @@ export default function HorrorStudio() {
           thumbnail = tc.toDataURL('image/jpeg', 0.75);
           URL.revokeObjectURL(tempUrl);
         } catch {}
-        addProjectVideo(currentProject.id, {
+        addProjectVideo(currentProjectRef.current.id, {
           id: generateId(), name: videoName, blob,
           size: blob.size, duration: durationSec, createdAt: Date.now(), thumbnail,
         });
@@ -1067,10 +1061,6 @@ export default function HorrorStudio() {
       setRecording(false); setRecordingTime(0);
     };
 
-    // ── rAF DRAW LOOP ──
-    // Reads live state from refs every frame.
-    // Each image gets t = (now - animStart[id]) / 1000 so animations
-    // run independently and in sync with what user sees in preview.
     const drawLoop = () => {
       const now = performance.now();
       const imgs = imagesRef.current;
@@ -1080,11 +1070,9 @@ export default function HorrorStudio() {
       const randVis = randomVisibleRef.current;
       const gs = greenScreenRef.current;
 
-      // Background
       ctx.fillStyle = gs ? '#00ff00' : '#090909';
       ctx.fillRect(0, 0, outWidth, outHeight);
 
-      // Subtle grid
       if (!gs) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.022)';
@@ -1094,7 +1082,6 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
-      // Determine which images to draw
       let drawList: UploadedImage[] = [];
       if (imgs.length > 0) {
         switch (mode) {
@@ -1109,15 +1096,12 @@ export default function HorrorStudio() {
         const el = imageElementCache[img.id];
         if (!el || !el.complete || el.naturalWidth === 0) continue;
 
-        // Init start time for images that become visible mid-recording
         if (!animStartTimesRef.current[img.id]) {
           animStartTimesRef.current[img.id] = now;
         }
 
-        // t in seconds — independent per image
         const t = (now - animStartTimesRef.current[img.id]) / 1000;
 
-        // Always read latest live state
         const liveImg = imagesRef.current.find(i => i.id === img.id) ?? img;
         const anims = liveImg.animations ?? (liveImg.animation ? [liveImg.animation] : []);
 
@@ -1132,7 +1116,6 @@ export default function HorrorStudio() {
           totalAlpha *= v.alpha;
         }
 
-        // Sizing: fit within 48% of canvas, then apply user scale
         const naturalW = el.naturalWidth;
         const naturalH = el.naturalHeight;
         const maxW = outWidth * 0.48;
@@ -1143,7 +1126,6 @@ export default function HorrorStudio() {
         const dw = naturalW * drawScale;
         const dh = naturalH * drawScale;
 
-        // Position: percentage coords → absolute pixels
         const cx = (liveImg.position.x / 100) * outWidth + totalOffX;
         const cy = (liveImg.position.y / 100) * outHeight + totalOffY;
         const userRotRad = ((liveImg.rotation ?? 0) * Math.PI) / 180;
@@ -1156,7 +1138,6 @@ export default function HorrorStudio() {
         ctx.restore();
       }
 
-      // Vignette
       if (!gs) {
         const grad = ctx.createRadialGradient(
           outWidth / 2, outHeight / 2, Math.min(outWidth, outHeight) * 0.25,
@@ -1181,7 +1162,7 @@ export default function HorrorStudio() {
       if (recorder.state === 'recording') recorder.stop();
     }, 5 * 60 * 1000);
 
-  }, [currentProject, ratio]);
+  }, [ratio]);
 
   const handleRecord = useCallback(() => {
     if (recording) {
@@ -1215,39 +1196,39 @@ export default function HorrorStudio() {
   };
 
   const handleOpenProject = (proj: HorrorProject) => {
-  setCurrentProject(proj);
-  setAspectRatio(proj.aspectRatio);
-  setGreenScreen(proj.greenScreen);
-  setAnimMode(proj.animMode as AnimationMode);
-  setActiveParticles(proj.activeParticles);
-  setActiveSounds(proj.activeSounds);
-  setMasterVolume(proj.masterVolume);
-  
-  const restored: UploadedImage[] = proj.images.map(img => {
-    const url = img.url; // base64 directly use karo
-    if (url) {
-      imageBlobStore[img.id] = url;
-      preloadImage(img.id, url);
-    }
-    return {
-      id: img.id,
-      file: new File([], img.name),
-      url: url,
-      name: img.name,
-      animation: img.animation,
-      animations: img.animations ?? [],
-      greenScreen: false,
-      position: img.position,
-      scale: img.scale,
-      rotation: img.rotation,
-      opacity: img.opacity,
-    };
-  });
-  
-  setImages(restored);
-  setSelectedId(restored.length > 0 ? restored[0].id : null);
-  setShowDashboard(false);
-};
+    setCurrentProject(proj);
+    setAspectRatio(proj.aspectRatio);
+    setGreenScreen(proj.greenScreen);
+    setAnimMode(proj.animMode as AnimationMode);
+    setActiveParticles(proj.activeParticles);
+    setActiveSounds(proj.activeSounds);
+    setMasterVolume(proj.masterVolume);
+
+    const restored: UploadedImage[] = proj.images.map(img => {
+      const url = img.url; // base64 directly use karo
+      if (url) {
+        imageBlobStore[img.id] = url;
+        preloadImage(img.id, url);
+      }
+      return {
+        id: img.id,
+        file: new File([], img.name),
+        url: url,
+        name: img.name,
+        animation: img.animation,
+        animations: img.animations ?? [],
+        greenScreen: false,
+        position: img.position,
+        scale: img.scale,
+        rotation: img.rotation,
+        opacity: img.opacity,
+      };
+    });
+
+    setImages(restored);
+    setSelectedId(restored.length > 0 ? restored[0].id : null);
+    setShowDashboard(false);
+  };
 
   const tagColor = (tag: string) =>
     tag === 'TikTok' ? 'bg-pink-500/15 border-pink-500/30 text-pink-400' :
