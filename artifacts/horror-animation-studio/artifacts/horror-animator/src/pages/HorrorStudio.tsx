@@ -1215,16 +1215,39 @@ export default function HorrorStudio() {
   };
 
   const handleOpenProject = (proj: HorrorProject) => {
-    setCurrentProject(proj); setAspectRatio(proj.aspectRatio); setGreenScreen(proj.greenScreen);
-    setAnimMode(proj.animMode as AnimationMode); setActiveParticles(proj.activeParticles);
-    setActiveSounds(proj.activeSounds); setMasterVolume(proj.masterVolume);
-    const restored: UploadedImage[] = proj.images.map(img => {
-      const url = imageBlobStore[img.id] || img.url;
-      if (url) preloadImage(img.id, url);
-      return { id: img.id, file: new File([], img.name), url, name: img.name, animation: img.animation, animations: img.animations ?? [], greenScreen: false, position: img.position, scale: img.scale, rotation: img.rotation, opacity: img.opacity };
-    });
-    setImages(restored); setSelectedId(restored.length > 0 ? restored[0].id : null); setShowDashboard(false);
-  };
+  setCurrentProject(proj);
+  setAspectRatio(proj.aspectRatio);
+  setGreenScreen(proj.greenScreen);
+  setAnimMode(proj.animMode as AnimationMode);
+  setActiveParticles(proj.activeParticles);
+  setActiveSounds(proj.activeSounds);
+  setMasterVolume(proj.masterVolume);
+  
+  const restored: UploadedImage[] = proj.images.map(img => {
+    const url = img.url; // base64 directly use karo
+    if (url) {
+      imageBlobStore[img.id] = url;
+      preloadImage(img.id, url);
+    }
+    return {
+      id: img.id,
+      file: new File([], img.name),
+      url: url,
+      name: img.name,
+      animation: img.animation,
+      animations: img.animations ?? [],
+      greenScreen: false,
+      position: img.position,
+      scale: img.scale,
+      rotation: img.rotation,
+      opacity: img.opacity,
+    };
+  });
+  
+  setImages(restored);
+  setSelectedId(restored.length > 0 ? restored[0].id : null);
+  setShowDashboard(false);
+};
 
   const tagColor = (tag: string) =>
     tag === 'TikTok' ? 'bg-pink-500/15 border-pink-500/30 text-pink-400' :
