@@ -37,6 +37,25 @@ export interface HorrorProject {
   videos: ProjectVideo[];
 }
 
+// Image URL ko base64 mein convert karta hai
+export async function urlToBase64(url: string): Promise<string> {
+  try {
+    // Agar pehle se base64 hai
+    if (url.startsWith('data:')) return url;
+    
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // fallback
+  }
+}
+
 const STORAGE_KEY = 'horror_projects_v2';
 
 export function loadProjects(): HorrorProject[] {
