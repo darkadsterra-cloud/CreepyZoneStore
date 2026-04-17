@@ -33,7 +33,7 @@ const TOOLS = [
     label: "Horror Animation MVP Studio",
     icon: "🎭",
     desc: "Livestream overlay generator",
-    url: "https://horror-animation-studio-mvp-horror-animation-studio-6ma7opmym.vercel.app",
+    url: "https://horror-animation-studio-mvp-horror-animation-studio-bmfd2cdcv.vercel.app",
   },
   {
     label: "OBS Horror Studio",
