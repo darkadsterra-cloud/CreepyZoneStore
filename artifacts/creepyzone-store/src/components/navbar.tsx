@@ -29,6 +29,30 @@ const TOOLS = [
     desc: "Livestream overlay generator",
     url: "https://horror-animation-studio-n58gfxawg-darkadsterra-1219s-projects.vercel.app",
   },
+  {
+    label: "Horror Animation MVP Studio",
+    icon: "🎭",
+    desc: "Livestream overlay generator",
+    url: "https://horror-animation-studio-mvp-horror-animation-studio-6ma7opmym.vercel.app",
+  },
+  {
+    label: "OBS Horror Studio",
+    icon: "🎥",
+    desc: "OBS stream horror effects",
+    url: "https://obs-horror-studio-horror-studio-jkhk1f9od.vercel.app",
+  },
+  {
+    label: "Overlay Designer Pro",
+    icon: "🖌️",
+    desc: "Custom overlay design tool",
+    url: "https://overlay-designer-pro-overlay-studio.vercel.app/dashboard",
+  },
+  {
+    label: "Creepy Zone Studio",
+    icon: "💀",
+    desc: "Stream tool & horror studio",
+    url: "https://creepy-zone-studio-creepfinity-iozfi9y8n.vercel.app",
+  },
 ];
 
 export function Navbar() {
