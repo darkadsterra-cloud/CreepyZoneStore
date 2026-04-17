@@ -45,7 +45,7 @@ const TOOLS = [
     label: "Overlay Designer Pro",
     icon: "🖌️",
     desc: "Custom overlay design tool",
-    url: "https://overlay-designer-pro-overlay-studio.vercel.app/dashboard",
+    url: "https://overlay-designer-pro-overlay-studio.vercel.app",
   },
   {
     label: "Creepy Zone Studio",
