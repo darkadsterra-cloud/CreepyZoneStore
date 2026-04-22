@@ -1,6 +1,6 @@
 // TransitionPanel.tsx — 100+ transitions + per-image slideshow duration
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, ChevronDown } from 'lucide-react';
 
 interface TransitionDef {
@@ -184,6 +184,8 @@ export default function TransitionPanel({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [localDur, setLocalDur] = useState(transitionDuration);
   const [localSlide, setLocalSlide] = useState(slideshowDuration);
+  useEffect(() => { setLocalDur(transitionDuration); }, [transitionDuration]);
+  useEffect(() => { setLocalSlide(slideshowDuration); }, [slideshowDuration]);
 
   const toggleCat = (label: string) =>
     setCollapsed(prev => ({ ...prev, [label]: !prev[label] }));
