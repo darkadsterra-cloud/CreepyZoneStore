@@ -1111,6 +1111,53 @@ export default function HorrorStudio() {
     if (!files) return;
     const newImages: UploadedImage[] = [];
     Array.from(files).forEach(file => {
+      // ── Video files — add as video overlay image ──
+      if (file.type === 'video/webm' || file.type === 'video/mp4' || file.name.endsWith('.webm') || file.name.endsWith('.mp4')) {
+        const url = URL.createObjectURL(file);
+        const id = `img-${++imageCounter}`;
+        imageBlobStore[id] = url;
+        // Create a video thumbnail as HTMLImageElement via video element
+        const vid = document.createElement('video');
+        vid.src = url; vid.muted = true; vid.preload = 'metadata';
+        vid.onloadeddata = () => {
+          vid.currentTime = 0.5;
+          vid.onseeked = () => {
+            const tc = document.createElement('canvas');
+            tc.width = 320; tc.height = Math.round(320 * vid.videoHeight / vid.videoWidth || 180);
+            tc.getContext('2d')!.drawImage(vid, 0, 0, tc.width, tc.height);
+            const thumbUrl = tc.toDataURL('image/jpeg', 0.8);
+            imageBlobStore[id] = thumbUrl; // use thumbnail as display
+            const el = new Image();
+            el.src = thumbUrl;
+            el.onload = () => { imageElementCache[id] = el; };
+          };
+        };
+        vid.load();
+        newImages.push({
+          id, file, url, name: file.name,
+          animation: null, animations: [], greenScreen: false,
+          position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1,
+        });
+        return;
+      }
+      // ── JSON project import ──
+      if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target?.result as string);
+            // If it's a saved project, open it
+            if (data && data.id && data.images) {
+              handleOpenProject(data);
+            }
+          } catch {
+            console.warn('Invalid JSON file');
+          }
+        };
+        reader.readAsText(file);
+        return;
+      }
+      // ── Image files ──
       if (!file.type.startsWith('image/')) return;
       const url = URL.createObjectURL(file);
       const id = `img-${++imageCounter}`;
@@ -1128,7 +1175,7 @@ export default function HorrorStudio() {
       return next;
     });
     if (newImages.length > 0 && !selectedId) setSelectedId(newImages[0].id);
-  }, [selectedId]);
+  }, [selectedId, handleOpenProject]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragover(false); handleFiles(e.dataTransfer.files);
@@ -1660,8 +1707,8 @@ const toggleAnimation = useCallback((animId: string) => {
             className={`mx-3 mt-3 flex-shrink-0 rounded-lg border-2 border-dashed cursor-pointer transition-all p-3 flex flex-col items-center justify-center gap-1.5 ${dragover ? 'border-red-500 bg-red-500/10' : 'border-zinc-700 hover:border-zinc-500 bg-zinc-800/20 hover:bg-zinc-800/40'}`}>
             <Upload className={`w-5 h-5 ${dragover ? 'text-red-400' : 'text-zinc-600'}`} />
             <p className={`text-[10px] font-medium ${dragover ? 'text-red-300' : 'text-zinc-500'}`}>Drop images or click</p>
-            <p className="text-[9px] text-zinc-700">PNG · JPG · WebP · bulk</p>
-            <input ref={fileInputRef} type="file" multiple accept="image/*" onChange={e => handleFiles(e.target.files)} className="hidden" />
+            <p className="text-[9px] text-zinc-700">PNG · JPG · WebP · MP4 · WebM · JSON</p>
+            <input ref={fileInputRef} type="file" multiple accept="image/*,video/webm,video/mp4,application/json,.json,.webm,.mp4" onChange={e => handleFiles(e.target.files)} className="hidden" />
           </div>
 
           {images.length > 0 && (
@@ -1722,7 +1769,7 @@ const toggleAnimation = useCallback((animId: string) => {
                   setActiveTransition(id);
                   setTransitionDuration(dur);
                 }}
-                disabled={animMode !== 'slideshow' && animMode !== 'all-visible'}
+                disabled={false}
                 slideshowDuration={slideshowDuration}
                 onSlideshowDurationChange={setSlideshowDuration}
               />
