@@ -1,6 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ANIMATION_PRESETS, ASPECT_RATIOS } from '@/lib/animations';
-import type { UploadedImage, AnimationMode } from '@/lib/animations';
 import { loadProjects, saveProject, deleteProject, generateId, urlToBase64 } from '@/lib/project-store';
 import type { HorrorProject } from '@/lib/project-store';
 import AppBackground from '@/components/AppBackground';
@@ -911,8 +909,9 @@ export default function HorrorStudio() {
   const [savingVideo, setSavingVideo] = useState(false);
   const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
   const [, forceUpdate] = useState(0);
-  const [activeTransition, setActiveTransition] = useState('none');
+ const [activeTransition, setActiveTransition] = useState('none');
   const [transitionDuration, setTransitionDuration] = useState(600);
+  const [slideshowDuration, setSlideshowDuration] = useState(2500);
   const transitionStateRef = useRef<TransitionState>(makeTransitionState());
   const fromCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const toCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1062,10 +1061,10 @@ export default function HorrorStudio() {
  useEffect(() => {
     if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current);
     if (animMode === 'slideshow' && images.length > 1) {
+      const totalInterval = slideshowDuration + transitionDuration;
       slideshowIntervalRef.current = setInterval(() => {
         setSlideshowIdx(i => {
-          const nextIdx = (i + 1) % images.length;
-          // Trigger transition if one is selected
+          const nextIdx = (i + 1) % imagesRef.current.length;
           if (activeTransition !== 'none' && transitionDuration > 0) {
             prevSlideshowIdxRef.current = i;
             transitionStateRef.current = {
@@ -1074,16 +1073,16 @@ export default function HorrorStudio() {
               progress: 0,
               durationMs: transitionDuration,
               startTime: performance.now(),
-              fromImageId: images[i]?.id ?? null,
-              toImageId: images[nextIdx]?.id ?? null,
+              fromImageId: imagesRef.current[i]?.id ?? null,
+              toImageId: imagesRef.current[nextIdx]?.id ?? null,
             };
           }
           return nextIdx;
         });
-      }, 2500 + transitionDuration);
+      }, totalInterval);
     }
     return () => { if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current); };
-  }, [animMode, images.length, activeTransition, transitionDuration]);
+  }, [animMode, images.length, activeTransition, transitionDuration, slideshowDuration]);
 
   useEffect(() => {
     if (randomIntervalRef.current) clearInterval(randomIntervalRef.current);
@@ -1296,14 +1295,49 @@ const toggleAnimation = useCallback((animId: string) => {
       transitionStateRef.current = tickTransition(transitionStateRef.current, nowMs);
       const tState = transitionStateRef.current;
  
-      // If transition is active, render from/to canvases with transition effect
+    // If transition is active — build from/to canvases on the fly and render
       if (tState.active && tState.id !== 'none') {
-        // Draw normally first to fromCanvas/toCanvas if we have them
-        if (fromCanvasRef.current && toCanvasRef.current) {
-          drawTransition(ctx, fromCanvasRef.current, toCanvasRef.current, tState.id, tState.progress, outWidth, outHeight);
-          rafHandleRef.current = requestAnimationFrame(drawLoop);
-          return; // Skip normal draw — transition handles it
+        const allImgs = imagesRef.current;
+        const fromImg = tState.fromImageId ? allImgs.find(i => i.id === tState.fromImageId) : null;
+        const toImg   = tState.toImageId   ? allImgs.find(i => i.id === tState.toImageId)   : null;
+ 
+        if (!fromCanvasRef.current) {
+          fromCanvasRef.current = document.createElement('canvas');
+          fromCanvasRef.current.width = outWidth;
+          fromCanvasRef.current.height = outHeight;
         }
+        if (!toCanvasRef.current) {
+          toCanvasRef.current = document.createElement('canvas');
+          toCanvasRef.current.width = outWidth;
+          toCanvasRef.current.height = outHeight;
+        }
+ 
+        const drawImgToCanvas = (target: HTMLCanvasElement, imgData: typeof fromImg) => {
+          const tctx = target.getContext('2d')!;
+          tctx.fillStyle = gs ? '#00ff00' : '#090909';
+          tctx.fillRect(0, 0, outWidth, outHeight);
+          if (!imgData) return;
+          const el = imageElementCache[imgData.id];
+          if (!el || !el.complete || el.naturalWidth === 0) return;
+          const maxW2 = outWidth * 0.48; const maxH2 = outHeight * 0.48;
+          const bs = Math.min(maxW2 / el.naturalWidth, maxH2 / el.naturalHeight);
+          const ds = bs * (imgData.scale ?? 1);
+          const dw2 = el.naturalWidth * ds; const dh2 = el.naturalHeight * ds;
+          const cx2 = (imgData.position.x / 100) * outWidth;
+          const cy2 = (imgData.position.y / 100) * outHeight;
+          tctx.save();
+          tctx.globalAlpha = imgData.opacity ?? 1;
+          tctx.translate(cx2, cy2);
+          tctx.rotate(((imgData.rotation ?? 0) * Math.PI) / 180);
+          tctx.drawImage(el, -dw2 / 2, -dh2 / 2, dw2, dh2);
+          tctx.restore();
+        };
+ 
+        drawImgToCanvas(fromCanvasRef.current, fromImg);
+        drawImgToCanvas(toCanvasRef.current, toImg);
+        drawTransition(ctx, fromCanvasRef.current, toCanvasRef.current, tState.id, tState.progress, outWidth, outHeight);
+        rafHandleRef.current = requestAnimationFrame(drawLoop);
+        return;
       }
 
       if (!gs) {
@@ -1680,7 +1714,7 @@ const toggleAnimation = useCallback((animId: string) => {
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
             )}
             {activeTab === 'tts' && <TTSPanel />}
-            {activeTab === 'transitions' && (
+           {activeTab === 'transitions' && (
               <TransitionPanel
                 selectedTransition={activeTransition}
                 transitionDuration={transitionDuration}
@@ -1689,6 +1723,8 @@ const toggleAnimation = useCallback((animId: string) => {
                   setTransitionDuration(dur);
                 }}
                 disabled={animMode !== 'slideshow' && animMode !== 'all-visible'}
+                slideshowDuration={slideshowDuration}
+                onSlideshowDurationChange={setSlideshowDuration}
               />
             )}
           </div>
