@@ -9,6 +9,11 @@ import SoundLibrary from '@/components/SoundLibrary';
 import ControlPanel from '@/components/ControlPanel';
 import ParticleOverlay from '@/components/ParticleOverlay';
 import TTSPanel from '@/components/TTSPanel';
+import { ANIMATION_PRESETS, ASPECT_RATIOS, TRANSITION_PRESETS } from '@/lib/animations';
+import type { UploadedImage, AnimationMode, TransitionPreset } from '@/lib/animations';
+import TransitionPanel from '@/components/TransitionPanel';
+import { drawTransition, tickTransition, makeTransitionState } from '@/lib/transition-engine';
+import type { TransitionState } from '@/lib/transition-engine';
 import {
   Upload, ImageIcon, Download, CircleDot,
   ChevronLeft, ChevronRight, Maximize2, Skull, X,
@@ -900,12 +905,18 @@ export default function HorrorStudio() {
   const [slideshowIdx, setSlideshowIdx] = useState(0);
   const [randomVisible, setRandomVisible] = useState<string[]>([]);
   const [fullscreen, setFullscreen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'animations' | 'sounds' | 'tts'>('animations');
+  const [activeTab, setActiveTab] = useState<'animations' | 'sounds' | 'tts' | 'transitions'>('animations');
   const [dragover, setDragover] = useState(false);
   const [autoSaveMsg, setAutoSaveMsg] = useState('');
   const [savingVideo, setSavingVideo] = useState(false);
   const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
   const [, forceUpdate] = useState(0);
+  const [activeTransition, setActiveTransition] = useState('none');
+  const [transitionDuration, setTransitionDuration] = useState(600);
+  const transitionStateRef = useRef<TransitionState>(makeTransitionState());
+  const fromCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const toCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const prevSlideshowIdxRef = useRef(0);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1048,12 +1059,31 @@ export default function HorrorStudio() {
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [images, aspectRatio, greenScreen, animMode, activeParticles, activeSounds, masterVolume]);
 
-  useEffect(() => {
+ useEffect(() => {
     if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current);
-    if (animMode === 'slideshow' && images.length > 1)
-      slideshowIntervalRef.current = setInterval(() => setSlideshowIdx(i => (i + 1) % images.length), 2500);
+    if (animMode === 'slideshow' && images.length > 1) {
+      slideshowIntervalRef.current = setInterval(() => {
+        setSlideshowIdx(i => {
+          const nextIdx = (i + 1) % images.length;
+          // Trigger transition if one is selected
+          if (activeTransition !== 'none' && transitionDuration > 0) {
+            prevSlideshowIdxRef.current = i;
+            transitionStateRef.current = {
+              active: true,
+              id: activeTransition,
+              progress: 0,
+              durationMs: transitionDuration,
+              startTime: performance.now(),
+              fromImageId: images[i]?.id ?? null,
+              toImageId: images[nextIdx]?.id ?? null,
+            };
+          }
+          return nextIdx;
+        });
+      }, 2500 + transitionDuration);
+    }
     return () => { if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current); };
-  }, [animMode, images.length]);
+  }, [animMode, images.length, activeTransition, transitionDuration]);
 
   useEffect(() => {
     if (randomIntervalRef.current) clearInterval(randomIntervalRef.current);
@@ -1117,19 +1147,20 @@ export default function HorrorStudio() {
     });
   };
 
-const toggleAnimation = (animId: string) => {
-    if (!selectedId || !selectedImage) return;
-    const current = selectedImage.animations?.length
-      ? selectedImage.animations
-      : selectedImage.animation ? [selectedImage.animation] : [];
-    const next = current.includes(animId)
-      ? current.filter(a => a !== animId)
-      : [...current, animId];
-    updateImage(selectedId, {
-      animations: next,
-      animation: next[0] ?? null,
-    });
-  };
+const toggleAnimation = useCallback((animId: string) => {
+    if (!selectedId) return;
+    // Use functional update to always get fresh state — avoids stale closure bug
+    setImages(prev => prev.map(img => {
+      if (img.id !== selectedId) return img;
+      const current: string[] = img.animations?.length
+        ? img.animations
+        : img.animation ? [img.animation] : [];
+      const next = current.includes(animId)
+        ? current.filter(a => a !== animId)
+        : [...current, animId];
+      return { ...img, animations: next, animation: next[0] ?? null };
+    }));
+  }, [selectedId]);
 
   const clearAllAnimations = () => { if (selectedId) updateImage(selectedId, { animations: [], animation: null }); };
   const toggleSound = (id: string) => setActiveSounds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -1256,8 +1287,24 @@ const toggleAnimation = (animId: string) => {
       const randVis = randomVisibleRef.current;
       const gs = greenScreenRef.current;
 
+      // ── Background ──
       ctx.fillStyle = gs ? '#00ff00' : '#090909';
       ctx.fillRect(0, 0, outWidth, outHeight);
+ 
+      // ── Tick transition ──
+      const nowMs = performance.now();
+      transitionStateRef.current = tickTransition(transitionStateRef.current, nowMs);
+      const tState = transitionStateRef.current;
+ 
+      // If transition is active, render from/to canvases with transition effect
+      if (tState.active && tState.id !== 'none') {
+        // Draw normally first to fromCanvas/toCanvas if we have them
+        if (fromCanvasRef.current && toCanvasRef.current) {
+          drawTransition(ctx, fromCanvasRef.current, toCanvasRef.current, tState.id, tState.progress, outWidth, outHeight);
+          rafHandleRef.current = requestAnimationFrame(drawLoop);
+          return; // Skip normal draw — transition handles it
+        }
+      }
 
       if (!gs) {
         ctx.save();
@@ -1437,8 +1484,20 @@ const toggleAnimation = (animId: string) => {
             <div className="absolute inset-0 pointer-events-none opacity-30"
               style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)', backgroundSize: '10% 10%' }} />
           )}
-          {previewImages.map(img => (
-            <div key={img.id} className={`absolute ${getAnimClass(img)}`}
+         {previewImages.map((img, idx) => (
+            <div
+              key={img.id}
+              className={`absolute ${getAnimClass(img)}`}
+              style={{
+                left: `${img.position.x}%`, top: `${img.position.y}%`,
+                transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
+                opacity: img.opacity, zIndex: 5,
+                // CSS transition for live preview (Filmora-style)
+                transition: activeTransition !== 'none' && animMode === 'slideshow'
+                  ? `opacity ${transitionDuration}ms ease-in-out, transform ${transitionDuration}ms ease-in-out`
+                  : 'none',
+              }}
+            >
               style={{
                 left: `${img.position.x}%`, top: `${img.position.y}%`,
                 transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
@@ -1605,10 +1664,10 @@ const toggleAnimation = (animId: string) => {
           )}
 
           <div className="flex border-b border-zinc-800 flex-shrink-0">
-            {(['animations', 'sounds', 'tts'] as const).map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
+            {(['animations', 'sounds', 'tts', 'transitions'] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
                 className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-colors ${activeTab === tab ? 'text-red-400 border-b-2 border-red-500 bg-red-900/10' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Anim' : 'Sound'}
+                {tab === 'tts' ? 'TTS' : tab === 'animations' ? 'Anim' : tab === 'transitions' ? 'Trans' : 'Sound'}
               </button>
             ))}
           </div>
@@ -1626,6 +1685,17 @@ const toggleAnimation = (animId: string) => {
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
             )}
             {activeTab === 'tts' && <TTSPanel />}
+            {activeTab === 'transitions' && (
+              <TransitionPanel
+                selectedTransition={activeTransition}
+                transitionDuration={transitionDuration}
+                onSelectTransition={(id, dur) => {
+                  setActiveTransition(id);
+                  setTransitionDuration(dur);
+                }}
+                disabled={animMode !== 'slideshow' && animMode !== 'all-visible'}
+              />
+            )}
           </div>
         </div>
 
