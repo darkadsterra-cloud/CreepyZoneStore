@@ -1553,6 +1553,7 @@ const toggleAnimation = useCallback((animId: string) => {
       ? { width: isVertical ? '50vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }
       : { width: '100%', aspectRatio: `${ratio.width} / ${ratio.height}`, maxWidth: isVertical ? '280px' : '100%' };
     return (
+      <>
       <style>{cssAnim}</style>
       <div style={sizeStyle} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
       {recording && !isFullscreen && (
@@ -1603,7 +1604,7 @@ const toggleAnimation = useCallback((animId: string) => {
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%)' }} />
           )}
         </div>
-      </div>
+      <> 
     );
   };
 
