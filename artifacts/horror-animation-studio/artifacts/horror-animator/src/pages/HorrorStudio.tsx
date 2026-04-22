@@ -1175,8 +1175,7 @@ export default function HorrorStudio() {
       return next;
     });
     if (newImages.length > 0 && !selectedId) setSelectedId(newImages[0].id);
-  }, [selectedId, handleOpenProject]);
-
+ }, [selectedId]);
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setDragover(false); handleFiles(e.dataTransfer.files);
   }, [handleFiles]);
