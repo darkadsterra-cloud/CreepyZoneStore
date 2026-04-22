@@ -909,7 +909,8 @@ export default function HorrorStudio() {
   const [savingVideo, setSavingVideo] = useState(false);
   const [playingVideo, setPlayingVideo] = useState<ProjectVideo | null>(null);
   const [, forceUpdate] = useState(0);
- const [activeTransition, setActiveTransition] = useState('none');
+  const [transitionKey, setTransitionKey] = useState(0);
+  const [activeTransition, setActiveTransition] = useState('none');
   const [transitionDuration, setTransitionDuration] = useState(600);
   const [slideshowDuration, setSlideshowDuration] = useState(2500);
   const transitionStateRef = useRef<TransitionState>(makeTransitionState());
@@ -1547,12 +1548,14 @@ const toggleAnimation = useCallback((animId: string) => {
 
   // ─── Preview Area Component ───────────────────────────────────────────────
   const PreviewArea = ({ isFullscreen = false }: { isFullscreen?: boolean }) => {
+    const cssAnim = `@keyframes hsTransIn { from { opacity: 0; transform: translate(-50%,-50%) scale(0.92); } to { opacity: 1; } }`;
     const sizeStyle = isFullscreen
       ? { width: isVertical ? '50vh' : '90vw', aspectRatio: `${ratio.width} / ${ratio.height}` }
       : { width: '100%', aspectRatio: `${ratio.width} / ${ratio.height}`, maxWidth: isVertical ? '280px' : '100%' };
     return (
+      <style>{cssAnim}</style>
       <div style={sizeStyle} className="relative overflow-hidden rounded-lg shadow-2xl shadow-black/80 border border-zinc-800">
-        {recording && !isFullscreen && (
+      {recording && !isFullscreen && (
           <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-full border border-red-500/50">
             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
             <span className="text-red-300 text-[9px] font-bold">REC {formatTime(recordingTime)}</span>
@@ -1564,18 +1567,20 @@ const toggleAnimation = useCallback((animId: string) => {
             <div className="absolute inset-0 pointer-events-none opacity-30"
               style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)', backgroundSize: '10% 10%' }} />
           )}
-         {previewImages.map((img, idx) => (
+       {previewImages.map((img, idx) => (
             <div
-              key={img.id}
+              key={animMode === 'single' ? `${img.id}-${transitionKey}` : img.id}
               className={`absolute ${getAnimClass(img)}`}
               style={{
                 left: `${img.position.x}%`, top: `${img.position.y}%`,
                 transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
                 opacity: img.opacity, zIndex: 5,
-                // CSS transition for live preview (Filmora-style)
                 transition: activeTransition !== 'none'
-  ? `opacity ${transitionDuration}ms ease-in-out, transform ${transitionDuration}ms ease-in-out`
-  : 'none',
+                  ? `opacity ${transitionDuration}ms ease-in-out, transform ${transitionDuration}ms ease-in-out`
+                  : 'none',
+                animation: activeTransition !== 'none' && animMode === 'single' && transitionKey > 0
+                  ? `hsTransIn ${transitionDuration}ms ease-out forwards`
+                  : undefined,
               }}
             >
               <img
@@ -1715,7 +1720,10 @@ const toggleAnimation = useCallback((animId: string) => {
               {images.map(img => {
                 const activeAnims = img.animations ?? (img.animation ? [img.animation] : []);
                 return (
-                  <div key={img.id} onClick={() => setSelectedId(img.id)}
+                  <div key={img.id} onClick={() => {
+                  setTransitionKey(k => k + 1);
+                   setSelectedId(img.id);
+                    }}
                     className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border transition-all ${selectedId === img.id ? 'bg-red-500/15 border-red-500/40' : 'bg-zinc-800/30 border-zinc-800 hover:bg-zinc-800/60'}`}>
                     <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-zinc-800">
                       <img
