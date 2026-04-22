@@ -1117,11 +1117,17 @@ export default function HorrorStudio() {
     });
   };
 
-  const toggleAnimation = (animId: string) => {
+const toggleAnimation = (animId: string) => {
     if (!selectedId || !selectedImage) return;
-    const current = selectedImage.animations ?? [];
+    const current = selectedImage.animations?.length
+      ? selectedImage.animations
+      : selectedImage.animation ? [selectedImage.animation] : [];
+    const next = current.includes(animId)
+      ? current.filter(a => a !== animId)
+      : [...current, animId];
     updateImage(selectedId, {
-      animations: current.includes(animId) ? current.filter(a => a !== animId) : [...current, animId],
+      animations: next,
+      animation: next[0] ?? null,
     });
   };
 
@@ -1132,8 +1138,8 @@ export default function HorrorStudio() {
   const handleDownload = () => {
     if (!previewRef.current) return;
     import('html2canvas').then(({ default: html2canvas }) => {
-      html2canvas(previewRef.current!, { useCORS: true, allowTaint: true, scale: 2 }).then(canvas => {
-        const link = document.createElement('a');
+      html2canvas(previewRef.current!, { useCORS: true, allowTaint: true, scale: 3, logging: false }).then(canvas => {
+      const link = document.createElement('a');
         link.download = `${currentProject?.name ?? 'horror-overlay'}.png`;
         link.href = canvas.toDataURL('image/png'); link.click();
       });
@@ -1185,10 +1191,10 @@ export default function HorrorStudio() {
       }
     }
 
-    const videoStream = recCanvas.captureStream(30);
+    const videoStream = recCanvas.captureStream(60);
     const allTracks = [...videoStream.getVideoTracks(), ...(audioStream ? audioStream.getAudioTracks() : [])];
     const combinedStream = new MediaStream(allTracks);
-    const bitrates: Record<string, number> = { high: 12_000_000, medium: 6_000_000, low: 3_000_000 };
+    const bitrates: Record<string, number> = { high: 25_000_000, medium: 12_000_000, low: 6_000_000 };
     const mimeTypes = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9', 'video/webm'];
     const mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) ?? 'video/webm';
     let recorder: MediaRecorder;
