@@ -1573,9 +1573,9 @@ const toggleAnimation = useCallback((animId: string) => {
                 transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
                 opacity: img.opacity, zIndex: 5,
                 // CSS transition for live preview (Filmora-style)
-                transition: activeTransition !== 'none' && animMode === 'slideshow'
-                  ? `opacity ${transitionDuration}ms ease-in-out, transform ${transitionDuration}ms ease-in-out`
-                  : 'none',
+                transition: activeTransition !== 'none'
+  ? `opacity ${transitionDuration}ms ease-in-out, transform ${transitionDuration}ms ease-in-out`
+  : 'none',
               }}
             >
               <img
