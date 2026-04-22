@@ -354,3 +354,63 @@ export interface UploadedImage {
 }
 
 export type AnimationMode = 'single' | 'slideshow' | 'all-visible' | 'random-appear';
+// ═══════════════════════════════════════════════════════════════════
+// HORROR STUDIO — COMPLETE FIXED SECTIONS
+// 
+// FILE: src/lib/animations.ts
+// ADD these exports at the bottom of the file (after PARTICLE_EFFECTS)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── PASTE THIS AT THE BOTTOM OF animations.ts ───────────────────
+
+export interface TransitionPreset {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: 'basic' | 'zoom' | 'slide' | 'creative' | 'horror';
+  durationMs: number;
+}
+
+export const TRANSITION_PRESETS: TransitionPreset[] = [
+  // ── BASIC ──
+  { id: 'fade', name: 'Fade', description: 'Simple crossfade', icon: '⬜', category: 'basic', durationMs: 600 },
+  { id: 'dissolve', name: 'Dissolve', description: 'Random pixel dissolve', icon: '✨', category: 'basic', durationMs: 800 },
+  { id: 'cut', name: 'Hard Cut', description: 'Instant cut no transition', icon: '✂️', category: 'basic', durationMs: 0 },
+  { id: 'dip-black', name: 'Dip to Black', description: 'Fade through black', icon: '⬛', category: 'basic', durationMs: 700 },
+  { id: 'dip-white', name: 'Dip to White', description: 'Fade through white', icon: '⬜', category: 'basic', durationMs: 700 },
+  { id: 'crossblur', name: 'Cross Blur', description: 'Blur then sharp transition', icon: '🔮', category: 'basic', durationMs: 600 },
+  // ── ZOOM ──
+  { id: 'zoom-in', name: 'Zoom In', description: 'Next image zooms in', icon: '🔍', category: 'zoom', durationMs: 600 },
+  { id: 'zoom-out', name: 'Zoom Out', description: 'Current zooms out to next', icon: '🔎', category: 'zoom', durationMs: 600 },
+  { id: 'zoom-punch', name: 'Zoom Punch', description: 'Punch zoom then cut', icon: '👊', category: 'zoom', durationMs: 500 },
+  { id: 'zoom-spin', name: 'Zoom Spin', description: 'Zoom with rotation', icon: '🌀', category: 'zoom', durationMs: 700 },
+  { id: 'scale-bounce', name: 'Scale Bounce', description: 'Bouncy scale transition', icon: '💫', category: 'zoom', durationMs: 700 },
+  // ── SLIDE ──
+  { id: 'slide-left', name: 'Slide Left', description: 'Slides left to next', icon: '⬅️', category: 'slide', durationMs: 500 },
+  { id: 'slide-right', name: 'Slide Right', description: 'Slides right to next', icon: '➡️', category: 'slide', durationMs: 500 },
+  { id: 'slide-up', name: 'Slide Up', description: 'Slides up to next', icon: '⬆️', category: 'slide', durationMs: 500 },
+  { id: 'slide-down', name: 'Slide Down', description: 'Slides down to next', icon: '⬇️', category: 'slide', durationMs: 500 },
+  { id: 'push-left', name: 'Push Left', description: 'Current pushed left by next', icon: '◀️', category: 'slide', durationMs: 500 },
+  { id: 'push-right', name: 'Push Right', description: 'Current pushed right by next', icon: '▶️', category: 'slide', durationMs: 500 },
+  { id: 'wipe-left', name: 'Wipe Left', description: 'Wipe reveal from right', icon: '▓', category: 'slide', durationMs: 500 },
+  { id: 'wipe-right', name: 'Wipe Right', description: 'Wipe reveal from left', icon: '▓', category: 'slide', durationMs: 500 },
+  // ── CREATIVE ──
+  { id: 'spin-180', name: 'Spin 180°', description: 'Half rotation transition', icon: '🔄', category: 'creative', durationMs: 600 },
+  { id: 'spin-360', name: 'Spin 360°', description: 'Full rotation transition', icon: '🔁', category: 'creative', durationMs: 700 },
+  { id: 'flip-h', name: 'Flip Horizontal', description: 'Card flip horizontal', icon: '↔️', category: 'creative', durationMs: 600 },
+  { id: 'flip-v', name: 'Flip Vertical', description: 'Card flip vertical', icon: '↕️', category: 'creative', durationMs: 600 },
+  { id: 'cube-left', name: 'Cube Left', description: '3D cube turn left', icon: '📦', category: 'creative', durationMs: 700 },
+  { id: 'ripple', name: 'Ripple', description: 'Water ripple reveal', icon: '💧', category: 'creative', durationMs: 800 },
+  { id: 'shockwave', name: 'Shockwave', description: 'Radial shockwave blast', icon: '💥', category: 'creative', durationMs: 600 },
+  { id: 'heart-wipe', name: 'Heart Wipe', description: 'Heart shape reveal', icon: '❤️', category: 'creative', durationMs: 700 },
+  // ── HORROR ──
+  { id: 'horror-glitch', name: 'Horror Glitch', description: 'Glitchy digital horror cut', icon: '📺', category: 'horror', durationMs: 500 },
+  { id: 'blood-wipe', name: 'Blood Wipe', description: 'Blood drip reveal', icon: '🩸', category: 'horror', durationMs: 700 },
+  { id: 'static-cut', name: 'Static Cut', description: 'TV static between scenes', icon: '📡', category: 'horror', durationMs: 400 },
+  { id: 'nightmare-fade', name: 'Nightmare Fade', description: 'Red tinted nightmare fade', icon: '😱', category: 'horror', durationMs: 800 },
+  { id: 'demon-flash', name: 'Demon Flash', description: 'White flash horror reveal', icon: '👿', category: 'horror', durationMs: 300 },
+  { id: 'void-swallow', name: 'Void Swallow', description: 'Sucked into void', icon: '🌑', category: 'horror', durationMs: 800 },
+  { id: 'skull-iris', name: 'Skull Iris', description: 'Iris wipe with skull shape', icon: '💀', category: 'horror', durationMs: 700 },
+  { id: 'shatter-cut', name: 'Shatter Cut', description: 'Glass shatter reveal', icon: '💔', category: 'horror', durationMs: 600 },
+];
