@@ -70,6 +70,7 @@ export default function AnimationPanel({ selectedAnimations, onToggle, onClearAl
                     <button
                       key={preset.id}
                       onClick={() => onToggle(preset.id)}
+                      title={preset.description}
                       className={`flex items-center gap-1.5 p-1.5 rounded-lg text-left transition-all duration-150 ${
                         isSelected
                           ? 'bg-red-500/25 border border-red-500/50 text-red-300'
@@ -96,8 +97,11 @@ export default function AnimationPanel({ selectedAnimations, onToggle, onClearAl
               const preset = ANIMATION_PRESETS.find(p => p.id === id);
               if (!preset) return null;
               return (
-                <button key={id} onClick={() => onToggle(id)}
-                  className="flex items-center gap-1 text-[9px] bg-red-500/15 border border-red-500/30 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-500/25 transition-colors">
+                <button
+                  key={id}
+                  onClick={() => onToggle(id)}
+                  className="flex items-center gap-1 text-[9px] bg-red-500/15 border border-red-500/30 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-500/25 transition-colors"
+                >
                   {preset.icon} {preset.name} ×
                 </button>
               );
@@ -108,3 +112,4 @@ export default function AnimationPanel({ selectedAnimations, onToggle, onClearAl
     </div>
   );
 }
+
