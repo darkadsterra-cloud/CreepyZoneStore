@@ -17,6 +17,7 @@ export function useHorrorStore() {
       url: URL.createObjectURL(file),
       name: file.name,
       animation: null,
+      animations: [], 
       sounds: [],
       greenScreen: false,
       position: { x: 50, y: 50 },
