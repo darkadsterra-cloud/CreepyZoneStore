@@ -1498,11 +1498,6 @@ const toggleAnimation = useCallback((animId: string) => {
                   : 'none',
               }}
             >
-              style={{
-                left: `${img.position.x}%`, top: `${img.position.y}%`,
-                transform: `translate(-50%,-50%) scale(${img.scale}) rotate(${img.rotation}deg)`,
-                opacity: img.opacity, zIndex: 5,
-              }}>
               <img
                 src={imageBlobStore[img.id] || img.url}
                 alt={img.name}
