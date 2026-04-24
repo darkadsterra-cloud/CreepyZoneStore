@@ -1852,13 +1852,32 @@ const toggleAnimation = useCallback((animId: string) => {
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
             )}
             {activeTab === 'tts' && <TTSPanel />}
-           {activeTab === 'transitions' && (
+          {activeTab === 'transitions' && (
               <TransitionPanel
                 selectedTransition={activeTransition}
                 transitionDuration={transitionDuration}
                 onSelectTransition={(id, dur) => {
                   setActiveTransition(id);
                   setTransitionDuration(dur);
+                  // Immediately preview transition between first two images (or same image twice)
+                  if (id !== 'none' && imagesRef.current.length > 0) {
+                    const imgs = imagesRef.current;
+                    const fromId = imgs[0]?.id ?? null;
+                    const toId = imgs.length > 1 ? imgs[1]?.id ?? imgs[0]?.id : imgs[0]?.id ?? null;
+                    transitionStateRef.current = {
+                      active: true,
+                      id,
+                      progress: 0,
+                      durationMs: dur,
+                      startTime: performance.now(),
+                      fromImageId: fromId,
+                      toImageId: toId,
+                    };
+                    if (previewCanvasRef.current) {
+                      previewCanvasRef.current.style.display = 'block';
+                    }
+                    setTransitionTick(t => t + 1);
+                  }
                 }}
                 disabled={false}
                 slideshowDuration={slideshowDuration}
