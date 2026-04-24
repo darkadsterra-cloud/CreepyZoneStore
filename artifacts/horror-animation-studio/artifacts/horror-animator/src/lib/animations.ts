@@ -344,8 +344,9 @@ export interface UploadedImage {
   file: File;
   url: string;
   name: string;
-  animation: string | null;       
-  animations: string[];           
+  animation: string | null;
+  animations: string[];
+  transition: string;          // ← per-image transition
   greenScreen: boolean;
   position: { x: number; y: number };
   scale: number;
