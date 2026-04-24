@@ -1083,7 +1083,6 @@ export default function HorrorStudio() {
             if (previewCanvasRef.current) {
               previewCanvasRef.current.style.display = 'block';
             }
-            };
           }
           return nextIdx;
         });
