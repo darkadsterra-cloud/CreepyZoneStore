@@ -1606,7 +1606,6 @@ const toggleAnimation = useCallback((animId: string) => {
         </div>
       <> 
     );
-  };
 
   // ─── Dashboard View ───────────────────────────────────────────────────────
   if (showDashboard) {
