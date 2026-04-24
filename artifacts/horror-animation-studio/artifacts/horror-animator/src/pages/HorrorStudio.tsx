@@ -1069,18 +1069,23 @@ export default function HorrorStudio() {
       slideshowIntervalRef.current = setInterval(() => {
         setSlideshowIdx(i => {
           const nextIdx = (i + 1) % imagesRef.current.length;
-          if (activeTransition !== 'none' && transitionDuration > 0) {
+         // Use the FROM image's own transition, fallback to global
+          const fromImg = imagesRef.current[i];
+          const imgTransition = (fromImg as any)?.transition && (fromImg as any).transition !== 'none'
+            ? (fromImg as any).transition
+            : activeTransition;
+ 
+          if (imgTransition !== 'none' && transitionDuration > 0) {
             prevSlideshowIdxRef.current = i;
-           transitionStateRef.current = {
+            transitionStateRef.current = {
               active: true,
-              id: activeTransition,
+              id: imgTransition,
               progress: 0,
               durationMs: transitionDuration,
               startTime: performance.now(),
               fromImageId: imagesRef.current[i]?.id ?? null,
               toImageId: imagesRef.current[nextIdx]?.id ?? null,
             };
-           // Trigger preview RAF loop via state change
             if (previewCanvasRef.current) {
               previewCanvasRef.current.style.display = 'block';
             }
@@ -1210,11 +1215,11 @@ export default function HorrorStudio() {
           };
         };
         vid.load();
-        newImages.push({
-          id, file, url, name: file.name,
-          animation: null, animations: [], greenScreen: false,
-          position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1,
-        });
+       newImages.push({
+        id, file, url, name: file.name,
+        animation: null, animations: [], transition: 'none', greenScreen: false,
+        position: { x: 50, y: 50 }, scale: 1, rotation: 0, opacity: 1,
+      });
         return;
       }
       // ── JSON project import ──
@@ -1602,6 +1607,7 @@ const toggleAnimation = useCallback((animId: string) => {
         name: img.name,
         animation: img.animation ?? null,
         animations: img.animations ?? [],
+        transition: (img as any).transition ?? 'none',
         greenScreen: false,
         position: img.position ?? { x: 50, y: 50 },
         scale: img.scale ?? 1,
@@ -1817,9 +1823,14 @@ const toggleAnimation = useCallback((animId: string) => {
                         onError={e => { (e.target as HTMLImageElement).style.opacity = '0.3'; }}
                       />
                     </div>
-                    <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-zinc-300 truncate">{img.name}</p>
-                      {activeAnims.length > 0 && <p className="text-[9px] text-red-400">{activeAnims.length} anims</p>}
+                      <div className="flex gap-1 flex-wrap">
+                        {activeAnims.length > 0 && <p className="text-[9px] text-red-400">{activeAnims.length} anims</p>}
+                        {(img as any).transition && (img as any).transition !== 'none' && (
+                          <p className="text-[9px] text-blue-400">↔ trans</p>
+                        )}
+                      </div>
                     </div>
                     <button onClick={e => { e.stopPropagation(); removeImage(img.id); }} className="text-zinc-700 hover:text-red-400 flex-shrink-0">
                       <X className="w-3 h-3" />
@@ -1852,26 +1863,34 @@ const toggleAnimation = useCallback((animId: string) => {
               <SoundLibrary activeSounds={activeSounds} onToggleSound={toggleSound} masterVolume={masterVolume} onVolumeChange={setMasterVolume} />
             )}
             {activeTab === 'tts' && <TTSPanel />}
-          {activeTab === 'transitions' && (
+         {activeTab === 'transitions' && (
               <TransitionPanel
-                selectedTransition={activeTransition}
+                selectedTransition={selectedImage?.transition ?? 'none'}
                 transitionDuration={transitionDuration}
                 onSelectTransition={(id, dur) => {
-                  setActiveTransition(id);
                   setTransitionDuration(dur);
-                  // Immediately preview transition between first two images (or same image twice)
+                  // Apply transition to selected image
+                  if (selectedId) {
+                    updateImage(selectedId, { transition: id } as any);
+                  }
+                  // Also set global active for slideshow
+                  setActiveTransition(id);
+                  // Immediately preview
                   if (id !== 'none' && imagesRef.current.length > 0) {
                     const imgs = imagesRef.current;
-                    const fromId = imgs[0]?.id ?? null;
-                    const toId = imgs.length > 1 ? imgs[1]?.id ?? imgs[0]?.id : imgs[0]?.id ?? null;
+                    const selIdx = imgs.findIndex(i => i.id === selectedId);
+                    const fromId = selIdx >= 0 ? imgs[selIdx]?.id : imgs[0]?.id ?? null;
+                    const toId = selIdx >= 0 && selIdx + 1 < imgs.length
+                      ? imgs[selIdx + 1]?.id
+                      : imgs.length > 1 ? imgs[1]?.id : imgs[0]?.id ?? null;
                     transitionStateRef.current = {
                       active: true,
                       id,
                       progress: 0,
                       durationMs: dur,
                       startTime: performance.now(),
-                      fromImageId: fromId,
-                      toImageId: toId,
+                      fromImageId: fromId ?? null,
+                      toImageId: toId ?? null,
                     };
                     if (previewCanvasRef.current) {
                       previewCanvasRef.current.style.display = 'block';
