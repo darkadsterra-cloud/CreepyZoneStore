@@ -1599,15 +1599,18 @@ const toggleAnimation = useCallback((animId: string) => {
               <p className="text-[10px] text-zinc-700">Upload images to start</p>
             </div>
           )}
-          <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
+        <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
           {!greenScreen && (
             <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%)' }} />
           )}
         </div>
-      );
-    };
-
-    // ── Dashboard View ──
+      </div>
+      </>
+    );
+  };
+ 
+  // ── Dashboard View ──
+  if (showDashboard) {
     return (
       <ProjectDashboard
         username={username}
