@@ -913,6 +913,7 @@ export default function HorrorStudio() {
   const [activeTransition, setActiveTransition] = useState('none');
   const [transitionDuration, setTransitionDuration] = useState(600);
   const [slideshowDuration, setSlideshowDuration] = useState(2500);
+  const [transitionTick, setTransitionTick] = useState(0);
   const transitionStateRef = useRef<TransitionState>(makeTransitionState());
   const fromCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const toCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -1079,10 +1080,11 @@ export default function HorrorStudio() {
               fromImageId: imagesRef.current[i]?.id ?? null,
               toImageId: imagesRef.current[nextIdx]?.id ?? null,
             };
-            // Show preview canvas immediately
+           // Trigger preview RAF loop via state change
             if (previewCanvasRef.current) {
               previewCanvasRef.current.style.display = 'block';
             }
+            setTransitionTick(t => t + 1);
           }
           return nextIdx;
         });
@@ -1091,20 +1093,21 @@ export default function HorrorStudio() {
     return () => { if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current); };
   }, [animMode, images.length, activeTransition, transitionDuration, slideshowDuration]);
 
-  // ── Live preview transition loop ──
+  // ── Live preview transition loop — triggered by transitionTick state ──
   useEffect(() => {
+    if (transitionTick === 0) return;
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
-    const tState = transitionStateRef.current;
-    if (!tState.active || tState.id === 'none') {
-      canvas.style.display = 'none';
-      return;
-    }
-    canvas.style.display = 'block';
-    const W = canvas.offsetWidth || canvas.width;
-    const H = canvas.offsetHeight || canvas.height;
+ 
+    cancelAnimationFrame(previewRafRef.current);
+ 
+    const parent = canvas.parentElement;
+    const W = parent ? parent.offsetWidth : 300;
+    const H = parent ? parent.offsetHeight : 500;
     canvas.width = W;
     canvas.height = H;
+    canvas.style.display = 'block';
+ 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
  
@@ -1112,11 +1115,12 @@ export default function HorrorStudio() {
       const now = performance.now();
       transitionStateRef.current = tickTransition(transitionStateRef.current, now);
       const ts = transitionStateRef.current;
-      if (!ts.active) {
+ 
+      if (!ts.active || ts.id === 'none') {
         canvas.style.display = 'none';
         return;
       }
-      // Build from/to mini canvases from imageElementCache
+ 
       const allImgs = imagesRef.current;
       const fromImg = ts.fromImageId ? allImgs.find(i => i.id === ts.fromImageId) : null;
       const toImg = ts.toImageId ? allImgs.find(i => i.id === ts.toImageId) : null;
@@ -1154,9 +1158,8 @@ export default function HorrorStudio() {
     previewRafRef.current = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(previewRafRef.current);
-      if (canvas) canvas.style.display = 'none';
     };
-  }, [transitionStateRef.current.active]);
+  }, [transitionTick]);
  
   useEffect(() => {
     if (randomIntervalRef.current) clearInterval(randomIntervalRef.current);
