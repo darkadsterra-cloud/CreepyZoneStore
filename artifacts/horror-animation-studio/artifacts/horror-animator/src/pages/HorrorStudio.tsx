@@ -1070,7 +1070,7 @@ export default function HorrorStudio() {
           const nextIdx = (i + 1) % imagesRef.current.length;
           if (activeTransition !== 'none' && transitionDuration > 0) {
             prevSlideshowIdxRef.current = i;
-            transitionStateRef.current = {
+           transitionStateRef.current = {
               active: true,
               id: activeTransition,
               progress: 0,
@@ -1078,6 +1078,11 @@ export default function HorrorStudio() {
               startTime: performance.now(),
               fromImageId: imagesRef.current[i]?.id ?? null,
               toImageId: imagesRef.current[nextIdx]?.id ?? null,
+            };
+            // Show preview canvas immediately
+            if (previewCanvasRef.current) {
+              previewCanvasRef.current.style.display = 'block';
+            }
             };
           }
           return nextIdx;
@@ -1669,8 +1674,15 @@ const toggleAnimation = useCallback((animId: string) => {
             </div>
           )}
         <ParticleOverlay effects={activeParticles} width={ratio.width} height={ratio.height} />
+          {/* Live transition canvas overlay */}
+          <canvas
+            ref={previewCanvasRef}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ display: 'none', zIndex: 20 }}
+          />
           {!greenScreen && (
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%)' }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 15, background: 'radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%)' }} />
+          )}
           )}
         </div>
       </div>
