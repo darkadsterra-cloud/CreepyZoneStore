@@ -932,6 +932,8 @@ export default function HorrorStudio() {
   const rafHandleRef = useRef<number>(0);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const animStartTimesRef = useRef<Record<string, number>>({});
+  const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const previewRafRef = useRef<number>(0);
 
   // ── Refs that always hold latest state (avoid stale closures) ──
   const imagesRef = useRef<UploadedImage[]>([]);
@@ -1085,6 +1087,73 @@ export default function HorrorStudio() {
     return () => { if (slideshowIntervalRef.current) clearInterval(slideshowIntervalRef.current); };
   }, [animMode, images.length, activeTransition, transitionDuration, slideshowDuration]);
 
+  // ── Live preview transition loop ──
+  useEffect(() => {
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    const tState = transitionStateRef.current;
+    if (!tState.active || tState.id === 'none') {
+      canvas.style.display = 'none';
+      return;
+    }
+    canvas.style.display = 'block';
+    const W = canvas.offsetWidth || canvas.width;
+    const H = canvas.offsetHeight || canvas.height;
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+ 
+    const loop = () => {
+      const now = performance.now();
+      transitionStateRef.current = tickTransition(transitionStateRef.current, now);
+      const ts = transitionStateRef.current;
+      if (!ts.active) {
+        canvas.style.display = 'none';
+        return;
+      }
+      // Build from/to mini canvases from imageElementCache
+      const allImgs = imagesRef.current;
+      const fromImg = ts.fromImageId ? allImgs.find(i => i.id === ts.fromImageId) : null;
+      const toImg = ts.toImageId ? allImgs.find(i => i.id === ts.toImageId) : null;
+ 
+      const makeThumb = (imgData: typeof fromImg): HTMLCanvasElement => {
+        const tc = document.createElement('canvas');
+        tc.width = W; tc.height = H;
+        const tctx = tc.getContext('2d')!;
+        tctx.fillStyle = greenScreenRef.current ? '#00ff00' : '#0a0a0a';
+        tctx.fillRect(0, 0, W, H);
+        if (!imgData) return tc;
+        const el = imageElementCache[imgData.id];
+        if (!el || !el.complete || el.naturalWidth === 0) return tc;
+        const maxW = W * 0.9; const maxH = H * 0.9;
+        const sc = Math.min(maxW / el.naturalWidth, maxH / el.naturalHeight) * (imgData.scale ?? 1);
+        const dw = el.naturalWidth * sc; const dh = el.naturalHeight * sc;
+        const cx = (imgData.position.x / 100) * W;
+        const cy = (imgData.position.y / 100) * H;
+        tctx.save();
+        tctx.globalAlpha = imgData.opacity ?? 1;
+        tctx.translate(cx, cy);
+        tctx.rotate(((imgData.rotation ?? 0) * Math.PI) / 180);
+        tctx.drawImage(el, -dw / 2, -dh / 2, dw, dh);
+        tctx.restore();
+        return tc;
+      };
+ 
+      const fc = makeThumb(fromImg);
+      const tc2 = makeThumb(toImg);
+      ctx.clearRect(0, 0, W, H);
+      drawTransition(ctx, fc, tc2, ts.id, ts.progress, W, H);
+      previewRafRef.current = requestAnimationFrame(loop);
+    };
+ 
+    previewRafRef.current = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(previewRafRef.current);
+      if (canvas) canvas.style.display = 'none';
+    };
+  }, [transitionStateRef.current.active]);
+ 
   useEffect(() => {
     if (randomIntervalRef.current) clearInterval(randomIntervalRef.current);
     if (animMode === 'random-appear' && images.length > 0) {
