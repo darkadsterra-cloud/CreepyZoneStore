@@ -21,6 +21,7 @@ import OrderDetail from "@/pages/order-detail";
 import AdminDashboard from "@/pages/admin/index";
 import AdminProducts from "@/pages/admin/products";
 import NotFound from "@/pages/not-found";
+import GameForgePage from "@/pages/gameforge";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,14 +29,12 @@ const queryClient = new QueryClient({
   },
 });
 
-// Global auth modal context
 interface AuthModalContextType {
   openAuthModal: (tab?: "login" | "register") => void;
 }
 export const AuthModalContext = createContext<AuthModalContextType>({ openAuthModal: () => {} });
 export const useAuthModal = () => useContext(AuthModalContext);
 
-// HorrorStudio wrapper page — embeds the studio via iframe
 function HorrorStudioPage() {
   return (
     <div className="fixed inset-0 z-50 bg-zinc-950">
@@ -64,6 +63,7 @@ function Router() {
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/products" component={AdminProducts} />
       <Route path="/tools/horror-animation-studio" component={HorrorStudioPage} />
+      <Route path="/tools/gameforge" component={GameForgePage} />
       <Route component={NotFound} />
     </Switch>
   );
